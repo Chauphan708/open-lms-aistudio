@@ -346,7 +346,7 @@ export const ExamCreate: React.FC = () => {
 
                     <div className="space-y-4 flex-1 overflow-y-auto pr-1">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề / Nội dung kiến thức</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề / Kiến thức trọng tâm</label>
                             <input 
                                 value={aiTopic} onChange={e => setAiTopic(e.target.value)}
                                 placeholder="VD: Phép cộng trong phạm vi 100..."
