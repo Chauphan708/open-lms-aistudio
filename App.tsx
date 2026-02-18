@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ExamCreate } from './pages/ExamCreate';
@@ -95,7 +96,7 @@ function App() {
   const { user } = useStore();
 
   return (
-    <MemoryRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
         
@@ -203,7 +204,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </MemoryRouter>
+    </BrowserRouter>
   );
 }
 

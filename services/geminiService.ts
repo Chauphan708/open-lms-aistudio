@@ -2,11 +2,8 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Question, Attempt } from '../types';
 
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please check your environment variables.");
-  }
-  return new GoogleGenAI({ apiKey });
+  // According to guidelines, API key must be from process.env.API_KEY
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 const QUESTION_SCHEMA: Schema = {
@@ -34,7 +31,7 @@ const QUESTION_SCHEMA: Schema = {
  */
 export const parseQuestionsFromText = async (rawText: string): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-3-flash-preview"; 
 
   const prompt = `
     You are an AI exam parser for an LMS system. 
@@ -96,8 +93,7 @@ export const generateQuestionsByTopic = async (
   customPrompt: string
 ): Promise<Question[]> => {
   const ai = getAiClient();
-  // Using gemini-3-pro-preview for better reasoning capabilities on complex task generation
-  const modelId = "gemini-3-pro-preview"; 
+  const modelId = "gemini-3-flash-preview"; 
 
   // Mapping readable type to system type string for prompt clarity
   const typeDescription = {
@@ -233,7 +229,7 @@ export const analyzeClassPerformance = async (
   customInstructions?: string
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-pro-preview";
+  const modelId = "gemini-3-flash-preview";
 
   if (attempts.length === 0) return "Chưa có dữ liệu bài làm để phân tích.";
 

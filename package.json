@@ -1,7 +1,8 @@
+
 {
-  "name": "openlms---azota-clone",
+  "name": "open-lms",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,20 +10,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "lucide-react": "^0.570.0",
-    "react-dom": "^19.2.4",
-    "@google/genai": "^1.41.0",
-    "react-router-dom": "^7.13.0",
-    "zustand": "^5.0.11",
+    "@google/genai": "^0.1.1",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.22.3",
+    "rehype-katex": "^7.0.0",
     "remark-math": "^6.0.0",
-    "rehype-katex": "^7.0.0"
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.2",
+    "vite": "^5.1.6"
   }
 }
