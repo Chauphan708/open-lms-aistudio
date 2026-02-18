@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { 
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
-  const { user, updateUser } = useStore();
+  const { user, updateUser, changePassword } = useStore();
   
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'SYSTEM' | 'TEACHING'>('PROFILE');
   const [loading, setLoading] = useState(false);
@@ -38,21 +39,31 @@ export const Settings: React.FC = () => {
   const [schoolName, setSchoolName] = useState('Trường Tiểu Học OpenLMS');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!user) return;
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      updateUser({
-        ...user,
-        name,
-        email,
-        avatar
-      });
-      setLoading(false);
-      alert('Đã cập nhật hồ sơ thành công!');
-    }, 800);
+    // Update basic info
+    await updateUser({
+      ...user,
+      name,
+      email,
+      avatar
+    });
+
+    // Update password if changed
+    if (password.trim()) {
+        const success = await changePassword(user.id, password);
+        if (success) {
+            setPassword('');
+            alert('Đã cập nhật hồ sơ và mật khẩu thành công!');
+        } else {
+            alert('Cập nhật hồ sơ thành công, nhưng lỗi khi đổi mật khẩu.');
+        }
+    } else {
+        alert('Đã cập nhật hồ sơ thành công!');
+    }
+    setLoading(false);
   };
 
   const handleSaveSystem = () => {
@@ -140,7 +151,7 @@ export const Settings: React.FC = () => {
                     className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
                   <label className="block text-sm font-bold text-gray-700 mb-1">Đổi mật khẩu</label>
                   <input 
                     type="password"
@@ -148,6 +159,7 @@ export const Settings: React.FC = () => {
                     value={password} onChange={e => setPassword(e.target.value)}
                     className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Để trống nếu bạn không muốn thay đổi mật khẩu.</p>
                 </div>
               </div>
 

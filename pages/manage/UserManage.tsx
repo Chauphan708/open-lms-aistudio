@@ -1,7 +1,8 @@
+
 import React, { useState, useRef } from 'react';
 import { useStore } from '../../store';
 import { User, UserRole } from '../../types';
-import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2 } from 'lucide-react';
+import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key } from 'lucide-react';
 
 interface Props {
   targetRole: UserRole; // 'TEACHER' or 'STUDENT'
@@ -11,10 +12,14 @@ interface Props {
 type ImportMode = 'SINGLE' | 'BULK';
 
 export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
-  const { users, addUser } = useStore();
+  const { users, addUser, changePassword } = useStore();
   const [mode, setMode] = useState<ImportMode>('SINGLE');
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Password Reset State
+  const [resetUser, setResetUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   // Single Form State
   const [name, setName] = useState('');
@@ -38,7 +43,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
       name,
       email,
       role: targetRole,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+      password: '123' // Default password
     };
     addUser(newUser);
     setIsCreating(false);
@@ -84,7 +90,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
           name: uName || 'Unknown',
           email: uEmail,
           role: targetRole,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=random`
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=random`,
+          password: '123'
        };
     });
 
@@ -95,7 +102,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
       previewUsers.forEach(u => addUser(u));
       setIsCreating(false);
       resetForms();
-      alert(`Đã thêm thành công ${previewUsers.length} tài khoản!`);
+      alert(`Đã thêm thành công ${previewUsers.length} tài khoản! Mật khẩu mặc định là 123.`);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,11 +114,21 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
           const text = event.target?.result;
           if (typeof text === 'string') {
               setBulkText(text);
-              // Auto trigger parse logic slightly after state update would require useEffect, 
-              // but user can just click "Phân tích" to be safe.
           }
       };
       reader.readAsText(file);
+  };
+
+  const handleResetPassword = async () => {
+      if (!resetUser || !newPassword) return;
+      const success = await changePassword(resetUser.id, newPassword);
+      if (success) {
+          alert(`Đã đổi mật khẩu cho ${resetUser.name} thành công.`);
+          setResetUser(null);
+          setNewPassword('');
+      } else {
+          alert("Lỗi khi đổi mật khẩu.");
+      }
   };
 
   const resetForms = () => {
@@ -277,6 +294,30 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
          </div>
       )}
 
+      {/* Reset Password Modal */}
+      {resetUser && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+             <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 animate-fade-in">
+                 <h3 className="text-lg font-bold text-gray-900 mb-2">Đổi mật khẩu</h3>
+                 <p className="text-sm text-gray-500 mb-4">Cập nhật mật khẩu mới cho tài khoản: <b>{resetUser.name}</b></p>
+                 
+                 <label className="block text-sm font-bold text-gray-700 mb-1">Mật khẩu mới</label>
+                 <input 
+                     type="text" 
+                     className="w-full border border-gray-300 rounded-lg p-2 mb-4 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                     value={newPassword}
+                     onChange={e => setNewPassword(e.target.value)}
+                     placeholder="Nhập mật khẩu..."
+                 />
+                 
+                 <div className="flex justify-end gap-2">
+                     <button onClick={() => setResetUser(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Hủy</button>
+                     <button onClick={handleResetPassword} disabled={!newPassword} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50">Lưu</button>
+                 </div>
+             </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div className="p-4 border-b">
           <div className="relative">
@@ -296,12 +337,13 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
               <th className="px-6 py-3">Email</th>
               <th className="px-6 py-3">Vai trò</th>
               <th className="px-6 py-3">ID</th>
+              <th className="px-6 py-3 text-center">Tác vụ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {filteredUsers.length === 0 && (
                 <tr>
-                    <td colSpan={4} className="text-center py-8 text-gray-400">Không tìm thấy kết quả nào.</td>
+                    <td colSpan={5} className="text-center py-8 text-gray-400">Không tìm thấy kết quả nào.</td>
                 </tr>
             )}
             {filteredUsers.map(u => (
@@ -320,6 +362,15 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                    </span>
                 </td>
                 <td className="px-6 py-4 text-xs font-mono text-gray-400">{u.id}</td>
+                <td className="px-6 py-4 text-center">
+                    <button 
+                        onClick={() => { setResetUser(u); setNewPassword(''); }}
+                        className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
+                        title="Đổi mật khẩu"
+                    >
+                        <Key className="h-4 w-4" />
+                    </button>
+                </td>
               </tr>
             ))}
           </tbody>

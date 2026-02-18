@@ -1,12 +1,13 @@
+
 import { create } from 'zustand';
 import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification } from './types';
 import { supabase } from './services/supabaseClient';
 
 // Fallback Mock Data in case Supabase is empty (for seeding first time)
 const SEED_USERS: User[] = [
-    { id: 'admin1', name: 'System Admin', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff' },
-    { id: 't1', name: 'Nguyen Van Teacher', email: 'teacher@openlms.edu', role: 'TEACHER', avatar: 'https://ui-avatars.com/api/?name=Teacher+Nguyen&background=random', savedPrompts: ["Phân tích lỗi sai ngữ pháp"] },
-    { id: 's1', name: 'Tran Van Student', email: 'student@openlms.edu', role: 'STUDENT', avatar: 'https://ui-avatars.com/api/?name=Student+Tran&background=random' },
+    { id: 'admin1', name: 'System Admin', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', password: '123' },
+    { id: 't1', name: 'Nguyen Van Teacher', email: 'teacher@openlms.edu', role: 'TEACHER', avatar: 'https://ui-avatars.com/api/?name=Teacher+Nguyen&background=random', savedPrompts: ["Phân tích lỗi sai ngữ pháp"], password: '123' },
+    { id: 's1', name: 'Tran Van Student', email: 'student@openlms.edu', role: 'STUDENT', avatar: 'https://ui-avatars.com/api/?name=Student+Tran&background=random', password: '123' },
 ];
 
 export const useStore = create<AppState & { endDiscussionSession: (pin: string) => void }>((set, get) => ({
@@ -75,6 +76,18 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
             user: state.user?.id === updatedUser.id ? updatedUser : state.user
         }));
     }
+  },
+  changePassword: async (userId, newPass) => {
+      const { error } = await supabase.from('profiles').update({ password: newPass }).eq('id', userId);
+      if (error) {
+          console.error("Change pass error", error);
+          return false;
+      }
+      set(state => ({
+          users: state.users.map(u => u.id === userId ? { ...u, password: newPass } : u),
+          user: state.user?.id === userId ? { ...state.user, password: newPass } : state.user
+      }));
+      return true;
   },
   saveUserPrompt: async (prompt) => {
     const state = get();
