@@ -5,9 +5,14 @@ import { supabase } from './services/supabaseClient';
 
 // Fallback Mock Data in case Supabase is empty (for seeding first time)
 const SEED_USERS: User[] = [
-    { id: 'admin1', name: 'System Admin', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', password: '123' },
-    { id: 't1', name: 'Nguyen Van Teacher', email: 'teacher@openlms.edu', role: 'TEACHER', avatar: 'https://ui-avatars.com/api/?name=Teacher+Nguyen&background=random', savedPrompts: ["Phân tích lỗi sai ngữ pháp"], password: '123' },
-    { id: 's1', name: 'Tran Van Student', email: 'student@openlms.edu', role: 'STUDENT', avatar: 'https://ui-avatars.com/api/?name=Student+Tran&background=random', password: '123' },
+    { 
+      id: 'admin1', 
+      name: 'Quản Trị Viên', 
+      email: 'admin@school.edu', 
+      role: 'ADMIN', 
+      avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', 
+      password: '12345678' 
+    }
 ];
 
 export const useStore = create<AppState & { endDiscussionSession: (pin: string) => void }>((set, get) => ({

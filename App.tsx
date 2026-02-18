@@ -34,22 +34,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleQuickLogin = (role: UserRole) => {
-    const dbUser = users.find(u => u.role === role);
-    if (dbUser) {
-      setUser(dbUser);
-    } else {
-      setUser({
-        id: role.toLowerCase() + '_demo',
-        name: `Demo ${role}`,
-        email: `${role.toLowerCase()}@demo.com`,
-        role: role,
-        avatar: `https://ui-avatars.com/api/?name=${role}&background=random`,
-        password: '123'
-      });
-    }
-  };
-
   const handleRealLogin = (e: React.FormEvent) => {
       e.preventDefault();
       const user = users.find(u => u.email === email && (u.password === password || (!u.password && password === '123456')));
@@ -80,7 +64,7 @@ const Login = () => {
                    <input 
                       type="email" 
                       className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                      placeholder="nhap@email.com"
+                      placeholder="admin@school.edu"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                    />
@@ -93,7 +77,7 @@ const Login = () => {
                    <input 
                       type={showPassword ? "text" : "password"}
                       className="w-full border border-gray-300 rounded-lg pl-10 pr-10 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                      placeholder="••••••"
+                      placeholder="••••••••"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                    />
@@ -102,7 +86,7 @@ const Login = () => {
                    </button>
                </div>
                <div className="text-right mt-1">
-                 <span className="text-xs text-gray-400">Mặc định: 123456</span>
+                 <span className="text-xs text-gray-400">Admin mặc định: 12345678</span>
                </div>
             </div>
             
@@ -113,33 +97,8 @@ const Login = () => {
             </button>
         </form>
 
-        <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-            <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Hoặc dùng tài khoản Demo</span></div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <button 
-            onClick={() => handleQuickLogin('ADMIN')}
-            className="bg-gray-800 text-white p-2 rounded-lg text-xs font-medium hover:bg-gray-900 transition-colors"
-          >
-            Admin
-          </button>
-          <button 
-            onClick={() => handleQuickLogin('TEACHER')}
-            className="bg-blue-600 text-white p-2 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
-          >
-            Giáo viên
-          </button>
-          <button 
-            onClick={() => handleQuickLogin('STUDENT')}
-            className="bg-green-600 text-white p-2 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
-          >
-            Học sinh
-          </button>
-        </div>
         <p className="mt-6 text-xs text-gray-400">
-          *Dữ liệu sẽ được lưu trên Supabase Cloud
+          *Hệ thống mã nguồn mở
         </p>
       </div>
     </div>

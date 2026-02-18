@@ -58,7 +58,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
       email: email.trim(),
       role: targetRole,
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-      password: '123', // Default password
+      password: '123456', // Default password
       className: targetRole === 'STUDENT' ? className : undefined
     };
     addUser(newUser);
@@ -161,7 +161,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
           email: uEmail,
           role: targetRole,
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=random`,
-          password: '123',
+          password: '123456',
           className: targetRole === 'STUDENT' ? uClass : undefined
        });
     });
@@ -354,7 +354,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                                    <p className="text-xs text-gray-500">{u.email}</p>
                                                </div>
                                                <div className="flex items-center gap-2">
-                                                   {u.className && <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{u.className}</span>}
+                                                   {u.className && <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold font-mono">{u.className}</span>}
                                                    <CheckCircle className="h-4 w-4 text-green-500" />
                                                </div>
                                            </div>
