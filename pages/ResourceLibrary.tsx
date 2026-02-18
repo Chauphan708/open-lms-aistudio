@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { WebResource } from '../types';
-import { Globe, Plus, Trash2, ExternalLink, Layout, X, PlayCircle, AlertTriangle } from 'lucide-react';
+import { Globe, Plus, Trash2, ExternalLink, Layout, X, PlayCircle, AlertTriangle, Loader2 } from 'lucide-react';
 
 export const ResourceLibrary: React.FC = () => {
   const { resources, addResource, deleteResource, user } = useStore();
   const [isAdding, setIsAdding] = useState(false);
   const [viewingResource, setViewingResource] = useState<WebResource | null>(null);
+  const [isSaving, setIsSaving] = useState(false); // Loading state for save
 
   // Form State
   const [title, setTitle] = useState('');
@@ -15,27 +16,35 @@ export const ResourceLibrary: React.FC = () => {
   const [type, setType] = useState<'LINK' | 'EMBED'>('LINK');
   const [description, setDescription] = useState('');
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!title || !url) return;
+    setIsSaving(true);
     
     // Simple URL validation
-    let validUrl = url;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        validUrl = `https://${url}`;
+    let validUrl = url.trim();
+    if (!validUrl.startsWith('http://') && !validUrl.startsWith('https://')) {
+        validUrl = `https://${validUrl}`;
     }
 
     const newRes: WebResource = {
         id: `res_${Date.now()}`,
-        title,
+        title: title.trim(),
         url: validUrl,
         type,
-        description,
+        description: description.trim(),
         addedBy: user?.id || 'unknown',
         createdAt: new Date().toISOString()
     };
-    addResource(newRes);
-    setIsAdding(false);
-    resetForm();
+
+    const success = await addResource(newRes);
+    setIsSaving(false);
+
+    if (success) {
+        setIsAdding(false);
+        resetForm();
+    } else {
+        alert("Lỗi khi lưu tài liệu. Vui lòng đảm bảo bảng 'resources' đã được tạo trong Database.");
+    }
   };
 
   const resetForm = () => {
@@ -45,9 +54,12 @@ export const ResourceLibrary: React.FC = () => {
       setDescription('');
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
       if (confirm('Bạn có chắc chắn muốn xóa tài liệu này?')) {
-          deleteResource(id);
+          const success = await deleteResource(id);
+          if (!success) {
+              alert("Lỗi khi xóa tài liệu.");
+          }
       }
   };
 
@@ -112,7 +124,14 @@ export const ResourceLibrary: React.FC = () => {
 
                   <div className="mt-6 flex justify-end gap-2">
                       <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Hủy</button>
-                      <button onClick={handleAdd} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 shadow-sm">Lưu lại</button>
+                      <button 
+                        onClick={handleAdd} 
+                        disabled={isSaving || !title || !url}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 shadow-sm flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Lưu lại
+                      </button>
                   </div>
               </div>
           </div>

@@ -7,45 +7,42 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
-  password?: string; // For mock login
-  savedPrompts?: string[]; // NEW: Saved AI prompts for teachers
-  className?: string; // NEW: Lớp quản lý (VD: 5A, 9B)
-}
-
-export interface Semester {
-  id: string;
-  name: string; // "Học kì 1", "Học kì 2"
-  startDate: string;
-  endDate: string;
+  password?: string;
+  className?: string; // For students
+  savedPrompts?: string[]; // For teachers/admins
 }
 
 export interface AcademicYear {
   id: string;
-  name: string; // "2023-2024"
-  semesters: Semester[];
+  name: string;
   isActive: boolean;
+  semesters: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+  }[];
 }
 
 export interface Class {
   id: string;
-  name: string; // "5A"
-  teacherId: string;
+  name: string;
   academicYearId: string;
+  teacherId: string;
   studentIds: string[];
 }
 
-// Updated to support advanced question types
-export type QuestionType = 'MCQ' | 'ESSAY' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
+export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
 
 export interface Question {
   id: string;
   type: QuestionType;
-  content: string; // HTML or Markdown
-  imageUrl?: string; // NEW: Link ảnh minh họa cho câu hỏi
-  options: string[]; // For MCQ: ["A...", "B..."]; For Matching: ["Item 1 - Pair A", "Item 2 - Pair B"]
+  content: string;
+  imageUrl?: string;
+  options: string[];
   correctOptionIndex?: number; // For MCQ
-  solution?: string; // Lời giải chi tiết (có đáp án)
-  hint?: string; // NEW: Gợi ý/Hướng dẫn phương pháp (KHÔNG có đáp án)
+  solution?: string;
+  hint?: string;
 }
 
 export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
@@ -53,24 +50,23 @@ export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
 export interface Exam {
   id: string;
   title: string;
-  subject: string; // New: Môn học (Toán, Tiếng Việt...)
-  grade: string;   // New: Khối lớp (1, 2, 3, 4, 5)
-  difficulty?: ExamDifficulty; // New: Mức độ (TT27)
-  description?: string;
+  subject: string;
+  grade: string;
+  difficulty: ExamDifficulty;
   durationMinutes: number;
   questionCount: number;
   createdAt: string;
-  questions: Question[];
   status: 'DRAFT' | 'PUBLISHED';
-  classId?: string; // Optional: for exams created specifically inside a class context
+  classId?: string; // If assigned to a specific class directly (or null for bank)
+  questions: Question[];
 }
 
 export interface AssignmentSettings {
-  viewScore: boolean;      // Xem điểm
-  viewPassFail: boolean;   // Xem đúng/sai
-  viewSolution: boolean;   // Xem lời giải chi tiết
-  viewHint: boolean;       // NEW: Xem gợi ý làm bài
-  maxAttempts: number;     // Số lần làm bài tối đa (0 = không giới hạn)
+  viewScore: boolean;
+  viewPassFail: boolean;
+  viewSolution: boolean;
+  viewHint: boolean;
+  maxAttempts: number;
 }
 
 export interface Assignment {
@@ -79,69 +75,61 @@ export interface Assignment {
   classId: string;
   teacherId: string;
   createdAt: string;
-  
-  // Timing
-  startTime?: string; // ISO Date
-  endTime?: string;   // ISO Date
-  durationMinutes?: number; // Override exam duration if set
-
-  // Permissions
+  startTime?: string;
+  endTime?: string;
+  durationMinutes: number;
   settings: AssignmentSettings;
 }
 
 export interface Attempt {
   id: string;
   examId: string;
-  assignmentId?: string; // Link to specific assignment
+  assignmentId?: string;
   studentId: string;
-  answers: Record<string, number | string>; // questionId -> selectedIndex or text
-  score?: number;
+  answers: Record<string, number>;
+  score: number | null;
   submittedAt: string;
-  teacherFeedback?: string; // NEW: Feedback from teacher (edited from AI)
-  feedbackAllowViewSolution?: boolean; // NEW: Teacher overrides solution visibility when sending feedback
+  teacherFeedback?: string;
+  feedbackAllowViewSolution?: boolean;
 }
 
-// --- NEW: Notification System ---
 export interface Notification {
   id: string;
-  userId: string; // Target user ID
-  type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+  userId: string;
   title: string;
   message: string;
   isRead: boolean;
   createdAt: string;
-  link?: string; // Optional link to navigate to
+  link?: string;
 }
 
-// --- NEW: Web Resources (Embed/Link) ---
+export type WebResourceType = 'LINK' | 'EMBED';
+
 export interface WebResource {
   id: string;
   title: string;
   url: string;
-  type: 'LINK' | 'EMBED'; // LINK = Open new tab, EMBED = Iframe
+  type: WebResourceType;
   description?: string;
-  addedBy: string; // User ID
+  addedBy: string;
   createdAt: string;
 }
 
-// --- Live Exam Types ---
 export type LiveSessionStatus = 'WAITING' | 'RUNNING' | 'FINISHED';
 
 export interface LiveParticipant {
   studentId: string;
   name: string;
-  status: 'JOINED' | 'DOING' | 'SUBMITTED';
   progress: {
     answeredCount: number;
     correctCount: number;
     wrongCount: number;
     score: number;
   };
-  joinedAt: string;
 }
 
 export interface LiveSession {
-  id: string; // The PIN code (e.g., "123456")
+  id: string;
   examId: string;
   teacherId: string;
   status: LiveSessionStatus;
@@ -149,32 +137,26 @@ export interface LiveSession {
   createdAt: string;
 }
 
-// --- Discussion Room Types ---
+// Discussion Types
 
-export type MessageVisibility = 'FULL' | 'HIDDEN_ALL' | 'NAME_ONLY' | 'CONTENT_ONLY';
-
-export interface DiscussionRound {
-  id: string;
-  name: string;
-  createdAt: string;
-}
+export type ChatMessageType = 'TEXT' | 'STICKER' | 'IMAGE' | 'SYSTEM';
 
 export interface ChatMessage {
   id: string;
   senderId: string;
   senderName: string;
-  content: string; // Text or Sticker code
-  type: 'TEXT' | 'IMAGE' | 'STICKER' | 'SYSTEM';
+  content: string;
+  type: ChatMessageType;
   timestamp: string;
   roomId: string; // 'MAIN' or breakout room ID
-  roundId: string; // Associated round
+  roundId: string;
 }
 
 export interface PollOption {
   id: string;
   text: string;
   voteCount: number;
-  voterIds: string[]; // for tracking who voted what (unless anonymous)
+  voterIds: string[];
 }
 
 export interface Poll {
@@ -191,33 +173,37 @@ export interface BreakoutRoom {
   name: string;
 }
 
+export interface DiscussionRound {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface DiscussionParticipant {
   studentId: string;
   name: string;
   isHandRaised: boolean;
-  currentRoomId: string; // 'MAIN' or breakout ID
-  joinedAt: string;
+  currentRoomId: string; // 'MAIN' or breakout room ID
 }
 
+export type MessageVisibility = 'FULL' | 'HIDDEN_ALL' | 'NAME_ONLY' | 'CONTENT_ONLY';
+export type DiscussionStatus = 'ACTIVE' | 'FINISHED';
+
 export interface DiscussionSession {
-  id: string; // PIN
+  id: string;
   title: string;
   teacherId: string;
-  status: 'WAITING' | 'ACTIVE' | 'FINISHED';
+  status: DiscussionStatus;
   participants: DiscussionParticipant[];
   messages: ChatMessage[];
   polls: Poll[];
   breakoutRooms: BreakoutRoom[];
-  
-  // New features
+  createdAt: string;
   rounds: DiscussionRound[];
   activeRoundId: string;
   visibility: MessageVisibility;
-  
-  createdAt: string;
 }
 
-// --- External API Types (Dictionary) ---
 export interface DictionaryEntry {
   word: string;
   phonetic?: string;
@@ -231,20 +217,18 @@ export interface DictionaryEntry {
 }
 
 export interface AppState {
-  isDataLoading: boolean; // Global loading state
+  isDataLoading: boolean;
   fetchInitialData: () => Promise<void>;
 
-  // Session
   user: User | null;
   setUser: (user: User | null) => void;
-  
-  // Data
+
   users: User[];
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
-  deleteUser: (userId: string) => Promise<boolean>; // NEW: Delete user
-  saveUserPrompt: (prompt: string) => void; 
-  changePassword: (userId: string, newPass: string) => Promise<boolean>; 
+  deleteUser: (userId: string) => Promise<boolean>;
+  saveUserPrompt: (prompt: string) => void;
+  changePassword: (userId: string, newPass: string) => Promise<boolean>;
 
   academicYears: AcademicYear[];
   addAcademicYear: (year: AcademicYear) => void;
@@ -263,41 +247,35 @@ export interface AppState {
 
   attempts: Attempt[];
   addAttempt: (attempt: Attempt) => void;
-  updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void; 
+  updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void;
 
-  // Notifications
   notifications: Notification[];
   addNotification: (notif: Notification) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: (userId: string) => void;
 
-  // Resources (Web/Embed)
   resources: WebResource[];
-  addResource: (res: WebResource) => void;
-  deleteResource: (id: string) => void;
+  addResource: (res: WebResource) => Promise<boolean>;
+  deleteResource: (id: string) => Promise<boolean>;
 
-  // Live Sessions (Usually kept in realtime DB, but here local/memory for simplicity or simple DB polling)
   liveSessions: LiveSession[];
   createLiveSession: (session: LiveSession) => void;
-  updateLiveSessionStatus: (pin: string, status: LiveSessionStatus) => void;
-  joinLiveSession: (pin: string, student: User) => boolean;
-  updateLiveParticipantProgress: (pin: string, studentId: string, progress: LiveParticipant['progress']) => void;
+  joinLiveSession: (pin: string, user: User) => boolean;
+  updateLiveSessionStatus: (id: string, status: LiveSessionStatus) => void;
+  updateLiveParticipantProgress: (sessionId: string, studentId: string, progress: any) => void;
 
-  // Discussion Rooms
   discussionSessions: DiscussionSession[];
   createDiscussion: (session: DiscussionSession) => void;
-  joinDiscussion: (pin: string, student: User) => boolean;
-  sendDiscussionMessage: (pin: string, message: ChatMessage) => void;
-  toggleHandRaise: (pin: string, studentId: string) => void;
-  createPoll: (pin: string, poll: Poll) => void;
-  votePoll: (pin: string, pollId: string, optionId: string, studentId: string) => void;
-  togglePollStatus: (pin: string, pollId: string, isActive: boolean) => void;
-  createBreakoutRooms: (pin: string, rooms: BreakoutRoom[]) => void;
-  assignToRoom: (pin: string, studentId: string, roomId: string) => void;
-  
-  // New Actions
-  setDiscussionVisibility: (pin: string, visibility: MessageVisibility) => void;
-  createDiscussionRound: (pin: string, roundName: string) => void;
-  setActiveRound: (pin: string, roundId: string) => void;
-  endDiscussionSession: (pin: string) => void;
+  joinDiscussion: (pin: string, user: User) => boolean;
+  sendDiscussionMessage: (sessionId: string, message: ChatMessage) => void;
+  toggleHandRaise: (sessionId: string, userId: string) => void;
+  createPoll: (sessionId: string, poll: Poll) => void;
+  votePoll: (sessionId: string, pollId: string, optionId: string, userId: string) => void;
+  togglePollStatus: (sessionId: string, pollId: string, isActive: boolean) => void;
+  createBreakoutRooms: (sessionId: string, rooms: BreakoutRoom[]) => void;
+  assignToRoom: (sessionId: string, userId: string, roomId: string) => void;
+  createDiscussionRound: (sessionId: string, name: string) => void;
+  setActiveRound: (sessionId: string, roundId: string) => void;
+  setDiscussionVisibility: (sessionId: string, visibility: MessageVisibility) => void;
+  endDiscussionSession: (sessionId: string) => void;
 }
