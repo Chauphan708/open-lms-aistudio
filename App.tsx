@@ -16,6 +16,11 @@ import { DiscussionRoom } from './pages/teacher/DiscussionRoom';
 import { StudentDiscussionRoom } from './pages/student/DiscussionRoom';
 import { DiscussionJoin } from './pages/student/DiscussionJoin';
 import { DiscussionManager } from './pages/teacher/DiscussionManager';
+import { ExamResults } from './pages/teacher/ExamResults';
+// Student History
+import { StudentHistory } from './pages/student/StudentHistory';
+// Settings
+import { Settings } from './pages/Settings';
 
 import { useStore } from './store';
 import { UserRole } from './types';
@@ -174,6 +179,25 @@ function App() {
         <Route path="/exam/:id/take" element={
           <ProtectedRoute>
             <ExamTake />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/exam/:id/results" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <ExamResults />
+          </ProtectedRoute>
+        } />
+
+        {/* STUDENT ROUTES */}
+        <Route path="/student/history" element={
+           <ProtectedRoute roles={['STUDENT']}>
+             <StudentHistory />
+           </ProtectedRoute>
+        } />
+
+        <Route path="/settings" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <Settings />
           </ProtectedRoute>
         } />
 

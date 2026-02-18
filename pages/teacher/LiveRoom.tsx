@@ -213,7 +213,7 @@ export const LiveRoom: React.FC = () => {
                          <td className="px-6 py-4 text-center text-green-600 font-bold">{p.progress.correctCount}</td>
                          <td className="px-6 py-4 text-center text-red-500 font-bold">{p.progress.wrongCount}</td>
                          <td className="px-6 py-4 text-center text-gray-400">{exam.questionCount - p.progress.answeredCount}</td>
-                         <td className="px-6 py-4 text-right font-bold text-indigo-700">{p.progress.score.toFixed(1)}</td>
+                         <td className="px-6 py-4 text-right font-bold text-indigo-700">{p.progress.score.toFixed(1).replace('.', ',')}</td>
                        </tr>
                      );
                    })}

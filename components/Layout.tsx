@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -11,22 +11,37 @@ import {
   CalendarRange,
   Users,
   School,
-  MessageSquare
+  MessageSquare,
+  Settings,
+  Bell,
+  CheckCircle,
+  History
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole } from '../types';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, setUser } = useStore();
+  const { user, setUser, notifications, markNotificationRead, markAllNotificationsRead } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Filter notifications for current user
+  const myNotifications = notifications.filter(n => n.userId === user?.id);
+  const unreadCount = myNotifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
     setUser(null);
     navigate('/login');
+  };
+
+  const handleNotifClick = (notif: any) => {
+      markNotificationRead(notif.id);
+      setIsNotifOpen(false);
+      if (notif.link) navigate(notif.link);
   };
 
   interface NavItem {
@@ -50,11 +65,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
     { label: 'Tạo Đề Thi', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
     
+    // STUDENT ONLY
+    { label: 'Lịch sử làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
+
     // SHARED
     { label: 'Ngân hàng đề', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
     
-    // DISCUSSION (TEACHER)
+    // DISCUSSION
     { label: 'Phòng Thảo Luận', path: '/teacher/discussions', icon: MessageSquare, roles: ['TEACHER'] },
+    { label: 'Thảo luận & Vote', path: '/discussion/join', icon: MessageSquare, roles: ['STUDENT'] },
+
+    // SETTINGS
+    { label: 'Cài đặt', path: '/settings', icon: Settings, roles: ['ADMIN', 'TEACHER'] },
   ];
 
   return (
@@ -65,9 +87,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <GraduationCap className="h-6 w-6" />
           <span>OpenLMS</span>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-600">
-          {isMobileMenuOpen ? <X /> : <Menu />}
-        </button>
+        <div className="flex gap-4">
+             <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-gray-600">
+                 <Bell className="h-6 w-6" />
+                 {unreadCount > 0 && <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border border-white"></span>}
+             </button>
+             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-600">
+                {isMobileMenuOpen ? <X /> : <Menu />}
+             </button>
+        </div>
       </div>
 
       {/* Sidebar */}
@@ -129,7 +157,79 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-x-hidden relative">
+      <main className="flex-1 p-4 md:p-8 overflow-x-hidden relative flex flex-col">
+         {/* Top Bar for Desktop */}
+         <div className="hidden md:flex justify-end items-center mb-6 gap-4">
+             {/* Notifications */}
+             <div className="relative">
+                <button 
+                   onClick={() => setIsNotifOpen(!isNotifOpen)}
+                   className="relative p-2 rounded-full bg-white text-gray-600 hover:bg-gray-100 border shadow-sm transition-all"
+                >
+                   <Bell className="h-5 w-5" />
+                   {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white font-bold">
+                         {unreadCount}
+                      </span>
+                   )}
+                </button>
+
+                {isNotifOpen && (
+                   <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border z-50 animate-in fade-in zoom-in-95 origin-top-right">
+                      <div className="p-3 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                         <h3 className="font-bold text-sm text-gray-800">Thông báo</h3>
+                         {unreadCount > 0 && (
+                             <button onClick={() => user && markAllNotificationsRead(user.id)} className="text-xs text-indigo-600 hover:underline">
+                                Đánh dấu đã đọc
+                             </button>
+                         )}
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                         {myNotifications.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400 text-sm">
+                               <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                               Không có thông báo mới
+                            </div>
+                         ) : (
+                            <div className="divide-y">
+                               {myNotifications.map(n => (
+                                  <div 
+                                    key={n.id} 
+                                    onClick={() => handleNotifClick(n)}
+                                    className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-indigo-50/50' : ''}`}
+                                  >
+                                     <div className="flex gap-3">
+                                        <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${!n.isRead ? 'bg-indigo-600' : 'bg-transparent'}`}></div>
+                                        <div>
+                                           <p className={`text-sm ${!n.isRead ? 'font-bold text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
+                                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{n.message}</p>
+                                           <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleDateString('vi-VN')} {new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                                        </div>
+                                     </div>
+                                  </div>
+                               ))}
+                            </div>
+                         )}
+                      </div>
+                   </div>
+                )}
+             </div>
+         </div>
+
+         {/* Toasts Popup (Bottom Right) */}
+         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+            {myNotifications.filter(n => !n.isRead && new Date(n.createdAt).getTime() > Date.now() - 5000).map(n => (
+               <div key={n.id} className="bg-white p-4 rounded-xl shadow-2xl border-l-4 border-indigo-500 w-80 animate-in slide-in-from-right pointer-events-auto flex gap-3">
+                  <CheckCircle className="h-6 w-6 text-indigo-500 flex-shrink-0" />
+                  <div>
+                     <h4 className="font-bold text-gray-900 text-sm">{n.title}</h4>
+                     <p className="text-xs text-gray-600 mt-1">{n.message}</p>
+                     <button onClick={() => handleNotifClick(n)} className="text-xs text-indigo-600 font-bold mt-2 hover:underline">Xem ngay</button>
+                  </div>
+               </div>
+            ))}
+         </div>
+
         {children}
       </main>
 

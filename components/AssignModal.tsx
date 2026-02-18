@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, Eye, Repeat } from 'lucide-react';
+import { X, Calendar, Clock, Eye, Repeat, Lightbulb } from 'lucide-react';
 import { useStore } from '../store';
 import { Exam, Assignment } from '../types';
 
@@ -22,6 +22,7 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
   const [viewScore, setViewScore] = useState(true);
   const [viewPassFail, setViewPassFail] = useState(true);
   const [viewSolution, setViewSolution] = useState(true);
+  const [viewHint, setViewHint] = useState(true); // New Hint Setting
   const [maxAttempts, setMaxAttempts] = useState(1); // Default 1 attempt
 
   if (!isOpen) return null;
@@ -48,6 +49,7 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
         viewScore,
         viewPassFail,
         viewSolution,
+        viewHint,
         maxAttempts
       }
     };
@@ -159,6 +161,12 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" checked={viewPassFail} onChange={e => setViewPassFail(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                 <span className="text-sm text-gray-700 group-hover:text-gray-900">Hiển thị đúng/sai từng câu</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" checked={viewHint} onChange={e => setViewHint(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <span className="text-sm text-gray-700 group-hover:text-gray-900 flex items-center gap-1">
+                    <Lightbulb className="h-3 w-3 text-orange-500" /> Hiển thị gợi ý/hướng dẫn (không đáp án)
+                </span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" checked={viewSolution} onChange={e => setViewSolution(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Question, Attempt } from '../types';
 
@@ -16,15 +15,17 @@ const QUESTION_SCHEMA: Schema = {
     type: Type.OBJECT,
     properties: {
       content: { type: Type.STRING, description: "The main text of the question" },
+      imageUrl: { type: Type.STRING, description: "Optional URL for an image associated with the question (if provided in text)" },
       options: { 
         type: Type.ARRAY, 
         items: { type: Type.STRING },
         description: "List of answer choices or items to match/order." 
       },
       correctOptionIndex: { type: Type.INTEGER, description: "Index of correct option (0-3) for MCQ, or -1 if not applicable" },
-      solution: { type: Type.STRING, description: "Explanation text or correct answer key" }
+      solution: { type: Type.STRING, description: "Detailed step-by-step explanation including the final answer." },
+      hint: { type: Type.STRING, description: "A pedagogical hint explaining the method/formula to use WITHOUT giving the answer." }
     },
-    required: ["content", "options", "correctOptionIndex"],
+    required: ["content", "options", "correctOptionIndex", "solution", "hint"],
   }
 };
 
@@ -43,8 +44,10 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
     Rules:
     1. Identify the question stem.
     2. Identify options (A, B, C, D).
-    3. If a solution/explanation is present extract it.
+    3. Extract solution/explanation if present. If not, generate a brief one.
     4. Determine the correct answer index (0-3) IF explicitly marked. If unknown, set to -1.
+    5. MATH FORMATTING: If you encounter math, use LaTeX format enclosed in single dollar signs ($) for inline math. Example: $x^2 + 5$.
+    6. **HINT & SOLUTION**: Always try to extract or generate a 'hint' (method) and 'solution' (full steps).
     
     Raw Text:
     """
@@ -68,9 +71,11 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
       id: `gen_parse_${Date.now()}_${index}`,
       type: 'MCQ',
       content: item.content,
+      imageUrl: item.imageUrl,
       options: item.options,
       correctOptionIndex: item.correctOptionIndex === -1 ? undefined : item.correctOptionIndex,
-      solution: item.solution
+      solution: item.solution,
+      hint: item.hint
     }));
 
   } catch (error) {
@@ -125,7 +130,9 @@ export const generateQuestionsByTopic = async (
     3. 'correctOptionIndex': 
        - For MCQ: 0-3. 
        - For others: -1.
-    4. 'solution': Detailed explanation or the correct key/order.
+    4. **'hint' (REQUIRED)**: Provide a clear pedagogical hint. Explain the method, formula, or logic required to solve the problem WITHOUT revealing the final answer. E.g., "Áp dụng công thức tính diện tích S = a x b."
+    5. **'solution' (REQUIRED)**: Provide a detailed step-by-step calculation or explanation leading to the correct result.
+    6. **Math Formulas**: Always use LaTeX enclosed in SINGLE dollar signs ($...$) for inline math. Do NOT use block code. Example: "Tính diện tích hình tròn có $r=5cm$."
   `;
 
   try {
@@ -144,9 +151,11 @@ export const generateQuestionsByTopic = async (
       id: `gen_ai_${Date.now()}_${index}`,
       type: questionType as any, // Cast to strictly typed QuestionType
       content: item.content,
+      imageUrl: item.imageUrl,
       options: item.options || [],
       correctOptionIndex: item.correctOptionIndex === -1 ? undefined : item.correctOptionIndex,
-      solution: item.solution
+      solution: item.solution,
+      hint: item.hint
     }));
   } catch (error) {
     console.error("Gemini Gen Error:", error);
@@ -188,11 +197,18 @@ export const analyzeStudentAttempt = async (
     (and possibly others)
 
     Please provide a helpful, encouraging, and constructive feedback in VIETNAMESE (Markdown format).
+    
+    IMPORTANT FORMATTING RULES:
+    - Use **BOLD HEADERS** (e.g., ### **1. Nhận xét chung**).
+    - Use bullet points.
+    - If you write math formulas (e.g., numbers, variables, equations), ALWAYS enclose them in single dollar signs ($) for proper rendering. Example: "Kết quả phải là $3.5$".
+    - Do not use block code ticks (\`\`\`) for text, write standard Markdown.
+
     Structure:
-    1. **Nhận xét chung**: Brief summary of performance.
-    2. **Điểm mạnh**: What they likely know (based on score).
-    3. **Hạn chế & Lỗ hổng kiến thức**: Analyze the wrong answers to find patterns (e.g., calculation errors, misunderstanding concepts).
-    4. **Lời khuyên cải thiện**: Specific actions to take next.
+    1. ### **Nhận xét chung**: Brief summary of performance.
+    2. ### **Điểm mạnh**: What they likely know (based on score).
+    3. ### **Hạn chế & Lỗ hổng kiến thức**: Analyze the wrong answers to find patterns.
+    4. ### **Lời khuyên cải thiện**: Specific actions to take next.
   `;
 
   try {
@@ -213,7 +229,8 @@ export const analyzeStudentAttempt = async (
 export const analyzeClassPerformance = async (
   examTitle: string,
   questions: Question[],
-  attempts: Attempt[]
+  attempts: Attempt[],
+  customInstructions?: string
 ): Promise<string> => {
   const ai = getAiClient();
   const modelId = "gemini-3-pro-preview";
@@ -247,11 +264,13 @@ export const analyzeClassPerformance = async (
     - Top 3 Hardest Questions (Most wrong):
       ${JSON.stringify(questionStats)}
 
+    Teacher's Custom Request (Focus on this): ${customInstructions || "General comprehensive analysis"}
+
     Please provide a professional teaching analysis:
-    1. **Tổng quan lớp học**: Comment on the general level (Excellent, Average, or Weak).
+    1. **Tổng quan lớp học**: Comment on the general level.
     2. **Phân tích phổ điểm**: Distribution insights.
-    3. **Vấn đề cần lưu ý**: Analyze the hardest questions to identify common misconceptions or difficult topics.
-    4. **Gợi ý giảng dạy**: How should the teacher adjust upcoming lessons based on this?
+    3. **Vấn đề cần lưu ý**: Analyze the hardest questions. Use LaTeX ($...$) for any math.
+    4. **Gợi ý giảng dạy**: How should the teacher adjust upcoming lessons?
   `;
 
   try {

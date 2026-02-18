@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   avatar?: string;
   password?: string; // For mock login
+  savedPrompts?: string[]; // NEW: Saved AI prompts for teachers
 }
 
 export interface Semester {
@@ -26,7 +27,7 @@ export interface AcademicYear {
 
 export interface Class {
   id: string;
-  name: string; // "12A1"
+  name: string; // "5A"
   teacherId: string;
   academicYearId: string;
   studentIds: string[];
@@ -39,14 +40,21 @@ export interface Question {
   id: string;
   type: QuestionType;
   content: string; // HTML or Markdown
+  imageUrl?: string; // NEW: Link ảnh minh họa cho câu hỏi
   options: string[]; // For MCQ: ["A...", "B..."]; For Matching: ["Item 1 - Pair A", "Item 2 - Pair B"]
   correctOptionIndex?: number; // For MCQ
-  solution?: string;
+  solution?: string; // Lời giải chi tiết (có đáp án)
+  hint?: string; // NEW: Gợi ý/Hướng dẫn phương pháp (KHÔNG có đáp án)
 }
+
+export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
 
 export interface Exam {
   id: string;
   title: string;
+  subject: string; // New: Môn học (Toán, Tiếng Việt...)
+  grade: string;   // New: Khối lớp (1, 2, 3, 4, 5)
+  difficulty?: ExamDifficulty; // New: Mức độ (TT27)
   description?: string;
   durationMinutes: number;
   questionCount: number;
@@ -60,6 +68,7 @@ export interface AssignmentSettings {
   viewScore: boolean;      // Xem điểm
   viewPassFail: boolean;   // Xem đúng/sai
   viewSolution: boolean;   // Xem lời giải chi tiết
+  viewHint: boolean;       // NEW: Xem gợi ý làm bài
   maxAttempts: number;     // Số lần làm bài tối đa (0 = không giới hạn)
 }
 
@@ -87,6 +96,20 @@ export interface Attempt {
   answers: Record<string, number | string>; // questionId -> selectedIndex or text
   score?: number;
   submittedAt: string;
+  teacherFeedback?: string; // NEW: Feedback from teacher (edited from AI)
+  feedbackAllowViewSolution?: boolean; // NEW: Teacher overrides solution visibility when sending feedback
+}
+
+// --- NEW: Notification System ---
+export interface Notification {
+  id: string;
+  userId: string; // Target user ID
+  type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  link?: string; // Optional link to navigate to
 }
 
 // --- Live Exam Types ---
@@ -114,7 +137,7 @@ export interface LiveSession {
   createdAt: string;
 }
 
-// --- NEW: Discussion Room Types ---
+// --- Discussion Room Types ---
 
 export type MessageVisibility = 'FULL' | 'HIDDEN_ALL' | 'NAME_ONLY' | 'CONTENT_ONLY';
 
@@ -182,6 +205,19 @@ export interface DiscussionSession {
   createdAt: string;
 }
 
+// --- External API Types (Dictionary) ---
+export interface DictionaryEntry {
+  word: string;
+  phonetic?: string;
+  meanings: {
+    partOfSpeech: string;
+    definitions: {
+      definition: string;
+      example?: string;
+    }[];
+  }[];
+}
+
 export interface AppState {
   // Session
   user: User | null;
@@ -191,6 +227,7 @@ export interface AppState {
   users: User[];
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
+  saveUserPrompt: (prompt: string) => void; 
 
   academicYears: AcademicYear[];
   addAcademicYear: (year: AcademicYear) => void;
@@ -209,6 +246,13 @@ export interface AppState {
 
   attempts: Attempt[];
   addAttempt: (attempt: Attempt) => void;
+  updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void; 
+
+  // Notifications
+  notifications: Notification[];
+  addNotification: (notif: Notification) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: (userId: string) => void;
 
   // Live Sessions
   liveSessions: LiveSession[];
@@ -233,4 +277,5 @@ export interface AppState {
   setDiscussionVisibility: (pin: string, visibility: MessageVisibility) => void;
   createDiscussionRound: (pin: string, roundName: string) => void;
   setActiveRound: (pin: string, roundId: string) => void;
+  endDiscussionSession: (pin: string) => void;
 }

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStore } from '../store';
 import { 
   BookOpen, 
@@ -14,8 +14,8 @@ import {
   Star,
   Target,
   Briefcase,
-  MessageSquare,
-  Plus
+  HelpCircle,
+  X
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DiscussionSession, DiscussionRound } from '../types';
@@ -37,6 +37,7 @@ const StatCard = ({ icon: Icon, label, value, color }: any) => (
 export const Dashboard: React.FC = () => {
   const { exams, user, attempts, users, classes } = useStore();
   const navigate = useNavigate();
+  const [showGamificationGuide, setShowGamificationGuide] = useState(false);
 
   // --- LOGIC FOR STUDENTS (GAMIFICATION) ---
   const studentGamification = useMemo(() => {
@@ -58,7 +59,8 @@ export const Dashboard: React.FC = () => {
         description: 'Hoàn thành bài thi đầu tiên',
         icon: Target,
         color: 'text-blue-600 bg-blue-100',
-        unlocked: myAttempts.length > 0
+        unlocked: myAttempts.length > 0,
+        condition: 'Hoàn thành 1 bài thi bất kỳ'
       },
       {
         id: 'badge_hardwork',
@@ -66,7 +68,8 @@ export const Dashboard: React.FC = () => {
         description: 'Hoàn thành 5 bài thi',
         icon: Briefcase,
         color: 'text-orange-600 bg-orange-100',
-        unlocked: myAttempts.length >= 5
+        unlocked: myAttempts.length >= 5,
+        condition: 'Hoàn thành tích lũy 5 bài thi'
       },
       {
         id: 'badge_perfect',
@@ -74,7 +77,8 @@ export const Dashboard: React.FC = () => {
         description: 'Đạt điểm 10 tuyệt đối',
         icon: Star,
         color: 'text-yellow-600 bg-yellow-100',
-        unlocked: myAttempts.some(a => (a.score || 0) >= 10)
+        unlocked: myAttempts.some(a => (a.score || 0) >= 10),
+        condition: 'Đạt điểm 10 trong một bài thi'
       },
       {
         id: 'badge_pro',
@@ -82,7 +86,8 @@ export const Dashboard: React.FC = () => {
         description: 'Đạt cấp độ 5',
         icon: Crown,
         color: 'text-purple-600 bg-purple-100',
-        unlocked: level >= 5
+        unlocked: level >= 5,
+        condition: 'Tích lũy XP để đạt Level 5'
       }
     ];
 
@@ -107,13 +112,14 @@ export const Dashboard: React.FC = () => {
     const examsTakenCount = myAttempts.length;
     
     const totalScore = myAttempts.reduce((acc, curr) => acc + (curr.score || 0), 0);
-    const avgScore = examsTakenCount > 0 ? (totalScore / examsTakenCount).toFixed(1) : 'N/A';
+    // Format average score with comma
+    const avgScore = examsTakenCount > 0 ? (totalScore / examsTakenCount).toFixed(1).replace('.', ',') : 'N/A';
 
     const totalMinutes = myAttempts.reduce((acc, att) => {
         const exam = exams.find(e => e.id === att.examId);
         return acc + (exam?.durationMinutes || 0);
     }, 0);
-    const studyHours = (totalMinutes / 60).toFixed(1);
+    const studyHours = (totalMinutes / 60).toFixed(1).replace('.', ',');
 
     const myClass = classes.find(c => c.studentIds.includes(user.id || ''));
 
@@ -182,9 +188,12 @@ export const Dashboard: React.FC = () => {
           </div>
           
           <div className="flex gap-2">
-             <Link to="/discussion/join" className="bg-white border text-gray-700 px-4 py-2 rounded-xl shadow-sm hover:bg-gray-50 flex items-center gap-2 font-medium">
-                <MessageSquare className="h-5 w-5 text-blue-500" /> Vào phòng thảo luận
-             </Link>
+             <button 
+                onClick={() => setShowGamificationGuide(true)}
+                className="bg-white border text-indigo-600 px-4 py-2 rounded-xl shadow-sm hover:bg-indigo-50 flex items-center gap-2 font-bold"
+             >
+                <HelpCircle className="h-5 w-5" /> Hướng dẫn thăng hạng
+             </button>
              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl shadow-md flex items-center gap-3">
                <div className="bg-white/20 p-2 rounded-lg">
                   <Zap className="h-5 w-5" />
@@ -301,6 +310,76 @@ export const Dashboard: React.FC = () => {
               </div>
            </div>
         </div>
+
+        {/* GAMIFICATION GUIDE MODAL */}
+        {showGamificationGuide && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                     <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Award className="text-indigo-600" /> Hệ thống thăng hạng & Huy hiệu
+                     </h2>
+                     <button onClick={() => setShowGamificationGuide(false)} className="hover:bg-gray-100 p-2 rounded-full"><X className="h-6 w-6" /></button>
+                  </div>
+                  <div className="p-6 space-y-6">
+                     {/* Section 1: XP & Level */}
+                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-100">
+                        <h3 className="font-bold text-indigo-800 text-lg mb-3 flex items-center gap-2"><Zap className="h-5 w-5" /> Cách tính điểm XP & Cấp độ</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <p className="font-bold text-gray-700 mb-1">Công thức tính XP</p>
+                              <p className="text-3xl font-bold text-indigo-600">1 Điểm = 10 XP</p>
+                              <p className="text-xs text-gray-500 mt-2">Ví dụ: Bài thi được 8.5 điểm => Bạn nhận được 85 XP.</p>
+                           </div>
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <p className="font-bold text-gray-700 mb-1">Cấp độ (Level)</p>
+                              <p className="text-sm text-gray-600 mb-2">Mỗi 100 XP bạn sẽ tăng 1 cấp độ.</p>
+                              <div className="w-full bg-gray-200 h-2 rounded-full mb-1">
+                                 <div className="bg-indigo-500 h-2 rounded-full w-3/4"></div>
+                              </div>
+                              <p className="text-xs text-gray-400">Level hiện tại phụ thuộc vào tổng số bài tập bạn đã hoàn thành.</p>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Section 2: Badges Table */}
+                     <div>
+                        <h3 className="font-bold text-gray-800 text-lg mb-3 flex items-center gap-2"><Crown className="h-5 w-5 text-yellow-500" /> Danh hiệu & Huy hiệu</h3>
+                        <div className="overflow-hidden border rounded-xl">
+                           <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-50 text-gray-700 font-bold uppercase">
+                                 <tr>
+                                    <th className="px-4 py-3">Huy hiệu</th>
+                                    <th className="px-4 py-3">Tên danh hiệu</th>
+                                    <th className="px-4 py-3">Điều kiện mở khóa</th>
+                                 </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                 {studentGamification?.badges.map((b) => {
+                                    const BIcon = b.icon;
+                                    return (
+                                       <tr key={b.id} className="hover:bg-gray-50">
+                                          <td className="px-4 py-3">
+                                             <div className={`p-2 rounded-full w-fit ${b.unlocked ? b.color : 'bg-gray-200 text-gray-400 grayscale'}`}>
+                                                <BIcon className="h-5 w-5" />
+                                             </div>
+                                          </td>
+                                          <td className="px-4 py-3 font-bold text-gray-900">{b.name}</td>
+                                          <td className="px-4 py-3 text-gray-600">{b.condition}</td>
+                                       </tr>
+                                    );
+                                 })}
+                              </tbody>
+                           </table>
+                        </div>
+                     </div>
+                  </div>
+                  <div className="p-4 border-t bg-gray-50 text-center">
+                     <button onClick={() => setShowGamificationGuide(false)} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition">Đã hiểu, tôi sẽ cố gắng!</button>
+                  </div>
+               </div>
+            </div>
+        )}
       </div>
     );
   }

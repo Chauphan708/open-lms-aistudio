@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification } from './types';
 
 // --- Mock Data (Keep existing mock data) ---
 
@@ -17,6 +17,7 @@ const MOCK_USERS: User[] = [
     email: 'teacher@openlms.edu',
     role: 'TEACHER',
     avatar: 'https://ui-avatars.com/api/?name=Teacher+Nguyen&background=random',
+    savedPrompts: ["Phân tích lỗi sai ngữ pháp và chính tả", "Nhận xét nghiêm khắc về tư duy logic"]
   },
   {
     id: 's1',
@@ -49,7 +50,7 @@ const MOCK_YEARS: AcademicYear[] = [
 const MOCK_CLASSES: Class[] = [
   {
     id: 'c1',
-    name: '12A1',
+    name: '5A1',
     teacherId: 't1',
     academicYearId: 'ay_23_24',
     studentIds: ['s1', 's2']
@@ -59,9 +60,12 @@ const MOCK_CLASSES: Class[] = [
 const MOCK_EXAMS: Exam[] = [
   {
     id: 'e1',
-    title: 'Đề thi Toán 15 phút - Đại số',
-    description: 'Kiểm tra chương 1 về hàm số.',
-    durationMinutes: 15,
+    title: 'Đề thi Toán Giữa Học Kì 1 - Lớp 5',
+    subject: 'Toán',
+    grade: '5',
+    difficulty: 'LEVEL_2',
+    description: 'Kiểm tra phân số và số thập phân.',
+    durationMinutes: 35,
     questionCount: 2,
     createdAt: new Date().toISOString(),
     status: 'PUBLISHED',
@@ -70,18 +74,18 @@ const MOCK_EXAMS: Exam[] = [
       {
         id: 'q1',
         type: 'MCQ',
-        content: 'Tập xác định của hàm số y = (x-1)/(x+1) là:',
-        options: ['R \\ {-1}', 'R \\ {1}', 'R', '(1; +∞)'],
-        correctOptionIndex: 0,
-        solution: 'Mẫu số khác 0 => x + 1 != 0 => x != -1'
+        content: 'Chữ số $5$ trong số thập phân $12,358$ có giá trị là:',
+        options: ['$5$ đơn vị', '$5$ phần mười', '$5$ phần trăm', '$5$ phần nghìn'],
+        correctOptionIndex: 2,
+        solution: 'Số $5$ nằm ở hàng phần trăm.'
       },
       {
         id: 'q2',
         type: 'MCQ',
-        content: 'Cho hàm số y = f(x) có đạo hàm f\'(x) = x(x-1). Số điểm cực trị là:',
-        options: ['1', '2', '0', '3'],
-        correctOptionIndex: 1,
-        solution: 'f\'(x)=0 <=> x=0 or x=1. Đổi dấu 2 lần -> 2 cực trị.'
+        content: 'Hỗn số $3 \\frac{1}{2}$ được viết dưới dạng số thập phân là:',
+        options: ['$3,5$', '$3,2$', '$3,1$', '$3,05$'],
+        correctOptionIndex: 0,
+        solution: '$3 \\frac{1}{2} = 3 + 0,5 = 3,5$'
       }
     ]
   }
@@ -94,18 +98,19 @@ const MOCK_ASSIGNMENTS: Assignment[] = [
     classId: 'c1',
     teacherId: 't1',
     createdAt: new Date().toISOString(),
-    durationMinutes: 15,
+    durationMinutes: 35,
     startTime: new Date().toISOString(), // Started just now
     settings: {
       viewScore: true,
       viewPassFail: true,
       viewSolution: true,
+      viewHint: true,
       maxAttempts: 1
     }
   }
 ];
 
-export const useStore = create<AppState & { endDiscussionSession: (pin: string) => void }>((set) => ({
+export const useStore = create<AppState & { endDiscussionSession: (pin: string) => void }>((set, get) => ({
   // Session
   user: null,
   setUser: (user) => set({ user }),
@@ -114,8 +119,25 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
   users: MOCK_USERS,
   addUser: (user) => set((state) => ({ users: [...state.users, user] })),
   updateUser: (updatedUser) => set((state) => ({
-    users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
+    users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
+    user: state.user?.id === updatedUser.id ? updatedUser : state.user // Update session user too
   })),
+  saveUserPrompt: (prompt) => set((state) => {
+    if (!state.user || !prompt.trim()) return state;
+    const currentPrompts = state.user.savedPrompts || [];
+    if (currentPrompts.includes(prompt)) return state;
+    
+    const updatedUser = {
+        ...state.user,
+        savedPrompts: [prompt, ...currentPrompts].slice(0, 10) // Limit to 10 recents
+    };
+    
+    // Update both user session and users list
+    return {
+        user: updatedUser,
+        users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
+    };
+  }),
 
   // Academic Years
   academicYears: MOCK_YEARS,
@@ -138,13 +160,74 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
     exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
   })),
 
-  // Assignments
+  // Assignments & Notifications Trigger
   assignments: MOCK_ASSIGNMENTS,
-  addAssignment: (assign) => set((state) => ({ assignments: [assign, ...state.assignments] })),
+  addAssignment: (assign) => {
+    // 1. Add Assignment
+    set((state) => ({ assignments: [assign, ...state.assignments] }));
 
-  // Attempts
+    // 2. Notify Students in that Class
+    const state = get();
+    const targetClass = state.classes.find(c => c.id === assign.classId);
+    const exam = state.exams.find(e => e.id === assign.examId);
+    
+    if (targetClass && exam) {
+      const newNotifs: Notification[] = targetClass.studentIds.map(sid => ({
+         id: `notif_${Date.now()}_${sid}`,
+         userId: sid,
+         type: 'INFO',
+         title: 'Bài tập mới',
+         message: `Giáo viên đã giao bài tập: ${exam.title}`,
+         isRead: false,
+         createdAt: new Date().toISOString(),
+         link: `/exam/${exam.id}/take?assign=${assign.id}`
+      }));
+      set(state => ({ notifications: [...newNotifs, ...state.notifications] }));
+    }
+  },
+
+  // Attempts & Feedback Notifications
   attempts: [],
   addAttempt: (attempt) => set((state) => ({ attempts: [...state.attempts, attempt] })),
+  updateAttemptFeedback: (attemptId, feedback, allowViewSolution) => {
+      // 1. Update Feedback & Visibility Setting
+      set((state) => ({
+        attempts: state.attempts.map(a => a.id === attemptId ? { 
+            ...a, 
+            teacherFeedback: feedback,
+            feedbackAllowViewSolution: allowViewSolution 
+        } : a)
+      }));
+
+      // 2. Notify Student
+      const state = get();
+      const attempt = state.attempts.find(a => a.id === attemptId);
+      const exam = state.exams.find(e => e.id === attempt?.examId);
+
+      if (attempt && exam) {
+          const newNotif: Notification = {
+              id: `notif_fb_${Date.now()}`,
+              userId: attempt.studentId,
+              type: 'SUCCESS',
+              title: 'Nhận xét mới',
+              message: `Giáo viên đã gửi nhận xét cho bài thi: ${exam.title}`,
+              isRead: false,
+              createdAt: new Date().toISOString(),
+              link: `/exam/${exam.id}/take` // Link to review
+          };
+          set(s => ({ notifications: [newNotif, ...s.notifications] }));
+      }
+  },
+
+  // Notifications
+  notifications: [],
+  addNotification: (notif) => set((state) => ({ notifications: [notif, ...state.notifications] })),
+  markNotificationRead: (id) => set((state) => ({
+      notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
+  })),
+  markAllNotificationsRead: (userId) => set((state) => ({
+      notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
+  })),
 
   // Live Sessions
   liveSessions: [],
