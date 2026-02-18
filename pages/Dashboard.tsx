@@ -18,7 +18,6 @@ import {
   X
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DiscussionSession, DiscussionRound } from '../types';
 
 const StatCard = ({ icon: Icon, label, value, color }: any) => (
   <div className="bg-white p-6 rounded-xl border shadow-sm transition-all hover:shadow-md">
@@ -329,7 +328,7 @@ export const Dashboard: React.FC = () => {
                            <div className="bg-white p-4 rounded-lg shadow-sm">
                               <p className="font-bold text-gray-700 mb-1">Công thức tính XP</p>
                               <p className="text-3xl font-bold text-indigo-600">1 Điểm = 10 XP</p>
-                              <p className="text-xs text-gray-500 mt-2">Ví dụ: Bài thi được 8.5 điểm => Bạn nhận được 85 XP.</p>
+                              <p className="text-xs text-gray-500 mt-2">Ví dụ: Bài thi được 8.5 điểm = Bạn nhận được 85 XP.</p>
                            </div>
                            <div className="bg-white p-4 rounded-lg shadow-sm">
                               <p className="font-bold text-gray-700 mb-1">Cấp độ (Level)</p>
