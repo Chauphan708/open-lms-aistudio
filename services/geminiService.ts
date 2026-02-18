@@ -1,9 +1,24 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Question, Attempt } from '../types';
 
+// Helper: Clean JSON string from Markdown code blocks
+const cleanJsonString = (text: string): string => {
+  if (!text) return "[]";
+  // Remove ```json and ``` wrapping
+  let clean = text.replace(/```json/g, '').replace(/```/g, '');
+  return clean.trim();
+};
+
 const getAiClient = () => {
-  // According to guidelines, API key must be from process.env.API_KEY
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Support both process.env (via Vite define) and import.meta.env (Vite native)
+  // @ts-ignore
+  const apiKey = process.env.API_KEY || import.meta.env.VITE_API_KEY;
+  
+  if (!apiKey || apiKey.includes("API_KEY")) {
+      console.error("CRITICAL: Missing API KEY. Please check .env file or Vercel Environment Variables.");
+      throw new Error("API Key is missing or invalid.");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 const QUESTION_SCHEMA: Schema = {
@@ -62,7 +77,8 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
       }
     });
 
-    const parsedData = JSON.parse(response.text || "[]");
+    const cleanedText = cleanJsonString(response.text || "[]");
+    const parsedData = JSON.parse(cleanedText);
     
     return parsedData.map((item: any, index: number) => ({
       id: `gen_parse_${Date.now()}_${index}`,
@@ -141,7 +157,8 @@ export const generateQuestionsByTopic = async (
       }
     });
 
-    const parsedData = JSON.parse(response.text || "[]");
+    const cleanedText = cleanJsonString(response.text || "[]");
+    const parsedData = JSON.parse(cleanedText);
 
     return parsedData.map((item: any, index: number) => ({
       id: `gen_ai_${Date.now()}_${index}`,
