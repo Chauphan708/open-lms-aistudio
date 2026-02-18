@@ -38,6 +38,7 @@ const Login = () => {
 
   const handleRealLogin = (e: React.FormEvent) => {
       e.preventDefault();
+      // Match password OR fallback if user has no password set and inputs '123456'
       const user = users.find(u => u.email === email && (u.password === password || (!u.password && password === '123456')));
       if (user) {
           setUser(user);
@@ -88,7 +89,7 @@ const Login = () => {
                    </button>
                </div>
                <div className="text-right mt-1">
-                 <span className="text-xs text-gray-400">Admin mặc định: 12345678</span>
+                 <span className="text-xs text-gray-400">Admin mặc định: 123456</span>
                </div>
             </div>
             

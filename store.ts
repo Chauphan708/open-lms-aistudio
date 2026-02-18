@@ -1,230 +1,484 @@
 
 import { create } from 'zustand';
-import { AppState, User, AcademicYear, Class, Exam, Assignment, Attempt, Notification, WebResource, LiveSession, DiscussionSession } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource } from './types';
 import { supabase } from './services/supabaseClient';
+
+// Fallback Mock Data in case Supabase is empty (for seeding first time)
+const SEED_USERS: User[] = [
+    { 
+      id: 'admin1', 
+      name: 'Quản Trị Viên', 
+      email: 'admin@school.edu', 
+      role: 'ADMIN', 
+      avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', 
+      password: '123456' 
+    }
+];
 
 export const useStore = create<AppState>((set, get) => ({
   isDataLoading: false,
+
+  // --- INITIAL DATA FETCHING ---
   fetchInitialData: async () => {
-    // In a real app, fetch from Supabase here
-    // For now, we rely on initial state or local updates
-    set({ isDataLoading: false });
+    set({ isDataLoading: true });
+    try {
+        // 1. Fetch Users (Profiles)
+        const { data: users, error: userErr } = await supabase.from('profiles').select('*');
+        if (users && users.length > 0) {
+            set({ users: users as User[] });
+        } else if (!userErr) {
+            // Seed if empty or error (and no users found)
+            // Note: If using mock mode only, this ensures admin exists
+            await supabase.from('profiles').insert(SEED_USERS);
+            set({ users: SEED_USERS });
+        }
+
+        // 2. Fetch Exams
+        const { data: exams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
+        if (exams) set({ exams: exams as Exam[] });
+
+        // 3. Fetch Classes
+        const { data: classes } = await supabase.from('classes').select('*');
+        if (classes) set({ classes: classes as Class[] });
+
+        // 4. Fetch Assignments
+        const { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
+        if (assignments) set({ assignments: assignments as Assignment[] });
+
+        // 5. Fetch Attempts
+        const { data: attempts } = await supabase.from('attempts').select('*');
+        if (attempts) set({ attempts: attempts as Attempt[] });
+
+        // 6. Fetch Years
+        const { data: years } = await supabase.from('academic_years').select('*');
+        if (years) set({ academicYears: years as AcademicYear[] });
+
+        // 7. Notifications
+        const { data: notifs } = await supabase.from('notifications').select('*').order('createdAt', { ascending: false });
+        if (notifs) set({ notifications: notifs as Notification[] });
+
+        // 8. Resources
+        const { data: resources } = await supabase.from('resources').select('*');
+        if (resources) set({ resources: resources as WebResource[] });
+
+    } catch (e) {
+        console.error("Error fetching initial data:", e);
+        // Fallback to seed if fetch fails completely
+        set({ users: SEED_USERS });
+    } finally {
+        set({ isDataLoading: false });
+    }
   },
 
+  // Session
   user: null,
   setUser: (user) => set({ user }),
 
-  users: [
-      { id: 'admin_1', name: 'Admin User', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin', password: '123' },
-      { id: 't_1', name: 'Cô giáo Thảo', email: 'teacher@school.edu', role: 'TEACHER', avatar: 'https://ui-avatars.com/api/?name=Teacher', password: '123' },
-      { id: 's_1', name: 'Học sinh A', email: 'student@school.edu', role: 'STUDENT', avatar: 'https://ui-avatars.com/api/?name=Student+A', className: '5A', password: '123' },
-  ],
-  addUser: (user) => set((state) => ({ users: [...state.users, user] })),
-  updateUser: (user) => set((state) => ({ users: state.users.map((u) => (u.id === user.id ? user : u)) })),
+  // Users
+  users: [],
+  addUser: async (user) => {
+    const { error } = await supabase.from('profiles').insert(user);
+    if (!error) set((state) => ({ users: [...state.users, user] }));
+  },
+  updateUser: async (updatedUser) => {
+    const { error } = await supabase.from('profiles').update(updatedUser).eq('id', updatedUser.id);
+    if (!error) {
+        set((state) => ({
+            users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
+            user: state.user?.id === updatedUser.id ? updatedUser : state.user
+        }));
+    }
+  },
   deleteUser: async (userId) => {
-      set((state) => ({ users: state.users.filter((u) => u.id !== userId) }));
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) {
+          console.error("Delete user error", error);
+          return false;
+      }
+      set((state) => ({
+          users: state.users.filter(u => u.id !== userId)
+      }));
       return true;
   },
-  saveUserPrompt: (prompt) => set((state) => {
-      if (!state.user) return state;
-      const savedPrompts = state.user.savedPrompts || [];
-      if (savedPrompts.includes(prompt)) return state;
-      const updatedUser = { ...state.user, savedPrompts: [...savedPrompts, prompt] };
-      return { user: updatedUser, users: state.users.map(u => u.id === state.user!.id ? updatedUser : u) };
-  }),
   changePassword: async (userId, newPass) => {
-      set((state) => ({ users: state.users.map(u => u.id === userId ? { ...u, password: newPass } : u) }));
+      const { error } = await supabase.from('profiles').update({ password: newPass }).eq('id', userId);
+      if (error) {
+          console.error("Change pass error", error);
+          return false;
+      }
+      set(state => ({
+          users: state.users.map(u => u.id === userId ? { ...u, password: newPass } : u),
+          user: state.user?.id === userId ? { ...state.user, password: newPass } : state.user
+      }));
       return true;
   },
+  saveUserPrompt: async (prompt) => {
+    const state = get();
+    if (!state.user || !prompt.trim()) return;
+    const currentPrompts = state.user.savedPrompts || [];
+    if (currentPrompts.includes(prompt)) return;
 
-  academicYears: [
-      { id: 'ay_1', name: '2023-2024', isActive: true, semesters: [{ id: 's1', name: 'HK1', startDate: '2023-09-05', endDate: '2024-01-15' }, { id: 's2', name: 'HK2', startDate: '2024-01-16', endDate: '2024-05-30' }] }
-  ],
-  addAcademicYear: (year) => set((state) => ({ academicYears: [...state.academicYears, year] })),
-  updateAcademicYear: (year) => set((state) => ({ academicYears: state.academicYears.map((y) => (y.id === year.id ? year : y)) })),
+    const newPrompts = [prompt, ...currentPrompts].slice(0, 10);
+    const updatedUser = { ...state.user, savedPrompts: newPrompts };
+    
+    // Update Supabase
+    await supabase.from('profiles').update({ savedPrompts: newPrompts }).eq('id', state.user.id);
+    
+    set({
+        user: updatedUser,
+        users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
+    });
+  },
 
-  classes: [
-      { id: 'c_1', name: '5A', academicYearId: 'ay_1', teacherId: 't_1', studentIds: ['s_1'] }
-  ],
-  addClass: (cls) => set((state) => ({ classes: [...state.classes, cls] })),
-  updateClass: (cls) => set((state) => ({ classes: state.classes.map((c) => (c.id === cls.id ? cls : c)) })),
+  // Academic Years
+  academicYears: [],
+  addAcademicYear: async (year) => {
+      const { error } = await supabase.from('academic_years').insert(year);
+      if (!error) set((state) => ({ academicYears: [...state.academicYears, year] }));
+  },
+  updateAcademicYear: async (updatedYear) => {
+      const { error } = await supabase.from('academic_years').update(updatedYear).eq('id', updatedYear.id);
+      if(!error) set((state) => ({
+        academicYears: state.academicYears.map(y => y.id === updatedYear.id ? updatedYear : y)
+      }));
+  },
 
+  // Classes
+  classes: [],
+  addClass: async (cls) => {
+      const { error } = await supabase.from('classes').insert(cls);
+      if(!error) set((state) => ({ classes: [...state.classes, cls] }));
+  },
+  updateClass: async (updatedClass) => {
+      const { error } = await supabase.from('classes').update(updatedClass).eq('id', updatedClass.id);
+      if(!error) set((state) => ({
+        classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
+      }));
+  },
+
+  // Exams
   exams: [],
-  addExam: (exam) => set((state) => ({ exams: [...state.exams, exam] })),
-  updateExam: (exam) => set((state) => ({ exams: state.exams.map((e) => (e.id === exam.id ? exam : e)) })),
+  addExam: async (exam) => {
+      const { error } = await supabase.from('exams').insert(exam);
+      if (!error) set((state) => ({ exams: [exam, ...state.exams] }));
+      else console.error(error);
+  },
+  updateExam: async (updatedExam) => {
+      const { error } = await supabase.from('exams').update(updatedExam).eq('id', updatedExam.id);
+      if(!error) set((state) => ({
+        exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
+      }));
+  },
 
+  // Assignments
   assignments: [],
-  addAssignment: (assign) => set((state) => ({ assignments: [...state.assignments, assign] })),
+  addAssignment: async (assign) => {
+    // 1. Save to DB
+    const { error } = await supabase.from('assignments').insert(assign);
+    if (error) return;
 
+    set((state) => ({ assignments: [assign, ...state.assignments] }));
+
+    // 2. Notify Students (Sync with DB)
+    const state = get();
+    const targetClass = state.classes.find(c => c.id === assign.classId);
+    const exam = state.exams.find(e => e.id === assign.examId);
+    
+    if (targetClass && exam) {
+      const newNotifs: Notification[] = targetClass.studentIds.map(sid => ({
+         id: `notif_${Date.now()}_${sid}`,
+         userId: sid,
+         type: 'INFO',
+         title: 'Bài tập mới',
+         message: `Giáo viên đã giao bài tập: ${exam.title}`,
+         isRead: false,
+         createdAt: new Date().toISOString(),
+         link: `/exam/${exam.id}/take?assign=${assign.id}`
+      }));
+      
+      await supabase.from('notifications').insert(newNotifs);
+      set(state => ({ notifications: [...newNotifs, ...state.notifications] }));
+    }
+  },
+
+  // Attempts
   attempts: [],
-  addAttempt: (attempt) => set((state) => ({ attempts: [...state.attempts, attempt] })),
-  updateAttemptFeedback: (attemptId, feedback, allowViewSolution) => set((state) => ({
-      attempts: state.attempts.map((a) => (a.id === attemptId ? { ...a, teacherFeedback: feedback, feedbackAllowViewSolution: allowViewSolution } : a))
-  })),
+  addAttempt: async (attempt) => {
+      const { error } = await supabase.from('attempts').insert(attempt);
+      if(!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
+  },
+  updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
+      const { error } = await supabase.from('attempts').update({ 
+          teacherFeedback: feedback, 
+          feedbackAllowViewSolution: allowViewSolution 
+      }).eq('id', attemptId);
 
+      if (error) return;
+
+      set((state) => ({
+        attempts: state.attempts.map(a => a.id === attemptId ? { 
+            ...a, 
+            teacherFeedback: feedback,
+            feedbackAllowViewSolution: allowViewSolution 
+        } : a)
+      }));
+
+      // Notify Student
+      const state = get();
+      const attempt = state.attempts.find(a => a.id === attemptId);
+      const exam = state.exams.find(e => e.id === attempt?.examId);
+
+      if (attempt && exam) {
+          const newNotif: Notification = {
+              id: `notif_fb_${Date.now()}`,
+              userId: attempt.studentId,
+              type: 'SUCCESS',
+              title: 'Nhận xét mới',
+              message: `Giáo viên đã gửi nhận xét cho bài thi: ${exam.title}`,
+              isRead: false,
+              createdAt: new Date().toISOString(),
+              link: `/exam/${exam.id}/take`
+          };
+          await supabase.from('notifications').insert(newNotif);
+          set(s => ({ notifications: [newNotif, ...s.notifications] }));
+      }
+  },
+
+  // Notifications
   notifications: [],
-  addNotification: (notif) => set((state) => ({ notifications: [notif, ...state.notifications] })),
-  markNotificationRead: (id) => set((state) => ({
-      notifications: state.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-  })),
-  markAllNotificationsRead: (userId) => set((state) => ({
-      notifications: state.notifications.map((n) => (n.userId === userId ? { ...n, isRead: true } : n))
-  })),
+  addNotification: async (notif) => {
+      await supabase.from('notifications').insert(notif);
+      set((state) => ({ notifications: [notif, ...state.notifications] }));
+  },
+  markNotificationRead: async (id) => {
+      await supabase.from('notifications').update({ isRead: true }).eq('id', id);
+      set((state) => ({
+        notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
+      }));
+  },
+  markAllNotificationsRead: async (userId) => {
+      await supabase.from('notifications').update({ isRead: true }).eq('userId', userId);
+      set((state) => ({
+        notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
+      }));
+  },
 
+  // Resources
   resources: [],
   addResource: async (res) => {
-      // Optimistic update
-      set((state) => ({ resources: [res, ...state.resources] }));
-      // Try Supabase (if configured)
-      try {
-        const { error } = await supabase.from('resources').insert(res);
-        if (error) console.warn("Supabase insert failed (using local store):", error.message);
-      } catch (e) {
-         // ignore
+      const { error } = await supabase.from('resources').insert(res);
+      if (error) {
+          console.error("Error adding resource:", error);
+          return false;
       }
+      set(state => ({ resources: [res, ...state.resources] }));
       return true;
   },
   deleteResource: async (id) => {
-      set((state) => ({ resources: state.resources.filter((r) => r.id !== id) }));
-      try {
-        await supabase.from('resources').delete().eq('id', id);
-      } catch (e) {
-          // ignore
+      const { error } = await supabase.from('resources').delete().eq('id', id);
+      if (error) {
+          console.error("Error deleting resource:", error);
+          return false;
       }
+      set(state => ({ resources: state.resources.filter(r => r.id !== id) }));
       return true;
   },
 
+  // --- MEMORY ONLY (Realtime features usually use Supabase Realtime Channels, but keeping memory for MVP) ---
+  
+  // Live Sessions
   liveSessions: [],
   createLiveSession: (session) => set((state) => ({ liveSessions: [...state.liveSessions, session] })),
-  joinLiveSession: (pin, user) => {
-      const session = get().liveSessions.find(s => s.id === pin);
-      if (!session) return false;
-      if (session.status === 'FINISHED') return false;
+  
+  updateLiveSessionStatus: (pin, status) => set((state) => ({
+    liveSessions: state.liveSessions.map(s => s.id === pin ? { ...s, status } : s)
+  })),
 
-      // Add user to participants if not exists
-      if (!session.participants.some(p => p.studentId === user.id)) {
-          const newParticipant = {
-              studentId: user.id,
-              name: user.name,
-              progress: { answeredCount: 0, correctCount: 0, wrongCount: 0, score: 0 }
-          };
-          const updatedSession = { ...session, participants: [...session.participants, newParticipant] };
-          set(state => ({ liveSessions: state.liveSessions.map(s => s.id === pin ? updatedSession : s) }));
+  joinLiveSession: (pin, student) => {
+    let joined = false;
+    set((state) => {
+      const sessionIndex = state.liveSessions.findIndex(s => s.id === pin);
+      if (sessionIndex === -1) return state;
+      
+      const session = state.liveSessions[sessionIndex];
+      if (session.participants.some(p => p.studentId === student.id)) {
+        joined = true;
+        return state;
       }
-      return true;
+
+      const updatedSession: LiveSession = {
+        ...session,
+        participants: [
+          ...session.participants,
+          {
+            studentId: student.id,
+            name: student.name,
+            progress: { answeredCount: 0, correctCount: 0, wrongCount: 0, score: 0 }
+          }
+        ]
+      };
+      
+      const newSessions = [...state.liveSessions];
+      newSessions[sessionIndex] = updatedSession;
+      joined = true;
+      return { liveSessions: newSessions };
+    });
+    return joined;
   },
-  updateLiveSessionStatus: (id, status) => set((state) => ({
-      liveSessions: state.liveSessions.map(s => s.id === id ? { ...s, status } : s)
-  })),
-  updateLiveParticipantProgress: (sessionId, studentId, progress) => set((state) => ({
-      liveSessions: state.liveSessions.map(s => {
-          if (s.id !== sessionId) return s;
+
+  updateLiveParticipantProgress: (pin, studentId, progress) => set((state) => ({
+    liveSessions: state.liveSessions.map(s => {
+      if (s.id !== pin) return s;
+      return {
+        ...s,
+        participants: s.participants.map(p => {
+          if (p.studentId !== studentId) return p;
           return {
-              ...s,
-              participants: s.participants.map(p => p.studentId === studentId ? { ...p, progress } : p)
+            ...p,
+            progress
           };
-      })
+        })
+      };
+    })
   })),
 
+  // Discussion Sessions
   discussionSessions: [],
   createDiscussion: (session) => set((state) => ({ discussionSessions: [...state.discussionSessions, session] })),
-  joinDiscussion: (pin, user) => {
-      const session = get().discussionSessions.find(s => s.id === pin);
-      if (!session) return false;
+  
+  joinDiscussion: (pin, student) => {
+     let joined = false;
+     set((state) => {
+       const idx = state.discussionSessions.findIndex(s => s.id === pin);
+       if (idx === -1) return state;
 
-       // Add user if not exists
-       if (!session.participants.some(p => p.studentId === user.id)) {
-          const newParticipant = {
-              studentId: user.id,
-              name: user.name,
-              isHandRaised: false,
-              currentRoomId: 'MAIN'
-          };
-          const updatedSession = { ...session, participants: [...session.participants, newParticipant] };
-          set(state => ({ discussionSessions: state.discussionSessions.map(s => s.id === pin ? updatedSession : s) }));
-      }
-      return true;
+       const session = state.discussionSessions[idx];
+       if (session.participants.some(p => p.studentId === student.id)) {
+         joined = true;
+         return state;
+       }
+
+       const newSessions = [...state.discussionSessions];
+       newSessions[idx] = {
+         ...session,
+         participants: [...session.participants, {
+            studentId: student.id,
+            name: student.name,
+            isHandRaised: false,
+            currentRoomId: 'MAIN'
+         }]
+       };
+       joined = true;
+       return { discussionSessions: newSessions };
+     });
+     return joined;
   },
-  sendDiscussionMessage: (sessionId, message) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => {
-          if (s.id !== sessionId) return s;
-          return { ...s, messages: [...s.messages, message] };
-      })
-  })),
-  toggleHandRaise: (sessionId, userId) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => {
-          if (s.id !== sessionId) return s;
-          return {
-              ...s,
-              participants: s.participants.map(p => p.studentId === userId ? { ...p, isHandRaised: !p.isHandRaised } : p)
-          };
-      })
-  })),
-  createPoll: (sessionId, poll) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => s.id === sessionId ? { ...s, polls: [...s.polls, poll] } : s)
-  })),
-  votePoll: (sessionId, pollId, optionId, userId) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => {
-          if (s.id !== sessionId) return s;
-          return {
-              ...s,
-              polls: s.polls.map(p => {
-                  if (p.id !== pollId) return p;
-                  // Remove previous vote if any (assuming single choice for now, logic can vary)
-                  // For simplicity: add to voterIds of selected option, ensure uniqueness in logic if needed
-                  // Logic: Allow one vote per poll
-                  const hasVoted = p.options.some(o => o.voterIds.includes(userId));
-                  if (hasVoted) return p; // Prevent multiple votes
 
-                  return {
-                      ...p,
-                      options: p.options.map(o => o.id === optionId ? { ...o, voteCount: o.voteCount + 1, voterIds: [...o.voterIds, userId] } : o)
-                  };
-              })
-          };
-      })
+  sendDiscussionMessage: (pin, message) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => 
+       s.id === pin ? { ...s, messages: [...s.messages, message] } : s
+    )
   })),
-  togglePollStatus: (sessionId, pollId, isActive) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => {
-          if (s.id !== sessionId) return s;
-          return {
-              ...s,
-              polls: s.polls.map(p => p.id === pollId ? { ...p, isActive } : p)
-          };
-      })
+
+  toggleHandRaise: (pin, studentId) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => {
+       if (s.id !== pin) return s;
+       return {
+         ...s,
+         participants: s.participants.map(p => 
+            p.studentId === studentId ? { ...p, isHandRaised: !p.isHandRaised } : p
+         )
+       };
+    })
   })),
-  createBreakoutRooms: (sessionId, rooms) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => s.id === sessionId ? { ...s, breakoutRooms: rooms } : s)
+
+  createPoll: (pin, poll) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => 
+      s.id === pin ? { ...s, polls: [poll, ...s.polls] } : s
+    )
   })),
-  assignToRoom: (sessionId, userId, roomId) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => {
-          if (s.id !== sessionId) return s;
-          return {
-              ...s,
-              participants: s.participants.map(p => p.studentId === userId ? { ...p, currentRoomId: roomId } : p)
-          };
-      })
-  })),
-  createDiscussionRound: (sessionId, name) => set((state) => {
-      const session = state.discussionSessions.find(s => s.id === sessionId);
-      if (!session) return state;
-      const newRound = { id: `round_${Date.now()}`, name, createdAt: new Date().toISOString() };
+
+  votePoll: (pin, pollId, optionId, studentId) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => {
+      if (s.id !== pin) return s;
       return {
-          discussionSessions: state.discussionSessions.map(s => s.id === sessionId ? { 
-              ...s, 
-              rounds: [...s.rounds, newRound],
-              activeRoundId: newRound.id // Auto switch
-          } : s)
+        ...s,
+        polls: s.polls.map(p => {
+           if (p.id !== pollId || !p.isActive) return p;
+           const hasVoted = p.options.some(o => o.voterIds.includes(studentId));
+           if (hasVoted) return p; 
+
+           return {
+             ...p,
+             options: p.options.map(o => 
+               o.id === optionId ? { ...o, voteCount: o.voteCount + 1, voterIds: [...o.voterIds, studentId] } : o
+             )
+           };
+        })
       };
-  }),
-  setActiveRound: (sessionId, roundId) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => s.id === sessionId ? { ...s, activeRoundId: roundId } : s)
+    })
   })),
-  setDiscussionVisibility: (sessionId, visibility) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => s.id === sessionId ? { ...s, visibility } : s)
+
+  togglePollStatus: (pin, pollId, isActive) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => {
+      if (s.id !== pin) return s;
+      return {
+        ...s,
+        polls: s.polls.map(p => p.id === pollId ? { ...p, isActive } : p)
+      };
+    })
   })),
-  endDiscussionSession: (sessionId) => set((state) => ({
-      discussionSessions: state.discussionSessions.map(s => s.id === sessionId ? { ...s, status: 'FINISHED' } : s)
+
+  createBreakoutRooms: (pin, rooms) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => 
+      s.id === pin ? { ...s, breakoutRooms: rooms } : s
+    )
   })),
+
+  assignToRoom: (pin, studentId, roomId) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => {
+       if (s.id !== pin) return s;
+       return {
+         ...s,
+         participants: s.participants.map(p => 
+           p.studentId === studentId ? { ...p, currentRoomId: roomId } : p
+         )
+       };
+    })
+  })),
+
+  setDiscussionVisibility: (pin, visibility) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => 
+      s.id === pin ? { ...s, visibility } : s
+    )
+  })),
+
+  createDiscussionRound: (pin, roundName) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => {
+      if (s.id !== pin) return s;
+      const newRound: DiscussionRound = {
+        id: `round_${Date.now()}`,
+        name: roundName,
+        createdAt: new Date().toISOString()
+      };
+      return {
+        ...s,
+        rounds: [...s.rounds, newRound],
+        activeRoundId: newRound.id 
+      };
+    })
+  })),
+
+  setActiveRound: (pin, roundId) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => 
+      s.id === pin ? { ...s, activeRoundId: roundId } : s
+    )
+  })),
+
+  endDiscussionSession: (pin) => set((state) => ({
+    discussionSessions: state.discussionSessions.map(s => 
+      s.id === pin ? { ...s, status: 'FINISHED' } : s
+    )
+  }))
 
 }));
