@@ -77,6 +77,17 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
         }));
     }
   },
+  deleteUser: async (userId) => {
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) {
+          console.error("Delete user error", error);
+          return false;
+      }
+      set((state) => ({
+          users: state.users.filter(u => u.id !== userId)
+      }));
+      return true;
+  },
   changePassword: async (userId, newPass) => {
       const { error } = await supabase.from('profiles').update({ password: newPass }).eq('id', userId);
       if (error) {

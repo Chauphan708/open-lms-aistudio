@@ -230,8 +230,9 @@ export interface AppState {
   users: User[];
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
+  deleteUser: (userId: string) => Promise<boolean>; // NEW: Delete user
   saveUserPrompt: (prompt: string) => void; 
-  changePassword: (userId: string, newPass: string) => Promise<boolean>; // NEW
+  changePassword: (userId: string, newPass: string) => Promise<boolean>; 
 
   academicYears: AcademicYear[];
   addAcademicYear: (year: AcademicYear) => void;

@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../../store';
 import { User, UserRole } from '../../types';
-import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key } from 'lucide-react';
+import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit } from 'lucide-react';
 
 interface Props {
   targetRole: UserRole; // 'TEACHER' or 'STUDENT'
@@ -12,7 +12,7 @@ interface Props {
 type ImportMode = 'SINGLE' | 'BULK';
 
 export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
-  const { users, addUser, changePassword } = useStore();
+  const { users, addUser, updateUser, deleteUser, changePassword } = useStore();
   const [mode, setMode] = useState<ImportMode>('SINGLE');
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +20,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
   // Password Reset State
   const [resetUser, setResetUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState('');
+
+  // Edit User State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
 
   // Single Form State
   const [name, setName] = useState('');
@@ -49,6 +54,36 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     addUser(newUser);
     setIsCreating(false);
     resetForms();
+  };
+
+  // --- EDIT HANDLERS ---
+  const openEditModal = (user: User) => {
+      setEditingUser(user);
+      setEditName(user.name);
+      setEditEmail(user.email);
+  };
+
+  const handleUpdateUser = () => {
+      if (!editingUser || !editName || !editEmail) return;
+      const updated: User = {
+          ...editingUser,
+          name: editName,
+          email: editEmail
+      };
+      updateUser(updated);
+      setEditingUser(null);
+      alert("Cập nhật thông tin thành công!");
+  };
+
+  const handleDeleteUser = async (user: User) => {
+      if (confirm(`Bạn có chắc chắn muốn xóa ${user.name}? Hành động này không thể hoàn tác.`)) {
+          const success = await deleteUser(user.id);
+          if (success) {
+              // Optionally show a toast
+          } else {
+              alert("Lỗi khi xóa người dùng.");
+          }
+      }
   };
 
   // --- BULK ADD HANDLERS ---
@@ -294,6 +329,45 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
          </div>
       )}
 
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+             <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 animate-fade-in">
+                 <h3 className="text-lg font-bold text-gray-900 mb-4">Chỉnh sửa thông tin</h3>
+                 
+                 <div className="space-y-4">
+                     <div>
+                         <label className="block text-sm font-bold text-gray-700 mb-1">Họ và tên</label>
+                         <input 
+                             type="text" 
+                             className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                             value={editName}
+                             onChange={e => setEditName(e.target.value)}
+                         />
+                     </div>
+                     <div>
+                         <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                         <input 
+                             type="email" 
+                             className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                             value={editEmail}
+                             onChange={e => setEditEmail(e.target.value)}
+                         />
+                     </div>
+                     <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500">ID: <span className="font-mono text-gray-700">{editingUser.id}</span></p>
+                        <p className="text-xs text-gray-500">Vai trò: <span className="font-bold">{editingUser.role}</span></p>
+                     </div>
+                 </div>
+                 
+                 <div className="flex justify-end gap-2 mt-6">
+                     <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Hủy</button>
+                     <button onClick={handleUpdateUser} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700">Lưu thay đổi</button>
+                 </div>
+             </div>
+        </div>
+      )}
+
       {/* Reset Password Modal */}
       {resetUser && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -363,13 +437,29 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                 </td>
                 <td className="px-6 py-4 text-xs font-mono text-gray-400">{u.id}</td>
                 <td className="px-6 py-4 text-center">
-                    <button 
-                        onClick={() => { setResetUser(u); setNewPassword(''); }}
-                        className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
-                        title="Đổi mật khẩu"
-                    >
-                        <Key className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                        <button 
+                            onClick={() => openEditModal(u)}
+                            className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
+                            title="Chỉnh sửa thông tin"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </button>
+                        <button 
+                            onClick={() => { setResetUser(u); setNewPassword(''); }}
+                            className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
+                            title="Đổi mật khẩu"
+                        >
+                            <Key className="h-4 w-4" />
+                        </button>
+                        <button 
+                            onClick={() => handleDeleteUser(u)}
+                            className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                            title="Xóa người dùng"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
                 </td>
               </tr>
             ))}
