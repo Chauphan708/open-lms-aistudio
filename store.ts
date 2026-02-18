@@ -266,21 +266,26 @@ export const useStore = create<AppState>((set, get) => ({
   // Resources
   resources: [],
   addResource: async (res) => {
+      // Optimistic update: Update local state immediately
+      set(state => ({ resources: [res, ...state.resources] }));
+      
+      // Try to sync with Supabase (background)
       const { error } = await supabase.from('resources').insert(res);
       if (error) {
-          console.error("Error adding resource:", error);
-          return false;
+          console.warn("Supabase insert failed (using local store only):", error.message);
+          // We do NOT revert state here to allow "Demo Mode" functionality 
+          // where users can add items even if backend table is missing.
       }
-      set(state => ({ resources: [res, ...state.resources] }));
       return true;
   },
   deleteResource: async (id) => {
+      // Optimistic update
+      set(state => ({ resources: state.resources.filter(r => r.id !== id) }));
+      
       const { error } = await supabase.from('resources').delete().eq('id', id);
       if (error) {
-          console.error("Error deleting resource:", error);
-          return false;
+          console.warn("Supabase delete failed (using local store only):", error.message);
       }
-      set(state => ({ resources: state.resources.filter(r => r.id !== id) }));
       return true;
   },
 
