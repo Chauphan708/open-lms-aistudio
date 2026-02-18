@@ -127,7 +127,16 @@ export const Dashboard: React.FC = () => {
 
   // --- SHARED ACTIVITIES ---
   const recentActivities = useMemo(() => {
-    const activities = [];
+    // FIX: Define Type explicitly to avoid TS error
+    type Activity = {
+        id: string;
+        type: 'NEW_EXAM' | 'SUBMISSION';
+        title: string;
+        time: Date;
+        user: string | null;
+    };
+    
+    const activities: Activity[] = [];
 
     // Exam Creation Events
     exams.forEach(exam => {
