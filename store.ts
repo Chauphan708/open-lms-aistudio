@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource } from './types';
 import { supabase } from './services/supabaseClient';
 
 // Fallback Mock Data in case Supabase is empty (for seeding first time)
@@ -55,6 +55,10 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
         // 7. Notifications
         const { data: notifs } = await supabase.from('notifications').select('*').order('createdAt', { ascending: false });
         if (notifs) set({ notifications: notifs as Notification[] });
+
+        // 8. Resources
+        const { data: resources } = await supabase.from('resources').select('*');
+        if (resources) set({ resources: resources as WebResource[] });
 
     } catch (e) {
         console.error("Error fetching initial data:", e);
@@ -254,6 +258,17 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
       set((state) => ({
         notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
       }));
+  },
+
+  // Resources
+  resources: [],
+  addResource: async (res) => {
+      const { error } = await supabase.from('resources').insert(res);
+      if (!error) set(state => ({ resources: [res, ...state.resources] }));
+  },
+  deleteResource: async (id) => {
+      const { error } = await supabase.from('resources').delete().eq('id', id);
+      if (!error) set(state => ({ resources: state.resources.filter(r => r.id !== id) }));
   },
 
   // --- MEMORY ONLY (Realtime features usually use Supabase Realtime Channels, but keeping memory for MVP) ---

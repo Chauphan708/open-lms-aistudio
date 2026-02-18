@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -15,7 +16,8 @@ import {
   Settings,
   Bell,
   CheckCircle,
-  History
+  History,
+  Globe
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole } from '../types';
@@ -71,6 +73,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     // SHARED
     { label: 'Ngân hàng đề', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
     
+    // RESOURCES (NEW)
+    { label: 'Kho Tài Liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+
     // DISCUSSION
     { label: 'Phòng Thảo Luận', path: '/teacher/discussions', icon: MessageSquare, roles: ['TEACHER'] },
     { label: 'Thảo luận & Vote', path: '/discussion/join', icon: MessageSquare, roles: ['STUDENT'] },

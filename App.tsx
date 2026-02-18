@@ -22,6 +22,8 @@ import { ExamResults } from './pages/teacher/ExamResults';
 import { StudentHistory } from './pages/student/StudentHistory';
 // Settings
 import { Settings } from './pages/Settings';
+// Resources
+import { ResourceLibrary } from './pages/ResourceLibrary';
 
 import { useStore } from './store';
 import { UserRole } from './types';
@@ -210,6 +212,12 @@ function App() {
         <Route path="/exams" element={
           <ProtectedRoute>
             <ExamList />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/resources" element={
+          <ProtectedRoute>
+            <ResourceLibrary />
           </ProtectedRoute>
         } />
 

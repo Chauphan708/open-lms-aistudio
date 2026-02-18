@@ -113,6 +113,17 @@ export interface Notification {
   link?: string; // Optional link to navigate to
 }
 
+// --- NEW: Web Resources (Embed/Link) ---
+export interface WebResource {
+  id: string;
+  title: string;
+  url: string;
+  type: 'LINK' | 'EMBED'; // LINK = Open new tab, EMBED = Iframe
+  description?: string;
+  addedBy: string; // User ID
+  createdAt: string;
+}
+
 // --- Live Exam Types ---
 export type LiveSessionStatus = 'WAITING' | 'RUNNING' | 'FINISHED';
 
@@ -259,6 +270,11 @@ export interface AppState {
   addNotification: (notif: Notification) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: (userId: string) => void;
+
+  // Resources (Web/Embed)
+  resources: WebResource[];
+  addResource: (res: WebResource) => void;
+  deleteResource: (id: string) => void;
 
   // Live Sessions (Usually kept in realtime DB, but here local/memory for simplicity or simple DB polling)
   liveSessions: LiveSession[];
