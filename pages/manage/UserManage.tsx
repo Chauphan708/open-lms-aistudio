@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../../store';
 import { User, UserRole } from '../../types';
-import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit } from 'lucide-react';
+import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit, GraduationCap } from 'lucide-react';
 
 interface Props {
   targetRole: UserRole; // 'TEACHER' or 'STUDENT'
@@ -25,10 +25,12 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editClassName, setEditClassName] = useState('');
 
   // Single Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [className, setClassName] = useState('');
 
   // Bulk Form State
   const [bulkText, setBulkText] = useState('');
@@ -37,19 +39,27 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
   const filteredUsers = users.filter(u => 
     u.role === targetRole && 
-    (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.includes(searchTerm))
+    (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.includes(searchTerm) || (u.className && u.className.includes(searchTerm)))
   );
 
   // --- SINGLE ADD HANDLERS ---
   const handleCreateSingle = () => {
     if (!name || !email) return;
+    
+    // Check Duplicate Email
+    if (users.some(u => u.email.toLowerCase() === email.trim().toLowerCase())) {
+        alert("Email này đã tồn tại trong hệ thống! Vui lòng sử dụng email khác.");
+        return;
+    }
+
     const newUser: User = {
       id: `${targetRole.toLowerCase().substr(0,1)}_${Date.now()}`,
       name,
-      email,
+      email: email.trim(),
       role: targetRole,
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-      password: '123' // Default password
+      password: '123', // Default password
+      className: targetRole === 'STUDENT' ? className : undefined
     };
     addUser(newUser);
     setIsCreating(false);
@@ -61,14 +71,25 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
       setEditingUser(user);
       setEditName(user.name);
       setEditEmail(user.email);
+      setEditClassName(user.className || '');
   };
 
   const handleUpdateUser = () => {
       if (!editingUser || !editName || !editEmail) return;
+
+      // Check Duplicate Email if changed
+      if (editEmail.trim().toLowerCase() !== editingUser.email.toLowerCase()) {
+          if (users.some(u => u.email.toLowerCase() === editEmail.trim().toLowerCase())) {
+              alert("Email mới này đã được sử dụng bởi người dùng khác!");
+              return;
+          }
+      }
+
       const updated: User = {
           ...editingUser,
           name: editName,
-          email: editEmail
+          email: editEmail.trim(),
+          className: targetRole === 'STUDENT' ? editClassName : undefined
       };
       updateUser(updated);
       setEditingUser(null);
@@ -78,9 +99,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
   const handleDeleteUser = async (user: User) => {
       if (confirm(`Bạn có chắc chắn muốn xóa ${user.name}? Hành động này không thể hoàn tác.`)) {
           const success = await deleteUser(user.id);
-          if (success) {
-              // Optionally show a toast
-          } else {
+          if (!success) {
               alert("Lỗi khi xóa người dùng.");
           }
       }
@@ -91,53 +110,73 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     if (!bulkText.trim()) return;
 
     const lines = bulkText.split('\n').filter(line => line.trim() !== '');
-    const parsed: User[] = lines.map((line, index) => {
+    const parsed: User[] = [];
+    const duplicates: string[] = [];
+
+    lines.forEach((line, index) => {
        // Logic: Split by Tab (Excel) or Comma (CSV)
-       // Assume format: Name [Tab/Comma] Email
-       // OR just Name (Auto generate email)
+       // Expected: Name [Tab/Comma] Email [Tab/Comma] Class (Optional)
        
-       let parts = line.split(/[\t,]+/); // Split by tab or comma
+       let parts = line.split(/[\t,]+/); 
        parts = parts.map(p => p.trim()).filter(p => p !== '');
 
        let uName = '';
        let uEmail = '';
+       let uClass = '';
 
        // Try to find an email part containing '@'
        const emailIdx = parts.findIndex(p => p.includes('@'));
        
        if (emailIdx !== -1) {
            uEmail = parts[emailIdx];
-           // Anything else is the name
-           uName = parts.filter((_, i) => i !== emailIdx).join(' ');
+           // Assume Name is before Email, Class is after Email (if any)
+           // But robust logic: anything not email is potentially name or class.
+           // Heuristic: Longest part is name?
+           const otherParts = parts.filter((_, i) => i !== emailIdx);
+           if (otherParts.length > 0) uName = otherParts[0];
+           if (otherParts.length > 1) uClass = otherParts[1]; // Assume second part is Class
        } else {
-           // No email found, assume whole line is name
-           uName = parts.join(' ');
+           // No email found, assume line is: Name [Class]
+           uName = parts[0];
+           if (parts.length > 1) uClass = parts[1];
+           
            // Generate fake email
            const slug = uName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
            uEmail = `${slug}${Math.floor(Math.random() * 1000)}@school.edu`;
        }
 
-       // Clean up
-       uName = uName.replace(/^["']|["']$/g, ''); // Remove quotes if CSV
+       // Clean up quotes
+       uName = uName.replace(/^["']|["']$/g, '');
 
-       return {
+       // Check duplicates in system OR in current preview list
+       if (users.some(u => u.email.toLowerCase() === uEmail.toLowerCase()) || parsed.some(p => p.email.toLowerCase() === uEmail.toLowerCase())) {
+           duplicates.push(uEmail);
+           // We generate a random suffix to allow import, but user should know
+           uEmail = uEmail.replace('@', `_${Math.floor(Math.random()*999)}@`);
+       }
+
+       parsed.push({
           id: `${targetRole.toLowerCase().substr(0,1)}_${Date.now()}_${index}`,
           name: uName || 'Unknown',
           email: uEmail,
           role: targetRole,
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=random`,
-          password: '123'
-       };
+          password: '123',
+          className: targetRole === 'STUDENT' ? uClass : undefined
+       });
     });
 
     setPreviewUsers(parsed);
+    if (duplicates.length > 0) {
+        alert(`Phát hiện ${duplicates.length} email trùng lặp. Hệ thống đã tự động thêm số vào email để tránh lỗi.`);
+    }
   };
 
   const handleBulkSubmit = () => {
       previewUsers.forEach(u => addUser(u));
       setIsCreating(false);
       resetForms();
-      alert(`Đã thêm thành công ${previewUsers.length} tài khoản! Mật khẩu mặc định là 123.`);
+      alert(`Đã thêm thành công ${previewUsers.length} tài khoản!`);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,6 +208,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
   const resetForms = () => {
       setName('');
       setEmail('');
+      setClassName('');
       setBulkText('');
       setPreviewUsers([]);
       setMode('SINGLE');
@@ -219,13 +259,19 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                    <div className="space-y-4 animate-in slide-in-from-left-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
                                 <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Email (Đăng nhập) <span className="text-red-500">*</span></label>
                                 <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={email} onChange={e => setEmail(e.target.value)} placeholder="a@example.com" />
                             </div>
+                            {targetRole === 'STUDENT' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Lớp học (VD: 5A)</label>
+                                    <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={className} onChange={e => setClassName(e.target.value)} placeholder="5A" />
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Hủy</button>
@@ -242,9 +288,9 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                            <div>
                                <p className="font-bold mb-1">Hướng dẫn nhập nhanh:</p>
                                <ul className="list-disc list-inside space-y-1 opacity-90">
-                                   <li>Copy danh sách từ Excel (Cột Tên | Cột Email) và dán vào ô bên dưới.</li>
-                                   <li>Hoặc nhập theo định dạng: <code>Họ Tên, Email</code> hoặc <code>Họ Tên [Tab] Email</code></li>
-                                   <li>Nếu không có Email, hệ thống sẽ tự động tạo email ảo.</li>
+                                   <li>Dán danh sách từ Excel vào ô bên dưới.</li>
+                                   <li>Cấu trúc: <code>Họ Tên | Email | Lớp (Tùy chọn)</code></li>
+                                   <li>Ngăn cách bằng dấu phẩy (CSV) hoặc phím Tab (Excel).</li>
                                </ul>
                            </div>
                        </div>
@@ -272,7 +318,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                </div>
                                <textarea 
                                    className="flex-1 w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none min-h-[200px]"
-                                   placeholder={`Nguyễn Văn A\ta@school.com\nTrần Thị B\tb@school.com\nLê Văn C`}
+                                   placeholder={`Nguyễn Văn A\ta@school.com\t5A\nTrần Thị B\tb@school.com\t5B`}
                                    value={bulkText}
                                    onChange={e => setBulkText(e.target.value)}
                                />
@@ -307,7 +353,10 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                                    <p className="font-bold text-gray-900">{u.name}</p>
                                                    <p className="text-xs text-gray-500">{u.email}</p>
                                                </div>
-                                               <CheckCircle className="h-4 w-4 text-green-500" />
+                                               <div className="flex items-center gap-2">
+                                                   {u.className && <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{u.className}</span>}
+                                                   <CheckCircle className="h-4 w-4 text-green-500" />
+                                               </div>
                                            </div>
                                        ))
                                    )}
@@ -354,6 +403,18 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                              onChange={e => setEditEmail(e.target.value)}
                          />
                      </div>
+                     {editingUser.role === 'STUDENT' && (
+                         <div>
+                             <label className="block text-sm font-bold text-gray-700 mb-1">Lớp học</label>
+                             <input 
+                                 type="text" 
+                                 className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                                 value={editClassName}
+                                 onChange={e => setEditClassName(e.target.value)}
+                                 placeholder="VD: 5A"
+                             />
+                         </div>
+                     )}
                      <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500">ID: <span className="font-mono text-gray-700">{editingUser.id}</span></p>
                         <p className="text-xs text-gray-500">Vai trò: <span className="font-bold">{editingUser.role}</span></p>
@@ -398,7 +459,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input 
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Tìm kiếm theo tên hoặc email..."
+              placeholder="Tìm kiếm theo tên, email hoặc lớp..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -409,15 +470,15 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             <tr>
               <th className="px-6 py-3">Họ tên</th>
               <th className="px-6 py-3">Email</th>
+              {targetRole === 'STUDENT' && <th className="px-6 py-3">Lớp</th>}
               <th className="px-6 py-3">Vai trò</th>
-              <th className="px-6 py-3">ID</th>
               <th className="px-6 py-3 text-center">Tác vụ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {filteredUsers.length === 0 && (
                 <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-400">Không tìm thấy kết quả nào.</td>
+                    <td colSpan={targetRole === 'STUDENT' ? 6 : 5} className="text-center py-8 text-gray-400">Không tìm thấy kết quả nào.</td>
                 </tr>
             )}
             {filteredUsers.map(u => (
@@ -427,6 +488,15 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                   <span className="font-medium text-gray-900">{u.name}</span>
                 </td>
                 <td className="px-6 py-4">{u.email}</td>
+                {targetRole === 'STUDENT' && (
+                    <td className="px-6 py-4">
+                        {u.className ? (
+                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold font-mono">{u.className}</span>
+                        ) : (
+                            <span className="text-gray-300">-</span>
+                        )}
+                    </td>
+                )}
                 <td className="px-6 py-4">
                    <span className={`px-2 py-1 rounded-full text-xs font-bold
                      ${u.role === 'ADMIN' ? 'bg-red-100 text-red-700' : 
@@ -435,7 +505,6 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                      {u.role}
                    </span>
                 </td>
-                <td className="px-6 py-4 text-xs font-mono text-gray-400">{u.id}</td>
                 <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                         <button 

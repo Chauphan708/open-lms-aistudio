@@ -9,6 +9,7 @@ export interface User {
   avatar?: string;
   password?: string; // For mock login
   savedPrompts?: string[]; // NEW: Saved AI prompts for teachers
+  className?: string; // NEW: Lớp quản lý (VD: 5A, 9B)
 }
 
 export interface Semester {
