@@ -1,172 +1,149 @@
 import { create } from 'zustand';
 import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification } from './types';
+import { supabase } from './services/supabaseClient';
 
-// --- Mock Data (Keep existing mock data) ---
-
-const MOCK_USERS: User[] = [
-  {
-    id: 'admin1',
-    name: 'System Admin',
-    email: 'admin@school.edu',
-    role: 'ADMIN',
-    avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff',
-  },
-  {
-    id: 't1',
-    name: 'Nguyen Van Teacher',
-    email: 'teacher@openlms.edu',
-    role: 'TEACHER',
-    avatar: 'https://ui-avatars.com/api/?name=Teacher+Nguyen&background=random',
-    savedPrompts: ["Phân tích lỗi sai ngữ pháp và chính tả", "Nhận xét nghiêm khắc về tư duy logic"]
-  },
-  {
-    id: 's1',
-    name: 'Tran Van Student',
-    email: 'student@openlms.edu',
-    role: 'STUDENT',
-    avatar: 'https://ui-avatars.com/api/?name=Student+Tran&background=random',
-  },
-  {
-    id: 's2',
-    name: 'Le Thi Hoa',
-    email: 'hoa@openlms.edu',
-    role: 'STUDENT',
-    avatar: 'https://ui-avatars.com/api/?name=Le+Thi+Hoa&background=random',
-  }
-];
-
-const MOCK_YEARS: AcademicYear[] = [
-  {
-    id: 'ay_23_24',
-    name: '2023-2024',
-    isActive: true,
-    semesters: [
-      { id: 'sem1', name: 'Học kì 1', startDate: '2023-09-05', endDate: '2024-01-15' },
-      { id: 'sem2', name: 'Học kì 2', startDate: '2024-01-16', endDate: '2024-05-31' },
-    ]
-  }
-];
-
-const MOCK_CLASSES: Class[] = [
-  {
-    id: 'c1',
-    name: '5A1',
-    teacherId: 't1',
-    academicYearId: 'ay_23_24',
-    studentIds: ['s1', 's2']
-  }
-];
-
-const MOCK_EXAMS: Exam[] = [
-  {
-    id: 'e1',
-    title: 'Đề thi Toán Giữa Học Kì 1 - Lớp 5',
-    subject: 'Toán',
-    grade: '5',
-    difficulty: 'LEVEL_2',
-    description: 'Kiểm tra phân số và số thập phân.',
-    durationMinutes: 35,
-    questionCount: 2,
-    createdAt: new Date().toISOString(),
-    status: 'PUBLISHED',
-    classId: 'c1', 
-    questions: [
-      {
-        id: 'q1',
-        type: 'MCQ',
-        content: 'Chữ số $5$ trong số thập phân $12,358$ có giá trị là:',
-        options: ['$5$ đơn vị', '$5$ phần mười', '$5$ phần trăm', '$5$ phần nghìn'],
-        correctOptionIndex: 2,
-        solution: 'Số $5$ nằm ở hàng phần trăm.'
-      },
-      {
-        id: 'q2',
-        type: 'MCQ',
-        content: 'Hỗn số $3 \\frac{1}{2}$ được viết dưới dạng số thập phân là:',
-        options: ['$3,5$', '$3,2$', '$3,1$', '$3,05$'],
-        correctOptionIndex: 0,
-        solution: '$3 \\frac{1}{2} = 3 + 0,5 = 3,5$'
-      }
-    ]
-  }
-];
-
-const MOCK_ASSIGNMENTS: Assignment[] = [
-  {
-    id: 'assign_1',
-    examId: 'e1',
-    classId: 'c1',
-    teacherId: 't1',
-    createdAt: new Date().toISOString(),
-    durationMinutes: 35,
-    startTime: new Date().toISOString(), // Started just now
-    settings: {
-      viewScore: true,
-      viewPassFail: true,
-      viewSolution: true,
-      viewHint: true,
-      maxAttempts: 1
-    }
-  }
+// Fallback Mock Data in case Supabase is empty (for seeding first time)
+const SEED_USERS: User[] = [
+    { id: 'admin1', name: 'System Admin', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff' },
+    { id: 't1', name: 'Nguyen Van Teacher', email: 'teacher@openlms.edu', role: 'TEACHER', avatar: 'https://ui-avatars.com/api/?name=Teacher+Nguyen&background=random', savedPrompts: ["Phân tích lỗi sai ngữ pháp"] },
+    { id: 's1', name: 'Tran Van Student', email: 'student@openlms.edu', role: 'STUDENT', avatar: 'https://ui-avatars.com/api/?name=Student+Tran&background=random' },
 ];
 
 export const useStore = create<AppState & { endDiscussionSession: (pin: string) => void }>((set, get) => ({
+  isDataLoading: false,
+
+  // --- INITIAL DATA FETCHING ---
+  fetchInitialData: async () => {
+    set({ isDataLoading: true });
+    try {
+        // 1. Fetch Users (Profiles)
+        const { data: users, error: userErr } = await supabase.from('profiles').select('*');
+        if (users && users.length > 0) {
+            set({ users: users as User[] });
+        } else if (!userErr) {
+            // Seed if empty
+            await supabase.from('profiles').insert(SEED_USERS);
+            set({ users: SEED_USERS });
+        }
+
+        // 2. Fetch Exams
+        const { data: exams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
+        if (exams) set({ exams: exams as Exam[] });
+
+        // 3. Fetch Classes
+        const { data: classes } = await supabase.from('classes').select('*');
+        if (classes) set({ classes: classes as Class[] });
+
+        // 4. Fetch Assignments
+        const { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
+        if (assignments) set({ assignments: assignments as Assignment[] });
+
+        // 5. Fetch Attempts
+        const { data: attempts } = await supabase.from('attempts').select('*');
+        if (attempts) set({ attempts: attempts as Attempt[] });
+
+        // 6. Fetch Years
+        const { data: years } = await supabase.from('academic_years').select('*');
+        if (years) set({ academicYears: years as AcademicYear[] });
+
+        // 7. Notifications
+        const { data: notifs } = await supabase.from('notifications').select('*').order('createdAt', { ascending: false });
+        if (notifs) set({ notifications: notifs as Notification[] });
+
+    } catch (e) {
+        console.error("Error fetching initial data:", e);
+    } finally {
+        set({ isDataLoading: false });
+    }
+  },
+
   // Session
   user: null,
   setUser: (user) => set({ user }),
 
   // Users
-  users: MOCK_USERS,
-  addUser: (user) => set((state) => ({ users: [...state.users, user] })),
-  updateUser: (updatedUser) => set((state) => ({
-    users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
-    user: state.user?.id === updatedUser.id ? updatedUser : state.user // Update session user too
-  })),
-  saveUserPrompt: (prompt) => set((state) => {
-    if (!state.user || !prompt.trim()) return state;
+  users: [],
+  addUser: async (user) => {
+    const { error } = await supabase.from('profiles').insert(user);
+    if (!error) set((state) => ({ users: [...state.users, user] }));
+  },
+  updateUser: async (updatedUser) => {
+    const { error } = await supabase.from('profiles').update(updatedUser).eq('id', updatedUser.id);
+    if (!error) {
+        set((state) => ({
+            users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
+            user: state.user?.id === updatedUser.id ? updatedUser : state.user
+        }));
+    }
+  },
+  saveUserPrompt: async (prompt) => {
+    const state = get();
+    if (!state.user || !prompt.trim()) return;
     const currentPrompts = state.user.savedPrompts || [];
-    if (currentPrompts.includes(prompt)) return state;
+    if (currentPrompts.includes(prompt)) return;
+
+    const newPrompts = [prompt, ...currentPrompts].slice(0, 10);
+    const updatedUser = { ...state.user, savedPrompts: newPrompts };
     
-    const updatedUser = {
-        ...state.user,
-        savedPrompts: [prompt, ...currentPrompts].slice(0, 10) // Limit to 10 recents
-    };
+    // Update Supabase
+    await supabase.from('profiles').update({ savedPrompts: newPrompts }).eq('id', state.user.id);
     
-    // Update both user session and users list
-    return {
+    set({
         user: updatedUser,
         users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
-    };
-  }),
+    });
+  },
 
   // Academic Years
-  academicYears: MOCK_YEARS,
-  addAcademicYear: (year) => set((state) => ({ academicYears: [...state.academicYears, year] })),
-  updateAcademicYear: (updatedYear) => set((state) => ({
-    academicYears: state.academicYears.map(y => y.id === updatedYear.id ? updatedYear : y)
-  })),
+  academicYears: [],
+  addAcademicYear: async (year) => {
+      const { error } = await supabase.from('academic_years').insert(year);
+      if (!error) set((state) => ({ academicYears: [...state.academicYears, year] }));
+  },
+  updateAcademicYear: async (updatedYear) => {
+      const { error } = await supabase.from('academic_years').update(updatedYear).eq('id', updatedYear.id);
+      if(!error) set((state) => ({
+        academicYears: state.academicYears.map(y => y.id === updatedYear.id ? updatedYear : y)
+      }));
+  },
 
   // Classes
-  classes: MOCK_CLASSES,
-  addClass: (cls) => set((state) => ({ classes: [...state.classes, cls] })),
-  updateClass: (updatedClass) => set((state) => ({
-    classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
-  })),
+  classes: [],
+  addClass: async (cls) => {
+      const { error } = await supabase.from('classes').insert(cls);
+      if(!error) set((state) => ({ classes: [...state.classes, cls] }));
+  },
+  updateClass: async (updatedClass) => {
+      const { error } = await supabase.from('classes').update(updatedClass).eq('id', updatedClass.id);
+      if(!error) set((state) => ({
+        classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
+      }));
+  },
 
   // Exams
-  exams: MOCK_EXAMS,
-  addExam: (exam) => set((state) => ({ exams: [exam, ...state.exams] })),
-  updateExam: (updatedExam) => set((state) => ({
-    exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
-  })),
+  exams: [],
+  addExam: async (exam) => {
+      const { error } = await supabase.from('exams').insert(exam);
+      if (!error) set((state) => ({ exams: [exam, ...state.exams] }));
+      else console.error(error);
+  },
+  updateExam: async (updatedExam) => {
+      const { error } = await supabase.from('exams').update(updatedExam).eq('id', updatedExam.id);
+      if(!error) set((state) => ({
+        exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
+      }));
+  },
 
-  // Assignments & Notifications Trigger
-  assignments: MOCK_ASSIGNMENTS,
-  addAssignment: (assign) => {
-    // 1. Add Assignment
+  // Assignments
+  assignments: [],
+  addAssignment: async (assign) => {
+    // 1. Save to DB
+    const { error } = await supabase.from('assignments').insert(assign);
+    if (error) return;
+
     set((state) => ({ assignments: [assign, ...state.assignments] }));
 
-    // 2. Notify Students in that Class
+    // 2. Notify Students (Sync with DB)
     const state = get();
     const targetClass = state.classes.find(c => c.id === assign.classId);
     const exam = state.exams.find(e => e.id === assign.examId);
@@ -182,15 +159,26 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
          createdAt: new Date().toISOString(),
          link: `/exam/${exam.id}/take?assign=${assign.id}`
       }));
+      
+      await supabase.from('notifications').insert(newNotifs);
       set(state => ({ notifications: [...newNotifs, ...state.notifications] }));
     }
   },
 
-  // Attempts & Feedback Notifications
+  // Attempts
   attempts: [],
-  addAttempt: (attempt) => set((state) => ({ attempts: [...state.attempts, attempt] })),
-  updateAttemptFeedback: (attemptId, feedback, allowViewSolution) => {
-      // 1. Update Feedback & Visibility Setting
+  addAttempt: async (attempt) => {
+      const { error } = await supabase.from('attempts').insert(attempt);
+      if(!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
+  },
+  updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
+      const { error } = await supabase.from('attempts').update({ 
+          teacherFeedback: feedback, 
+          feedbackAllowViewSolution: allowViewSolution 
+      }).eq('id', attemptId);
+
+      if (error) return;
+
       set((state) => ({
         attempts: state.attempts.map(a => a.id === attemptId ? { 
             ...a, 
@@ -199,7 +187,7 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
         } : a)
       }));
 
-      // 2. Notify Student
+      // Notify Student
       const state = get();
       const attempt = state.attempts.find(a => a.id === attemptId);
       const exam = state.exams.find(e => e.id === attempt?.examId);
@@ -213,22 +201,34 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
               message: `Giáo viên đã gửi nhận xét cho bài thi: ${exam.title}`,
               isRead: false,
               createdAt: new Date().toISOString(),
-              link: `/exam/${exam.id}/take` // Link to review
+              link: `/exam/${exam.id}/take`
           };
+          await supabase.from('notifications').insert(newNotif);
           set(s => ({ notifications: [newNotif, ...s.notifications] }));
       }
   },
 
   // Notifications
   notifications: [],
-  addNotification: (notif) => set((state) => ({ notifications: [notif, ...state.notifications] })),
-  markNotificationRead: (id) => set((state) => ({
-      notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
-  })),
-  markAllNotificationsRead: (userId) => set((state) => ({
-      notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
-  })),
+  addNotification: async (notif) => {
+      await supabase.from('notifications').insert(notif);
+      set((state) => ({ notifications: [notif, ...state.notifications] }));
+  },
+  markNotificationRead: async (id) => {
+      await supabase.from('notifications').update({ isRead: true }).eq('id', id);
+      set((state) => ({
+        notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
+      }));
+  },
+  markAllNotificationsRead: async (userId) => {
+      await supabase.from('notifications').update({ isRead: true }).eq('userId', userId);
+      set((state) => ({
+        notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
+      }));
+  },
 
+  // --- MEMORY ONLY (Realtime features usually use Supabase Realtime Channels, but keeping memory for MVP) ---
+  
   // Live Sessions
   liveSessions: [],
   createLiveSession: (session) => set((state) => ({ liveSessions: [...state.liveSessions, session] })),
@@ -241,12 +241,9 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
     let joined = false;
     set((state) => {
       const sessionIndex = state.liveSessions.findIndex(s => s.id === pin);
-      if (sessionIndex === -1) {
-        return state;
-      }
+      if (sessionIndex === -1) return state;
       
       const session = state.liveSessions[sessionIndex];
-      // Check if already joined
       if (session.participants.some(p => p.studentId === student.id)) {
         joined = true;
         return state;
@@ -355,9 +352,8 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
         ...s,
         polls: s.polls.map(p => {
            if (p.id !== pollId || !p.isActive) return p;
-           // Check if already voted
            const hasVoted = p.options.some(o => o.voterIds.includes(studentId));
-           if (hasVoted) return p; // Only 1 vote per poll allowed
+           if (hasVoted) return p; 
 
            return {
              ...p,
@@ -398,7 +394,6 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
     })
   })),
 
-  // New Actions for Advanced Discussion Features
   setDiscussionVisibility: (pin, visibility) => set((state) => ({
     discussionSessions: state.discussionSessions.map(s => 
       s.id === pin ? { ...s, visibility } : s
@@ -416,7 +411,7 @@ export const useStore = create<AppState & { endDiscussionSession: (pin: string) 
       return {
         ...s,
         rounds: [...s.rounds, newRound],
-        activeRoundId: newRound.id // Auto switch to new round
+        activeRoundId: newRound.id 
       };
     })
   })),

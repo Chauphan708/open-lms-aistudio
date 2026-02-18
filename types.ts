@@ -219,6 +219,9 @@ export interface DictionaryEntry {
 }
 
 export interface AppState {
+  isDataLoading: boolean; // Global loading state
+  fetchInitialData: () => Promise<void>;
+
   // Session
   user: User | null;
   setUser: (user: User | null) => void;
@@ -254,7 +257,7 @@ export interface AppState {
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: (userId: string) => void;
 
-  // Live Sessions
+  // Live Sessions (Usually kept in realtime DB, but here local/memory for simplicity or simple DB polling)
   liveSessions: LiveSession[];
   createLiveSession: (session: LiveSession) => void;
   updateLiveSessionStatus: (pin: string, status: LiveSessionStatus) => void;

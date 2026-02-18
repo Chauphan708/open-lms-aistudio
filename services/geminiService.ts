@@ -10,9 +10,22 @@ const cleanJsonString = (text: string): string => {
 };
 
 const getAiClient = () => {
-  // Support both process.env (via Vite define) and import.meta.env (Vite native)
+  // Safely get API Key checking both process.env and import.meta.env
+  let apiKey = '';
+  
   // @ts-ignore
-  const apiKey = process.env.API_KEY || import.meta.env.VITE_API_KEY;
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      // @ts-ignore
+      apiKey = process.env.API_KEY;
+  }
+  
+  if (!apiKey) {
+      // @ts-ignore
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+          // @ts-ignore
+          apiKey = import.meta.env.VITE_API_KEY;
+      }
+  }
   
   if (!apiKey || apiKey.includes("API_KEY")) {
       console.error("CRITICAL: Missing API KEY. Please check .env file or Vercel Environment Variables.");

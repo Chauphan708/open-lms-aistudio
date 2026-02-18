@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
@@ -25,17 +24,18 @@ import { Settings } from './pages/Settings';
 
 import { useStore } from './store';
 import { UserRole } from './types';
+import { Loader2 } from 'lucide-react';
 
 const Login = () => {
   const { setUser, users } = useStore();
   
   const handleLogin = (role: UserRole) => {
-    // Find mock user for this role
-    const mockUser = users.find(u => u.role === role);
-    if (mockUser) {
-      setUser(mockUser);
+    // Find mock user for this role from fetched data (Supabase)
+    const dbUser = users.find(u => u.role === role);
+    if (dbUser) {
+      setUser(dbUser);
     } else {
-      // Fallback create if not exists in mock store
+      // Fallback only if database is empty or connection failed
       setUser({
         id: role.toLowerCase() + '_demo',
         name: `Demo ${role}`,
@@ -78,7 +78,7 @@ const Login = () => {
           </button>
         </div>
         <p className="mt-6 text-xs text-gray-400">
-          Demo Mode: No password required.
+          *Dữ liệu sẽ được lưu trên Supabase Cloud
         </p>
       </div>
     </div>
@@ -93,7 +93,23 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: UserRole[] }
 };
 
 function App() {
-  const { user } = useStore();
+  const { user, fetchInitialData, isDataLoading } = useStore();
+
+  // Load data once when app starts
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  if (isDataLoading) {
+     return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+           <div className="text-center">
+              <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mx-auto mb-4" />
+              <p className="text-gray-500">Đang tải dữ liệu từ Cloud...</p>
+           </div>
+        </div>
+     );
+  }
 
   return (
     <BrowserRouter>
