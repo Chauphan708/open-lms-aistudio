@@ -394,7 +394,7 @@ export const Dashboard: React.FC = () => {
 
   // --- RENDER FOR TEACHER / ADMIN ---
   const [timeFilter, setTimeFilter] = useState<'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'ALL'>('ALL');
-  const { resources } = useStore();
+
 
   const filterByTime = (dateString: string) => {
     if (timeFilter === 'ALL') return true;
