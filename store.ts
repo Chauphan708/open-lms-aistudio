@@ -303,11 +303,20 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
-  // Resources
+  // Resources - Force Update
   resources: [],
   addResource: async (res) => {
     set(state => ({ resources: [res, ...state.resources] }));
-    await supabase.from('resources').insert(res);
+    await supabase.from('resources').insert({
+      id: res.id,
+      title: res.title,
+      url: res.url,
+      type: res.type,
+      topic: res.topic,
+      description: res.description,
+      addedBy: res.addedBy,
+      createdAt: res.createdAt
+    });
     return true;
   },
   deleteResource: async (id) => {

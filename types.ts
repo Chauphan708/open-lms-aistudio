@@ -112,6 +112,7 @@ export interface WebResource {
   title: string;
   url: string;
   type: WebResourceType;
+  topic?: string;
   description?: string;
   addedBy: string;
   createdAt: string;

@@ -4,6 +4,7 @@ create table if not exists public.resources (
     title text not null,
     url text not null,
     type text default 'LINK' check (type in ('LINK', 'EMBED')),
+    topic text default 'General', -- New column for filtering
     description text,
     addedBy text, -- user_id of creator
     createdAt timestamptz default now()
@@ -13,7 +14,7 @@ create table if not exists public.resources (
 alter table public.resources enable row level security;
 create policy "Public access" on public.resources for all using (true) with check (true);
 
--- Enable Realtime (Optional, but good for collaboration)
+-- Enable Realtime
 begin;
   drop publication if exists supabase_realtime;
   create publication supabase_realtime;
