@@ -16,6 +16,7 @@ import { DiscussionRoom } from './pages/teacher/DiscussionRoom';
 import { StudentDiscussionRoom } from './pages/student/DiscussionRoom';
 import { DiscussionJoin } from './pages/student/DiscussionJoin';
 import { DiscussionList } from './pages/teacher/DiscussionList';
+import { DiscussionCreate } from './pages/teacher/DiscussionCreate';
 import { ExamResults } from './pages/teacher/ExamResults';
 // Student History
 import { StudentHistory } from './pages/student/StudentHistory';
@@ -194,6 +195,12 @@ function App() {
         <Route path="/teacher/discussions" element={
           <ProtectedRoute roles={['TEACHER']}>
             <DiscussionList />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/teacher/discussions/create" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <DiscussionCreate />
           </ProtectedRoute>
         } />
 
