@@ -56,17 +56,21 @@ export const ResourceLibrary: React.FC = () => {
 
         // Auto-convert YouTube Watch URL to Embed URL
         if (type === 'EMBED') {
-            const ytMatch = validUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+            // Support: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, youtube.com/shorts/ID
+            const ytMatch = validUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^&?/]+)/);
             if (ytMatch && ytMatch[1]) {
                 validUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
             }
         }
+
+        const finalTopic = topic === 'Other' && customTopic.trim() !== '' ? customTopic.trim() : topic;
 
         const newRes: WebResource = {
             id: `res_${Date.now()}`,
             title: title.trim(),
             url: validUrl,
             type,
+            topic: finalTopic, // Use the resolved topic
             description: description.trim(),
             addedBy: user?.id || 'unknown',
             createdAt: new Date().toISOString()
@@ -79,7 +83,7 @@ export const ResourceLibrary: React.FC = () => {
             setIsAdding(false);
             resetForm();
         } else {
-            alert("Lỗi khi lưu tài liệu. Vui lòng đảm bảo bảng 'resources' đã được tạo trong Database.");
+            alert("Lỗi khi lưu tài liệu. Vui lòng đảm bảo bảng 'resources' đã được cập nhật.");
         }
     };
 
@@ -87,11 +91,13 @@ export const ResourceLibrary: React.FC = () => {
         setTitle('');
         setUrl('');
         setType('LINK');
+        setTopic('Chung');
+        setCustomTopic('');
         setDescription('');
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm('Bạn có chắc chắn muốn xóa tài liệu này?')) {
+        if (confirm('Bạn có chắc chắn muốn xóa tài liệu này? Hành động này không thể hoàn tác.')) {
             const success = await deleteResource(id);
             if (!success) {
                 alert("Lỗi khi xóa tài liệu.");
@@ -187,7 +193,7 @@ export const ResourceLibrary: React.FC = () => {
                         <div className="p-6 space-y-5 overflow-y-auto">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1.5">Tiêu đề <span className="text-red-500">*</span></label>
-                                <input className="w-full border border-gray-300 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" value={title} onChange={e => setTitle(e.target.value)} placeholder="Nhập tên tài liệu..." autoFocus />
+                                <input className="w-full border border-gray-300 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" value={title} onChange={e => setTitle(e.target.value)} placeholder="VD: PhET Mô phỏng vật lý" autoFocus />
                             </div>
 
                             <div>
@@ -271,7 +277,12 @@ export const ResourceLibrary: React.FC = () => {
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <a href={viewingResource.url} target="_blank" rel="noreferrer" className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                                <a
+                                    href={viewingResource.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                                >
                                     <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">Mở trang gốc</span>
                                 </a>
                                 <button onClick={() => setViewingResource(null)} className="p-2 hover:bg-red-500/20 rounded-full text-white/80 hover:text-white transition-colors">
@@ -285,7 +296,7 @@ export const ResourceLibrary: React.FC = () => {
                                 className="w-full h-full border-none"
                                 title={viewingResource.title}
                                 allowFullScreen
-                                sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+                                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
                             />
 
                             {/* Only show this warning initially or on hover area at top */}
@@ -334,8 +345,8 @@ export const ResourceLibrary: React.FC = () => {
                             <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-dashed mt-auto">
                                 <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {new Date(res.createdAt).toLocaleDateString('vi-VN')}</span>
                                 {canManage && (
-                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(res.id); }} className="text-gray-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors" title="Xóa">
-                                        <Trash2 className="h-4 w-4" />
+                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(res.id); }} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors flex items-center gap-1" title="Xóa">
+                                        <Trash2 className="h-4 w-4" /> <span className="font-bold">Xóa</span>
                                     </button>
                                 )}
                             </div>
@@ -353,7 +364,7 @@ export const ResourceLibrary: React.FC = () => {
                                 <a
                                     href={res.url}
                                     target="_blank"
-                                    rel="noreferrer"
+                                    rel="noopener noreferrer"
                                     className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-100 hover:text-indigo-600 active:scale-95 transition-all"
                                 >
                                     <ExternalLink className="h-4 w-4" /> Mở trang web
