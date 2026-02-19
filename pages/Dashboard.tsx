@@ -34,7 +34,7 @@ const StatCard = ({ icon: Icon, label, value, color }: any) => (
 );
 
 export const Dashboard: React.FC = () => {
-  const { exams, user, attempts, users, classes, resources } = useStore();
+  const { exams, user, attempts, users, classes, resources, academicYears } = useStore();
   const navigate = useNavigate();
   const [showGamificationGuide, setShowGamificationGuide] = useState(false);
 
@@ -395,12 +395,41 @@ export const Dashboard: React.FC = () => {
   // --- RENDER FOR TEACHER / ADMIN ---
   const [timeFilter, setTimeFilter] = useState<'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'ALL'>('ALL');
 
+  const [selectedYearId, setSelectedYearId] = useState<string>('ALL');
+
+  // Helper to get date range of a school year
+  const getYearRange = (yearId: string) => {
+    if (yearId === 'ALL') return null;
+    const year = academicYears.find(y => y.id === yearId);
+    if (!year || !year.semesters || year.semesters.length === 0) return null;
+
+    // Find min start and max end
+    const startDates = year.semesters.map(s => new Date(s.startDate).getTime());
+    const endDates = year.semesters.map(s => new Date(s.endDate).getTime());
+
+    return {
+      start: new Date(Math.min(...startDates)),
+      end: new Date(Math.max(...endDates))
+    };
+  };
+
 
   const filterByTime = (dateString: string) => {
-    if (timeFilter === 'ALL') return true;
-    const date = new Date(dateString);
+    const itemDate = new Date(dateString);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
+
+    // 1. Year Filter
+    if (selectedYearId !== 'ALL') {
+      const range = getYearRange(selectedYearId);
+      if (range) {
+        if (itemDate < range.start || itemDate > range.end) return false;
+      }
+    }
+
+    // 2. Time Filter (Relative to NOW)
+    if (timeFilter === 'ALL') return true;
+
+    const diffTime = Math.abs(now.getTime() - itemDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (timeFilter === 'DAY') return diffDays <= 1;
@@ -423,23 +452,37 @@ export const Dashboard: React.FC = () => {
           <p className="text-gray-500 mt-1">Tổng quan hệ thống và tình hình lớp học.</p>
         </div>
 
-        {/* Time Filter */}
-        <div className="bg-white p-1 rounded-lg border shadow-sm flex items-center gap-1">
-          {[
-            { id: 'DAY', label: 'Hôm nay' },
-            { id: 'WEEK', label: 'Tuần này' },
-            { id: 'MONTH', label: 'Tháng này' },
-            { id: 'YEAR', label: 'Năm nay' },
-            { id: 'ALL', label: 'Tất cả' }
-          ].map(f => (
-            <button
-              key={f.id}
-              onClick={() => setTimeFilter(f.id as any)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${timeFilter === f.id ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Academic Year Filter */}
+          <select
+            value={selectedYearId}
+            onChange={(e) => setSelectedYearId(e.target.value)}
+            className="bg-white border hover:border-indigo-400 text-sm rounded-lg px-3 py-1.5 outline-none shadow-sm focus:ring-2 focus:ring-indigo-100 transition-all font-medium text-gray-700 cursor-pointer"
+          >
+            <option value="ALL">Tất cả năm học</option>
+            {academicYears?.map(y => (
+              <option key={y.id} value={y.id}>Năm học {y.name} {y.isActive ? '(Hiện tại)' : ''}</option>
+            ))}
+          </select>
+
+          {/* Time Filter */}
+          <div className="bg-white p-1 rounded-lg border shadow-sm flex items-center gap-1">
+            {[
+              { id: 'DAY', label: 'Hôm nay' },
+              { id: 'WEEK', label: 'Tuần này' },
+              { id: 'MONTH', label: 'Tháng này' },
+              { id: 'YEAR', label: 'Năm nay' },
+              { id: 'ALL', label: 'Tất cả' }
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setTimeFilter(f.id as any)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${timeFilter === f.id ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
