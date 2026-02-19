@@ -243,7 +243,7 @@ export const DiscussionRoom: React.FC = () => {
    return (
       <div className="h-screen bg-gray-50 flex flex-col">
          {/* Header */}
-         <div className="bg-white border-b px-4 md:px-6 py-3 flex justify-between items-center shadow-sm z-20">
+         <div className="bg-white border-b px-4 md:px-6 py-3 flex justify-between items-center shadow-sm z-50 relative">
             <div className="flex items-center gap-2 md:gap-4">
                <button onClick={() => navigate('/teacher/discussions')} className="hover:bg-gray-100 p-2 rounded-full transition-colors"><ArrowLeft className="h-5 w-5" /></button>
                <div>
