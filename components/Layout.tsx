@@ -62,11 +62,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: 'Quản lý Năm học', path: '/admin/years', icon: CalendarRange, roles: ['ADMIN'] },
     { label: 'QL Giáo Viên', path: '/admin/teachers', icon: Users, roles: ['ADMIN'] },
 
+    // TEACHER ONLY
+    { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
+
     // ADMIN & TEACHER
     { label: 'QL Học Sinh', path: '/manage/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER'] },
 
-    // TEACHER ONLY
-    { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
     { label: 'Thi Đua Lớp', path: '/teacher/class-fun', icon: Trophy, roles: ['TEACHER'] },
     { label: '⚡ Ghi Nhận', path: '/teacher/class-fun/record', icon: Trophy, roles: ['TEACHER'] },
     { label: '📋 Điểm Danh', path: '/teacher/class-fun/attendance', icon: Trophy, roles: ['TEACHER'] },
