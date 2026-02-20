@@ -219,6 +219,61 @@ export interface DictionaryEntry {
   }[];
 }
 
+// ============================================
+// EDUQUEST ARENA TYPES
+// ============================================
+
+export type AvatarClass = 'warrior' | 'mage' | 'archer' | 'healer';
+export type MatchStatus = 'waiting' | 'playing' | 'finished';
+
+export interface ArenaProfile {
+  id: string;
+  avatar_class: AvatarClass;
+  elo_rating: number;
+  total_xp: number;
+  wins: number;
+  losses: number;
+  tower_floor: number;
+}
+
+export interface ArenaQuestion {
+  id: string;
+  content: string;
+  answers: string[]; // 4 đáp án
+  correct_index: number; // 0-3
+  difficulty: number; // 1-3
+  subject: string;
+}
+
+export interface ArenaMatch {
+  id: string;
+  player1_id: string;
+  player2_id: string | null;
+  status: MatchStatus;
+  question_ids: string[];
+  current_question: number;
+  player1_hp: number;
+  player2_hp: number;
+  player1_score: number;
+  player2_score: number;
+  winner_id: string | null;
+  created_at: string;
+}
+
+export interface ArenaMatchEvent {
+  id: string;
+  match_id: string;
+  player_id: string;
+  event_type: string; // 'answer_correct', 'answer_wrong', 'timeout', 'finish'
+  payload: {
+    question_index?: number;
+    damage?: number;
+    time_taken?: number;
+    answer_index?: number;
+  };
+  created_at: string;
+}
+
 export interface AppState {
   isDataLoading: boolean;
   fetchInitialData: () => Promise<void>;
@@ -282,4 +337,26 @@ export interface AppState {
   setDiscussionVisibility: (sessionId: string, visibility: MessageVisibility) => Promise<void>;
   endDiscussionSession: (sessionId: string) => Promise<void>;
   deleteDiscussionSession: (pin: string) => Promise<boolean>;
+
+  // ============================================
+  // ARENA STATE & ACTIONS
+  // ============================================
+  arenaProfile: ArenaProfile | null;
+  arenaQuestions: ArenaQuestion[];
+  arenaMatches: ArenaMatch[];
+
+  fetchArenaProfile: (userId: string) => Promise<void>;
+  createArenaProfile: (userId: string, avatarClass: AvatarClass) => Promise<void>;
+  updateArenaProfile: (profile: Partial<ArenaProfile> & { id: string }) => Promise<void>;
+  fetchArenaQuestions: () => Promise<void>;
+  addArenaQuestion: (q: Omit<ArenaQuestion, 'id'>) => Promise<boolean>;
+  updateArenaQuestion: (q: ArenaQuestion) => Promise<boolean>;
+  deleteArenaQuestion: (id: string) => Promise<boolean>;
+  findMatch: (playerId: string) => Promise<ArenaMatch | null>;
+  cancelMatchmaking: (matchId: string) => Promise<void>;
+  joinMatch: (matchId: string, playerId: string) => Promise<void>;
+  submitArenaAnswer: (matchId: string, playerId: string, questionIndex: number, answerIndex: number, timeTaken: number, isCorrect: boolean) => Promise<void>;
+  finishMatch: (matchId: string, winnerId: string | null) => Promise<void>;
+  updateMatchHp: (matchId: string, player1Hp: number, player2Hp: number) => Promise<void>;
+  fetchLeaderboard: () => Promise<ArenaProfile[]>;
 }

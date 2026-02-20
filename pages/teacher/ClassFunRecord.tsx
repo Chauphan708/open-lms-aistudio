@@ -1,0 +1,347 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { useStore } from '../../store';
+import { useClassFunStore, Behavior } from '../../services/classFunStore';
+import {
+    ThumbsUp, ThumbsDown, Search, Plus, X, CheckSquare, Square, Zap,
+    Edit2, Trash2, Save, ChevronDown, ChevronUp, Users, Sparkles
+} from 'lucide-react';
+
+// --- Default behaviors for seeding ---
+const DEFAULT_POSITIVE: Omit<Behavior, 'id' | 'teacher_id'>[] = [
+    { description: 'Phát biểu xây dựng bài', type: 'POSITIVE', points: 5 },
+    { description: 'Hoàn thành bài tập tốt', type: 'POSITIVE', points: 5 },
+    { description: 'Giúp đỡ bạn bè', type: 'POSITIVE', points: 3 },
+    { description: 'Giữ trật tự tốt', type: 'POSITIVE', points: 3 },
+    { description: 'Tham gia tích cực', type: 'POSITIVE', points: 5 },
+    { description: 'Sáng tạo, đổi mới', type: 'POSITIVE', points: 10 },
+];
+const DEFAULT_NEGATIVE: Omit<Behavior, 'id' | 'teacher_id'>[] = [
+    { description: 'Nói chuyện riêng', type: 'NEGATIVE', points: -3 },
+    { description: 'Không làm bài tập', type: 'NEGATIVE', points: -5 },
+    { description: 'Đi trễ', type: 'NEGATIVE', points: -3 },
+    { description: 'Thiếu tập trung', type: 'NEGATIVE', points: -2 },
+    { description: 'Vi phạm nội quy', type: 'NEGATIVE', points: -5 },
+];
+
+export const ClassFunRecord: React.FC = () => {
+    const { user, classes, users } = useStore();
+    const {
+        behaviors, logs, groupMembers, groups, isLoading,
+        fetchClassFunData, addBehavior, updateBehavior, deleteBehavior, batchAddBehaviorLogs
+    } = useClassFunStore();
+
+    // --- States ---
+    const myClasses = classes.filter(c => c.teacherId === user?.id);
+    const [selectedClassId, setSelectedClassId] = useState(myClasses[0]?.id || '');
+    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [customReason, setCustomReason] = useState('');
+    const [showManageBehaviors, setShowManageBehaviors] = useState(false);
+    const [showSuccess, setShowSuccess] = useState<{ points: number; count: number } | null>(null);
+
+    // New behavior form
+    const [newBehavior, setNewBehavior] = useState({ description: '', type: 'POSITIVE' as 'POSITIVE' | 'NEGATIVE', points: 5 });
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    // Load data
+    useEffect(() => {
+        if (selectedClassId && user?.id) {
+            fetchClassFunData(selectedClassId, user.id);
+        }
+    }, [selectedClassId, user?.id, fetchClassFunData]);
+
+    useEffect(() => {
+        if (!selectedClassId && myClasses.length > 0) setSelectedClassId(myClasses[0].id);
+    }, [myClasses, selectedClassId]);
+
+    // Students in class
+    const selectedClass = classes.find(c => c.id === selectedClassId);
+    const classStudents = useMemo(() => {
+        if (!selectedClass) return [];
+        return users.filter(u => selectedClass.studentIds.includes(u.id));
+    }, [selectedClass, users]);
+
+    // Filter students
+    const filteredStudents = useMemo(() => {
+        if (!searchQuery) return classStudents;
+        const q = searchQuery.toLowerCase();
+        return classStudents.filter(s => s.name.toLowerCase().includes(q));
+    }, [classStudents, searchQuery]);
+
+    // Student scores
+    const studentScores = useMemo(() => {
+        const scores = new Map<string, number>();
+        logs.forEach(l => { scores.set(l.student_id, (scores.get(l.student_id) || 0) + l.points); });
+        return scores;
+    }, [logs]);
+
+    // Toggle student selection
+    const toggleStudent = (id: string) => {
+        setSelectedStudentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+    const selectAll = () => setSelectedStudentIds(classStudents.map(s => s.id));
+    const deselectAll = () => setSelectedStudentIds([]);
+    const selectGroup = (groupId: string) => {
+        const memberIds = groupMembers.filter(m => m.group_id === groupId).map(m => m.student_id);
+        setSelectedStudentIds(prev => [...new Set([...prev, ...memberIds])]);
+    };
+
+    // Apply behavior
+    const applyBehavior = async (behavior: Behavior) => {
+        if (selectedStudentIds.length === 0) return;
+        const logsToAdd = selectedStudentIds.map(sid => ({
+            student_id: sid,
+            class_id: selectedClassId,
+            behavior_id: behavior.id,
+            points: behavior.points,
+            reason: customReason || behavior.description,
+            recorded_by: user?.id || null,
+        }));
+        await batchAddBehaviorLogs(logsToAdd);
+        setShowSuccess({ points: behavior.points, count: selectedStudentIds.length });
+        setSelectedStudentIds([]);
+        setCustomReason('');
+        setTimeout(() => setShowSuccess(null), 2000);
+    };
+
+    // Add custom behavior
+    const handleAddBehavior = async () => {
+        if (!newBehavior.description.trim() || !user?.id) return;
+        await addBehavior({
+            teacher_id: user.id,
+            description: newBehavior.description,
+            type: newBehavior.type,
+            points: newBehavior.type === 'NEGATIVE' ? -Math.abs(newBehavior.points) : Math.abs(newBehavior.points),
+        });
+        setNewBehavior({ description: '', type: 'POSITIVE', points: 5 });
+    };
+
+    // Seed default behaviors
+    const seedDefaults = async () => {
+        if (!user?.id) return;
+        for (const b of [...DEFAULT_POSITIVE, ...DEFAULT_NEGATIVE]) {
+            await addBehavior({ ...b, teacher_id: user.id });
+        }
+    };
+
+    const positiveBehaviors = behaviors.filter(b => b.type === 'POSITIVE');
+    const negativeBehaviors = behaviors.filter(b => b.type === 'NEGATIVE');
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center p-20">
+                <div className="h-10 w-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Success Toast */}
+            {showSuccess && (
+                <div className={`fixed top-6 right-6 z-50 p-4 rounded-xl shadow-2xl text-white font-bold flex items-center gap-3 animate-bounce ${showSuccess.points > 0 ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}>
+                    <Sparkles className="h-6 w-6" />
+                    {showSuccess.points > 0 ? '+' : ''}{showSuccess.points} điểm cho {showSuccess.count} học sinh!
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-gray-900 flex items-center gap-3">
+                        <Zap className="h-8 w-8 text-amber-500" />
+                        Ghi Nhận Hành Vi
+                    </h1>
+                    <p className="text-gray-500 mt-1">Chọn học sinh → Chọn hành vi → Cộng/trừ điểm</p>
+                </div>
+                <div className="flex gap-3">
+                    {myClasses.length > 1 && (
+                        <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}
+                            className="border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                            {myClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    )}
+                    <button onClick={() => setShowManageBehaviors(!showManageBehaviors)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+                        <Edit2 className="h-4 w-4" /> Quản lý hành vi
+                    </button>
+                </div>
+            </div>
+
+            {/* Manage Behaviors Panel */}
+            {showManageBehaviors && (
+                <div className="bg-white rounded-xl shadow-sm border p-6 space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-bold text-gray-800">Danh sách hành vi</h2>
+                        {behaviors.length === 0 && (
+                            <button onClick={seedDefaults} className="text-sm text-indigo-600 hover:underline font-medium">
+                                + Dùng mẫu mặc định
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Add new */}
+                    <div className="flex flex-col sm:flex-row gap-2 p-4 bg-gray-50 rounded-lg border">
+                        <input value={newBehavior.description} onChange={e => setNewBehavior(p => ({ ...p, description: e.target.value }))}
+                            placeholder="Mô tả hành vi..." className="flex-1 px-3 py-2 border rounded-lg text-sm" />
+                        <select value={newBehavior.type} onChange={e => setNewBehavior(p => ({ ...p, type: e.target.value as 'POSITIVE' | 'NEGATIVE' }))}
+                            className="px-3 py-2 border rounded-lg text-sm">
+                            <option value="POSITIVE">Tích cực</option>
+                            <option value="NEGATIVE">Tiêu cực</option>
+                        </select>
+                        <input type="number" value={newBehavior.points} onChange={e => setNewBehavior(p => ({ ...p, points: parseInt(e.target.value) || 0 }))}
+                            className="w-20 px-3 py-2 border rounded-lg text-sm" />
+                        <button onClick={handleAddBehavior}
+                            className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                            <Plus className="h-4 w-4" /> Thêm
+                        </button>
+                    </div>
+
+                    {/* List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 className="text-sm font-bold text-emerald-700 mb-2 flex items-center gap-1"><ThumbsUp className="h-4 w-4" /> Tích cực</h3>
+                            {positiveBehaviors.map(b => (
+                                <div key={b.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-emerald-50 group">
+                                    <span className="text-sm">{b.description} <span className="text-emerald-600 font-bold">+{b.points}</span></span>
+                                    <button onClick={() => deleteBehavior(b.id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition">
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-red-700 mb-2 flex items-center gap-1"><ThumbsDown className="h-4 w-4" /> Tiêu cực</h3>
+                            {negativeBehaviors.map(b => (
+                                <div key={b.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-red-50 group">
+                                    <span className="text-sm">{b.description} <span className="text-red-600 font-bold">{b.points}</span></span>
+                                    <button onClick={() => deleteBehavior(b.id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition">
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Student Selection Panel */}
+                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-gray-800">Chọn Học Sinh</h2>
+                        <span className="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full">
+                            {selectedStudentIds.length} đã chọn
+                        </span>
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative mb-3">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Tìm học sinh..." className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    {/* Quick select */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        <button onClick={selectAll} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium hover:bg-indigo-100 transition">
+                            Chọn tất cả
+                        </button>
+                        <button onClick={deselectAll} className="text-xs bg-gray-50 text-gray-600 px-3 py-1 rounded-full font-medium hover:bg-gray-100 transition">
+                            Bỏ chọn
+                        </button>
+                        {groups.map(g => (
+                            <button key={g.id} onClick={() => selectGroup(g.id)}
+                                className="text-xs bg-sky-50 text-sky-700 px-3 py-1 rounded-full font-medium hover:bg-sky-100 transition flex items-center gap-1">
+                                <Users className="h-3 w-3" /> {g.name}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Student list */}
+                    <div className="max-h-[400px] overflow-y-auto space-y-1">
+                        {filteredStudents.map(s => {
+                            const selected = selectedStudentIds.includes(s.id);
+                            const score = studentScores.get(s.id) || 0;
+                            return (
+                                <button key={s.id} onClick={() => toggleStudent(s.id)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left ${selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent'
+                                        }`}>
+                                    {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className="h-5 w-5 text-gray-300 flex-shrink-0" />}
+                                    <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
+                                        alt="" className="w-9 h-9 rounded-full flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name}</span>
+                                    </div>
+                                    <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {score > 0 ? '+' : ''}{score}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Behavior Selection Panel */}
+                <div className="lg:col-span-3 space-y-5">
+                    {/* Custom reason */}
+                    <div className="bg-white rounded-xl shadow-sm border p-5">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú riêng (không bắt buộc)</label>
+                        <input value={customReason} onChange={e => setCustomReason(e.target.value)}
+                            placeholder="VD: Hăng hái phát biểu tiết Toán"
+                            className="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    {/* Positive behaviors */}
+                    <div className="bg-white rounded-xl shadow-sm border p-5">
+                        <h2 className="text-lg font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                            <ThumbsUp className="h-5 w-5" /> Hành vi tích cực
+                        </h2>
+                        {positiveBehaviors.length === 0 ? (
+                            <p className="text-center text-gray-400 text-sm py-6">Chưa có hành vi nào. Nhấn "Quản lý hành vi" để thêm.</p>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {positiveBehaviors.map(b => (
+                                    <button key={b.id} onClick={() => applyBehavior(b)}
+                                        disabled={selectedStudentIds.length === 0}
+                                        className={`group relative p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedStudentIds.length > 0
+                                                ? 'border-emerald-200 hover:border-emerald-400 hover:shadow-md hover:scale-[1.02] active:scale-95 bg-emerald-50/50'
+                                                : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                                            }`}>
+                                        <div className="text-2xl font-extrabold text-emerald-600">+{b.points}</div>
+                                        <div className="text-sm font-medium text-gray-700 mt-1 line-clamp-2">{b.description}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Negative behaviors */}
+                    <div className="bg-white rounded-xl shadow-sm border p-5">
+                        <h2 className="text-lg font-bold text-red-700 mb-4 flex items-center gap-2">
+                            <ThumbsDown className="h-5 w-5" /> Hành vi cần nhắc nhở
+                        </h2>
+                        {negativeBehaviors.length === 0 ? (
+                            <p className="text-center text-gray-400 text-sm py-6">Chưa có hành vi nào.</p>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {negativeBehaviors.map(b => (
+                                    <button key={b.id} onClick={() => applyBehavior(b)}
+                                        disabled={selectedStudentIds.length === 0}
+                                        className={`group relative p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedStudentIds.length > 0
+                                                ? 'border-red-200 hover:border-red-400 hover:shadow-md hover:scale-[1.02] active:scale-95 bg-red-50/50'
+                                                : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                                            }`}>
+                                        <div className="text-2xl font-extrabold text-red-600">{b.points}</div>
+                                        <div className="text-sm font-medium text-gray-700 mt-1 line-clamp-2">{b.description}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
