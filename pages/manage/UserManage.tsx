@@ -95,11 +95,19 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             }
         }
 
+        let finalClassName = targetRole === 'STUDENT' ? editClassName : undefined;
+        if (targetRole === 'STUDENT' && editClassName) {
+            const parts = editClassName.split('|');
+            if (parts.length === 2) {
+                finalClassName = parts[1];
+            }
+        }
+
         const updated: User = {
             ...editingUser,
             name: editName,
             email: editEmail.trim(),
-            className: targetRole === 'STUDENT' ? editClassName : undefined
+            className: finalClassName
         };
         updateUser(updated);
         setEditingUser(null);
@@ -183,7 +191,16 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     };
 
     const handleBulkSubmit = () => {
-        previewUsers.forEach(u => addUser(u));
+        previewUsers.forEach(u => {
+            let assignedClassId = '';
+            if (u.role === 'STUDENT' && u.className) {
+                const foundClass = classes.find(c => c.name.toLowerCase() === u.className?.toLowerCase().trim());
+                if (foundClass) {
+                    assignedClassId = foundClass.id;
+                }
+            }
+            addUser(u, assignedClassId);
+        });
         setIsCreating(false);
         resetForms();
         alert(`Đã thêm thành công ${previewUsers.length} tài khoản!`);
