@@ -118,8 +118,22 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Session
-  user: null,
-  setUser: (user) => set({ user }),
+  user: (() => {
+    try {
+      const stored = localStorage.getItem('user_session');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  })(),
+  setUser: (user) => {
+    if (user) {
+      localStorage.setItem('user_session', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user_session');
+    }
+    set({ user });
+  },
 
   // Users
   users: [],
