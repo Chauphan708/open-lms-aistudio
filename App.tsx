@@ -50,11 +50,18 @@ const Login = () => {
 
   const handleRealLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    const searchEmail = email.trim().toLowerCase();
+
     // Match password OR fallback if user has no password set and inputs '123456'
-    const user = users.find(u => u.email === email && (u.password === password || (!u.password && password === '123456')));
+    const user = users.find(u =>
+      u.email?.trim().toLowerCase() === searchEmail &&
+      (u.password === password || (!u.password && password === '123456'))
+    );
+
     if (user) {
       setUser(user);
     } else {
+      console.log('Login failed. Current users in DB:', users.map(u => u.email));
       setError('Email hoặc mật khẩu không chính xác.');
     }
   };
