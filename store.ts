@@ -602,4 +602,180 @@ export const useStore = create<AppState>((set, get) => ({
   joinLiveSession: (pin, student) => { return true; }, // Mock
   updateLiveParticipantProgress: (pin, studentId, progress) => { },
 
+  // ============================================
+  // EDUQUEST ARENA
+  // ============================================
+  arenaProfile: null,
+  arenaQuestions: [],
+  arenaMatches: [],
+
+  fetchArenaProfile: async (userId) => {
+    const { data, error } = await supabase.from('arena_profiles').select('*').eq('id', userId).single();
+    if (data) {
+      set({ arenaProfile: data as any });
+    } else {
+      set({ arenaProfile: null });
+    }
+  },
+
+  createArenaProfile: async (userId, avatarClass) => {
+    const profile = { id: userId, avatar_class: avatarClass, elo_rating: 1000, total_xp: 0, wins: 0, losses: 0, tower_floor: 1 };
+    const { error } = await supabase.from('arena_profiles').insert(profile);
+    if (!error) {
+      set({ arenaProfile: profile as any });
+    }
+  },
+
+  updateArenaProfile: async (profile) => {
+    const { error } = await supabase.from('arena_profiles').update(profile).eq('id', profile.id);
+    if (!error) {
+      set(state => ({
+        arenaProfile: state.arenaProfile ? { ...state.arenaProfile, ...profile } : null
+      }));
+    }
+  },
+
+  fetchArenaQuestions: async () => {
+    const { data } = await supabase.from('arena_questions').select('*');
+    if (data) {
+      set({ arenaQuestions: data.map((q: any) => ({ ...q, answers: typeof q.answers === 'string' ? JSON.parse(q.answers) : q.answers })) });
+    }
+  },
+
+  addArenaQuestion: async (q) => {
+    const id = `aq_${Date.now()}`;
+    const row = { id, content: q.content, answers: q.answers, correct_index: q.correct_index, difficulty: q.difficulty, subject: q.subject };
+    const { error } = await supabase.from('arena_questions').insert(row);
+    if (error) return false;
+    set(state => ({ arenaQuestions: [...state.arenaQuestions, { ...row, answers: typeof row.answers === 'string' ? JSON.parse(row.answers as any) : row.answers } as any] }));
+    return true;
+  },
+
+  updateArenaQuestion: async (q) => {
+    const { error } = await supabase.from('arena_questions').update({ content: q.content, answers: q.answers, correct_index: q.correct_index, difficulty: q.difficulty, subject: q.subject }).eq('id', q.id);
+    if (error) return false;
+    set(state => ({ arenaQuestions: state.arenaQuestions.map(x => x.id === q.id ? q : x) }));
+    return true;
+  },
+
+  deleteArenaQuestion: async (id) => {
+    const { error } = await supabase.from('arena_questions').delete().eq('id', id);
+    if (error) return false;
+    set(state => ({ arenaQuestions: state.arenaQuestions.filter(x => x.id !== id) }));
+    return true;
+  },
+
+  findMatch: async (playerId) => {
+    // 1. Look for existing waiting match
+    const { data: waiting } = await supabase.from('arena_matches').select('*').eq('status', 'waiting').neq('player1_id', playerId).limit(1);
+    if (waiting && waiting.length > 0) {
+      // Join existing match
+      return waiting[0] as any;
+    }
+    // 2. Create new waiting match
+    const { data: questions } = await supabase.from('arena_questions').select('id');
+    const allIds = questions?.map((q: any) => q.id) || [];
+    // Shuffle and pick 5
+    const shuffled = allIds.sort(() => Math.random() - 0.5).slice(0, 5);
+    const matchId = `match_${Date.now()}`;
+    const newMatch = {
+      id: matchId,
+      player1_id: playerId,
+      player2_id: null,
+      status: 'waiting',
+      question_ids: shuffled,
+      current_question: 0,
+      player1_hp: 100,
+      player2_hp: 100,
+      player1_score: 0,
+      player2_score: 0,
+      winner_id: null
+    };
+    await supabase.from('arena_matches').insert(newMatch);
+    return newMatch as any;
+  },
+
+  cancelMatchmaking: async (matchId) => {
+    await supabase.from('arena_matches').delete().eq('id', matchId).eq('status', 'waiting');
+  },
+
+  joinMatch: async (matchId, playerId) => {
+    await supabase.from('arena_matches').update({ player2_id: playerId, status: 'playing' }).eq('id', matchId);
+  },
+
+  submitArenaAnswer: async (matchId, playerId, questionIndex, answerIndex, timeTaken, isCorrect) => {
+    const damage = isCorrect ? 20 + Math.max(0, Math.round((15 - timeTaken) * 0.7)) : 0;
+    const eventType = isCorrect ? 'answer_correct' : 'answer_wrong';
+    await supabase.from('arena_match_events').insert({
+      id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      match_id: matchId,
+      player_id: playerId,
+      event_type: eventType,
+      payload: { question_index: questionIndex, damage, time_taken: timeTaken, answer_index: answerIndex }
+    });
+  },
+
+  finishMatch: async (matchId, winnerId) => {
+    await supabase.from('arena_matches').update({ status: 'finished', winner_id: winnerId }).eq('id', matchId);
+
+    // Update Elo for both players
+    const { data: match } = await supabase.from('arena_matches').select('*').eq('id', matchId).single();
+    if (!match) return;
+
+    const { data: p1Profile } = await supabase.from('arena_profiles').select('*').eq('id', match.player1_id).single();
+    const { data: p2Profile } = await supabase.from('arena_profiles').select('*').eq('id', match.player2_id).single();
+    if (!p1Profile || !p2Profile) return;
+
+    const K = 32;
+    const expected1 = 1 / (1 + Math.pow(10, (p2Profile.elo_rating - p1Profile.elo_rating) / 400));
+    const expected2 = 1 - expected1;
+
+    let score1 = 0.5, score2 = 0.5; // draw
+    if (winnerId === match.player1_id) { score1 = 1; score2 = 0; }
+    else if (winnerId === match.player2_id) { score1 = 0; score2 = 1; }
+
+    const newElo1 = Math.round(p1Profile.elo_rating + K * (score1 - expected1));
+    const newElo2 = Math.round(p2Profile.elo_rating + K * (score2 - expected2));
+
+    await supabase.from('arena_profiles').update({
+      elo_rating: newElo1,
+      total_xp: p1Profile.total_xp + (score1 === 1 ? 50 : 10),
+      wins: p1Profile.wins + (score1 === 1 ? 1 : 0),
+      losses: p1Profile.losses + (score1 === 0 ? 1 : 0)
+    }).eq('id', match.player1_id);
+
+    await supabase.from('arena_profiles').update({
+      elo_rating: newElo2,
+      total_xp: p2Profile.total_xp + (score2 === 1 ? 50 : 10),
+      wins: p2Profile.wins + (score2 === 1 ? 1 : 0),
+      losses: p2Profile.losses + (score2 === 0 ? 1 : 0)
+    }).eq('id', match.player2_id);
+
+    // Update local if current user
+    const state = get();
+    if (state.arenaProfile && (state.arenaProfile.id === match.player1_id || state.arenaProfile.id === match.player2_id)) {
+      const isP1 = state.arenaProfile.id === match.player1_id;
+      const won = winnerId === state.arenaProfile.id;
+      set({
+        arenaProfile: {
+          ...state.arenaProfile,
+          elo_rating: isP1 ? newElo1 : newElo2,
+          total_xp: state.arenaProfile.total_xp + (won ? 50 : 10),
+          wins: state.arenaProfile.wins + (won ? 1 : 0),
+          losses: state.arenaProfile.losses + (!won && winnerId ? 1 : 0)
+        }
+      });
+    }
+  },
+
+  updateMatchHp: async (matchId, player1Hp, player2Hp) => {
+    await supabase.from('arena_matches').update({ player1_hp: player1Hp, player2_hp: player2Hp }).eq('id', matchId);
+  },
+
+  fetchLeaderboard: async () => {
+    const { data } = await supabase.from('arena_profiles').select('*').order('elo_rating', { ascending: false }).limit(50);
+    return (data || []) as any[];
+  },
+
 }));
+
