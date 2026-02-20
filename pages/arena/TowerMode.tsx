@@ -98,9 +98,6 @@ export const TowerMode: React.FC = () => {
     };
 
     const handleNext = () => {
-        if (isCorrect) {
-            setFloor(prev => prev + 1);
-        }
         pickNextQuestion();
     };
 
@@ -251,8 +248,8 @@ export const TowerMode: React.FC = () => {
                                     style={{ animation: `fadeIn 0.3s ease-out ${idx * 0.05}s both` }}
                                 >
                                     <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${showResult && idx === currentQ.correct_index ? 'bg-emerald-500 text-white' :
-                                            showResult && idx === selected && !isCorrect ? 'bg-red-500 text-white' :
-                                                'bg-gray-100 text-gray-500'
+                                        showResult && idx === selected && !isCorrect ? 'bg-red-500 text-white' :
+                                            'bg-gray-100 text-gray-500'
                                         }`}>
                                         {showResult && idx === currentQ.correct_index ? <CheckCircle className="h-4 w-4" /> :
                                             showResult && idx === selected && !isCorrect ? <XCircle className="h-4 w-4" /> :
