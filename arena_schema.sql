@@ -56,15 +56,19 @@ CREATE TABLE IF NOT EXISTS public.arena_match_events (
 -- ROW LEVEL SECURITY
 -- ============================================
 ALTER TABLE public.arena_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Arena profiles public access" ON public.arena_profiles;
 CREATE POLICY "Arena profiles public access" ON public.arena_profiles FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE public.arena_questions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Arena questions public access" ON public.arena_questions;
 CREATE POLICY "Arena questions public access" ON public.arena_questions FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE public.arena_matches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Arena matches public access" ON public.arena_matches;
 CREATE POLICY "Arena matches public access" ON public.arena_matches FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE public.arena_match_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Arena match events public access" ON public.arena_match_events;
 CREATE POLICY "Arena match events public access" ON public.arena_match_events FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
