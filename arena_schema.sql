@@ -74,8 +74,17 @@ CREATE POLICY "Arena match events public access" ON public.arena_match_events FO
 -- ============================================
 -- REALTIME PUBLICATION
 -- ============================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.arena_matches;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.arena_match_events;
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.arena_matches;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.arena_match_events;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================
 -- SEED DATA: 20 câu hỏi lớp 5 (Kết nối tri thức với cuộc sống)
