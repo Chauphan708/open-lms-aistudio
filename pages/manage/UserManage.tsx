@@ -139,20 +139,18 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
             if (emailIdx !== -1) {
                 uEmail = parts[emailIdx];
-                // Assume Name is before Email, Class is after Email (if any)
-                // But robust logic: anything not email is potentially name or class.
-                // Heuristic: Longest part is name?
                 const otherParts = parts.filter((_, i) => i !== emailIdx);
                 if (otherParts.length > 0) uName = otherParts[0];
-                if (otherParts.length > 1) uClass = otherParts[1]; // Assume second part is Class
+                if (otherParts.length > 1) uClass = otherParts[1];
             } else {
-                // No email found, assume line is: Name [Class]
                 uName = parts[0];
                 if (parts.length > 1) uClass = parts[1];
 
-                // Generate fake email
-                const slug = uName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-                uEmail = `${slug}${Math.floor(Math.random() * 1000)}@school.edu`;
+                const nameParts = uName.trim().split(' ');
+                const firstName = nameParts.length > 0 ? nameParts[nameParts.length - 1] : 'user';
+                const slug = firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+                const classSlug = uClass ? uClass.toLowerCase().replace(/[^a-z0-9]/g, '') : Math.floor(Math.random() * 1000).toString();
+                uEmail = `${slug}${classSlug}`;
             }
 
             // Clean up quotes
@@ -161,8 +159,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             // Check duplicates in system OR in current preview list
             if (users.some(u => u.email.toLowerCase() === uEmail.toLowerCase()) || parsed.some(p => p.email.toLowerCase() === uEmail.toLowerCase())) {
                 duplicates.push(uEmail);
-                // We generate a random suffix to allow import, but user should know
-                uEmail = uEmail.replace('@', `_${Math.floor(Math.random() * 999)}@`);
+                if (uEmail.includes('@')) {
+                    uEmail = uEmail.replace('@', `_${Math.floor(Math.random() * 999)}@`);
+                } else {
+                    uEmail = `${uEmail}_${Math.floor(Math.random() * 999)}`;
+                }
             }
 
             parsed.push({
@@ -178,7 +179,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
         setPreviewUsers(parsed);
         if (duplicates.length > 0) {
-            alert(`Phát hiện ${duplicates.length} email trùng lặp. Hệ thống đã tự động thêm số vào email để tránh lỗi.`);
+            alert(`Phát hiện ${duplicates.length} tên đăng nhập trùng lặp. Hệ thống đã tự động thêm số phụ để tránh lỗi.`);
         }
     };
 
@@ -273,8 +274,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                         <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Email (Đăng nhập) <span className="text-red-500">*</span></label>
-                                        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={email} onChange={e => setEmail(e.target.value)} placeholder="a@example.com" />
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{targetRole === 'STUDENT' ? 'Tên đăng nhập (VD: an5a1)' : 'Email'} <span className="text-red-500">*</span></label>
+                                        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={email} onChange={e => setEmail(e.target.value.replace(/\s/g, ''))} placeholder={targetRole === 'STUDENT' ? "an5a1" : "a@example.com"} />
                                     </div>
                                     {targetRole === 'STUDENT' && (
                                         <div>
@@ -308,8 +309,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                         <p className="font-bold mb-1">Hướng dẫn nhập nhanh:</p>
                                         <ul className="list-disc list-inside space-y-1 opacity-90">
                                             <li>Dán danh sách từ Excel vào ô bên dưới.</li>
-                                            <li>Cấu trúc: <code>Họ Tên | Email | Lớp (Tùy chọn)</code></li>
-                                            <li>Ngăn cách bằng dấu phẩy (CSV) hoặc phím Tab (Excel).</li>
+                                            <li>Cấu trúc: <code>Họ Tên | Email (hoặc bỏ trống) | Lớp (Tùy chọn)</code></li>
+                                            <li>Nếu bỏ trống Email, hệ thống tự tạo ID dựa trên Tên và Lớp (Ví dụ: an5a1).</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -370,7 +371,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                                     <div key={i} className="bg-white p-2 rounded border flex items-center justify-between text-sm">
                                                         <div>
                                                             <p className="font-bold text-gray-900">{u.name}</p>
-                                                            <p className="text-xs text-gray-500">{u.email}</p>
+                                                            <p className="text-xs text-indigo-600 font-mono font-bold">ID: {u.email}</p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             {u.className && <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold font-mono">{u.className}</span>}
@@ -501,7 +502,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                     <thead className="bg-gray-50 text-gray-700 uppercase">
                         <tr>
                             <th className="px-6 py-3">Họ tên</th>
-                            <th className="px-6 py-3">Email</th>
+                            <th className="px-6 py-3">Tên đăng nhập / Email</th>
                             {targetRole === 'STUDENT' && <th className="px-6 py-3">Lớp</th>}
                             <th className="px-6 py-3">Vai trò</th>
                             <th className="px-6 py-3 text-center">Tác vụ</th>
@@ -514,7 +515,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                     <img src={u.avatar} className="w-8 h-8 rounded-full border border-gray-200" alt="" />
                                     <span className="font-medium text-gray-900">{u.name}</span>
                                 </td>
-                                <td className="px-6 py-4">{u.email}</td>
+                                <td className="px-6 py-4 font-mono text-indigo-700">{u.email}</td>
                                 {targetRole === 'STUDENT' && (
                                     <td className="px-6 py-4">
                                         {u.className ? (
@@ -579,7 +580,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                         {u.role}
                                     </span>
                                 </div>
-                                <div className="text-sm text-gray-500 truncate">{u.email}</div>
+                                <div className="text-sm font-mono text-indigo-600 mt-1">ID: {u.email}</div>
                                 {targetRole === 'STUDENT' && (
                                     <div className="mt-1">
                                         {u.className ? (
