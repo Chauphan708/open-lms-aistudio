@@ -8,7 +8,6 @@ import { ExamTake } from './pages/ExamTake';
 import { AcademicYearManage } from './pages/admin/AcademicYearManage';
 import { UserManage } from './pages/manage/UserManage';
 import { ClassManage } from './pages/teacher/ClassManage';
-import { ClassFunDashboard } from './pages/teacher/ClassFunDashboard';
 import { LiveRoom } from './pages/teacher/LiveRoom';
 import { LiveJoin } from './pages/student/LiveJoin';
 import { LiveLobby } from './pages/student/LiveLobby';
@@ -25,14 +24,6 @@ import { StudentHistory } from './pages/student/StudentHistory';
 import { Settings } from './pages/Settings';
 // Resources
 import { ResourceLibrary } from './pages/ResourceLibrary';
-// Arena
-import { ArenaHome } from './pages/arena/ArenaHome';
-import { TowerMode } from './pages/arena/TowerMode';
-import { PvPLobby } from './pages/arena/PvPLobby';
-import { PvPBattle } from './pages/arena/PvPBattle';
-import { MatchResult } from './pages/arena/MatchResult';
-import { Leaderboard } from './pages/arena/Leaderboard';
-import { ArenaAdmin } from './pages/arena/ArenaAdmin';
 
 import { useStore } from './store';
 import { UserRole } from './types';
@@ -184,11 +175,6 @@ function App() {
             <ClassManage />
           </ProtectedRoute>
         } />
-        <Route path="/teacher/class-fun" element={
-          <ProtectedRoute roles={['TEACHER']}>
-            <ClassFunDashboard />
-          </ProtectedRoute>
-        } />
 
         {/* LIVE EXAM ROUTES */}
         <Route path="/live/host/:pin" element={
@@ -264,43 +250,6 @@ function App() {
         <Route path="/settings" element={
           <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
             <Settings />
-          </ProtectedRoute>
-        } />
-
-        {/* ARENA ROUTES */}
-        <Route path="/arena" element={
-          <ProtectedRoute roles={['STUDENT']}>
-            <ArenaHome />
-          </ProtectedRoute>
-        } />
-        <Route path="/arena/tower" element={
-          <ProtectedRoute roles={['STUDENT']}>
-            <TowerMode />
-          </ProtectedRoute>
-        } />
-        <Route path="/arena/pvp" element={
-          <ProtectedRoute roles={['STUDENT']}>
-            <PvPLobby />
-          </ProtectedRoute>
-        } />
-        <Route path="/arena/battle/:id" element={
-          <ProtectedRoute roles={['STUDENT']}>
-            <PvPBattle />
-          </ProtectedRoute>
-        } />
-        <Route path="/arena/result/:id" element={
-          <ProtectedRoute roles={['STUDENT']}>
-            <MatchResult />
-          </ProtectedRoute>
-        } />
-        <Route path="/arena/leaderboard" element={
-          <ProtectedRoute>
-            <Leaderboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/arena/admin" element={
-          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
-            <ArenaAdmin />
           </ProtectedRoute>
         } />
 
