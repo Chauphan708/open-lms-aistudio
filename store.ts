@@ -166,6 +166,25 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   deleteUser: async (userId) => {
+    // 1. Dọn dẹp id học sinh khỏi danh sách lớp nếu có
+    const state = get();
+    const affectedClass = state.classes.find(c => c.studentIds?.includes(userId));
+    if (affectedClass) {
+      const updatedStudentIds = affectedClass.studentIds.filter(id => id !== userId);
+      const { error: clsError } = await supabase.from('classes')
+        .update({ studentIds: updatedStudentIds })
+        .eq('id', affectedClass.id);
+
+      if (!clsError) {
+        set(s => ({
+          classes: s.classes.map(c => c.id === affectedClass.id ? { ...c, studentIds: updatedStudentIds } : c)
+        }));
+      } else {
+        console.error("Failed to remove student from class before deletion", clsError);
+      }
+    }
+
+    // 2. Xóa user khỏi bảng profiles
     const { error } = await supabase.from('profiles').delete().eq('id', userId);
     if (error) {
       console.error("Delete user error", error);
