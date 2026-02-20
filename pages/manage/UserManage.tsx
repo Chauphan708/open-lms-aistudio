@@ -47,7 +47,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
         // Check Duplicate Email
         if (users.some(u => u.email.toLowerCase() === email.trim().toLowerCase())) {
-            alert("Email này đã tồn tại trong hệ thống! Vui lòng sử dụng email khác.");
+            alert("Tên đăng nhập / Email này đã tồn tại trong hệ thống! Vui lòng sử dụng tên khác.");
             return;
         }
 
@@ -90,7 +90,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
         // Check Duplicate Email if changed
         if (editEmail.trim().toLowerCase() !== editingUser.email.toLowerCase()) {
             if (users.some(u => u.email.toLowerCase() === editEmail.trim().toLowerCase())) {
-                alert("Email mới này đã được sử dụng bởi người dùng khác!");
+                alert("Tên đăng nhập / Email mới này đã được sử dụng bởi người dùng khác!");
                 return;
             }
         }
@@ -158,11 +158,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
             // Check duplicates in system OR in current preview list
             if (users.some(u => u.email.toLowerCase() === uEmail.toLowerCase()) || parsed.some(p => p.email.toLowerCase() === uEmail.toLowerCase())) {
-                duplicates.push(uEmail);
-                if (uEmail.includes('@')) {
-                    uEmail = uEmail.replace('@', `_${Math.floor(Math.random() * 999)}@`);
-                } else {
-                    uEmail = `${uEmail}_${Math.floor(Math.random() * 999)}`;
+                if (!duplicates.includes(uEmail)) {
+                    duplicates.push(uEmail);
                 }
             }
 
@@ -177,9 +174,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             });
         });
 
-        setPreviewUsers(parsed);
         if (duplicates.length > 0) {
-            alert(`Phát hiện ${duplicates.length} tên đăng nhập trùng lặp. Hệ thống đã tự động thêm số phụ để tránh lỗi.`);
+            alert(`Phát hiện mã trùng lặp: ${duplicates.join(', ')}.\nVui lòng sửa tên đăng nhập ở dữ liệu gốc (Cột Email) rồi bấm Phân tích lại.`);
+            setPreviewUsers([]);
+        } else {
+            setPreviewUsers(parsed);
         }
     };
 
@@ -415,12 +414,12 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">{editingUser.role === 'STUDENT' ? 'Tên đăng nhập' : 'Email'}</label>
                                 <input
-                                    type="email"
+                                    type="text"
                                     className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
                                     value={editEmail}
-                                    onChange={e => setEditEmail(e.target.value)}
+                                    onChange={e => setEditEmail(e.target.value.replace(/\s/g, ''))}
                                 />
                             </div>
                             {editingUser.role === 'STUDENT' && (
