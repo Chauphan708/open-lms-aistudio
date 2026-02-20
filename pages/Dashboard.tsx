@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store';
+import { useClassFunStore } from '../services/classFunStore';
 import {
   BookOpen,
   Users,
@@ -15,7 +16,8 @@ import {
   Target,
   Briefcase,
   HelpCircle,
-  X
+  X,
+  Heart
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -37,6 +39,19 @@ export const Dashboard: React.FC = () => {
   const { exams, user, attempts, users, classes, resources, academicYears } = useStore();
   const navigate = useNavigate();
   const [showGamificationGuide, setShowGamificationGuide] = useState(false);
+
+  // --- LOGIC FOR CLASSFUN REWARDS ---
+  const { logs: behaviorLogs, fetchStudentLogs } = useClassFunStore();
+
+  useEffect(() => {
+    if (user?.role === 'STUDENT') {
+      fetchStudentLogs(user.id);
+    }
+  }, [user]);
+
+  const behaviorScore = useMemo(() => {
+    return behaviorLogs.reduce((acc, log) => acc + log.points, 0);
+  }, [behaviorLogs]);
 
   // --- LOGIC FOR STUDENTS (GAMIFICATION) ---
   const studentGamification = useMemo(() => {
@@ -230,10 +245,11 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Basic Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard icon={BookOpen} label="Đề đã làm" value={studentStats?.examsTakenCount} color="bg-blue-500" />
           <StatCard icon={TrendingUp} label="Điểm trung bình" value={studentStats?.avgScore} color="bg-green-500" />
-          <StatCard icon={Clock} label="Giờ học tích lũy" value={`${studentStats?.studyHours}h`} color="bg-orange-500" />
+          <StatCard icon={Clock} label="Giờ học tập" value={`${studentStats?.studyHours}h`} color="bg-orange-500" />
+          <StatCard icon={Heart} label="Điểm rèn luyện" value={behaviorScore} color="bg-pink-500" />
           <StatCard icon={School} label="Lớp hiện tại" value={studentStats?.className} color="bg-indigo-500" />
         </div>
 
@@ -264,11 +280,32 @@ export const Dashboard: React.FC = () => {
             {/* Recent Activity */}
             <div className="bg-white p-6 rounded-xl border shadow-sm">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Hoạt động & Thông báo</h2>
+
+              {/* Behavior Logs (ClassFun) */}
+              {behaviorLogs.length > 0 && (
+                <div className="mb-6 space-y-3">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Hành vi & Khen thưởng</h3>
+                  {behaviorLogs.slice(0, 5).map(log => (
+                    <div key={log.id} className="flex gap-3 items-start p-3 bg-pink-50/50 hover:bg-pink-50 rounded-lg transition-colors border border-pink-100/50">
+                      <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm
+                        ${log.points > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                        {log.points > 0 ? '+' : ''}{log.points}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{log.reason || 'Giáo viên đánh giá hành vi'}</p>
+                        <p className="text-xs text-gray-500">{getTimeAgo(new Date(log.created_at))}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Bài tập & Đề thi</h3>
               <div className="space-y-4">
                 {recentActivities.map(act => (
-                  <div key={act.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                  <div key={act.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors border border-transparent">
                     <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 
-                        ${act.type === 'NEW_EXAM' ? 'bg-indigo-100 text-indigo-600' : 'bg-green-100 text-green-600'}`}>
+                        ${act.type === 'NEW_EXAM' ? 'bg-indigo-100 text-indigo-600' : 'bg-blue-100 text-blue-600'}`}>
                       {act.type === 'NEW_EXAM' ? <Bell className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
                     </div>
                     <div>
@@ -277,7 +314,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
-                {recentActivities.length === 0 && <p className="text-gray-500 text-sm">Chưa có hoạt động nào.</p>}
+                {recentActivities.length === 0 && <p className="text-gray-500 text-sm">Chưa có bài tập nào.</p>}
               </div>
             </div>
           </div>
