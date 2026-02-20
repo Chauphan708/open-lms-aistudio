@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS public.arena_matches (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   player1_id TEXT REFERENCES public.profiles(id),
   player2_id TEXT REFERENCES public.profiles(id),
-  status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'playing', 'finished')),
+  status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'challenged', 'playing', 'finished')),
   question_ids TEXT[] DEFAULT '{}',
   current_question INT DEFAULT 0,
   player1_hp INT DEFAULT 100,

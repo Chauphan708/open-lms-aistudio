@@ -1,184 +1,289 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { supabase } from '../../services/supabaseClient';
-import { ArrowLeft, Swords, Loader2, X, Shield, Wand2, Target, Heart } from 'lucide-react';
+import { ArrowLeft, Swords, X, Shield, RefreshCw } from 'lucide-react';
 
 const AVATAR_EMOJIS: Record<string, string> = {
     warrior: '🗡️', mage: '🔮', archer: '🏹', healer: '💚'
 };
 
 export const PvPLobby: React.FC = () => {
-    const { user, arenaProfile, findMatch, joinMatch, cancelMatchmaking, users } = useStore();
+    const { user, arenaProfile, fetchWaitingMatches, createMatch, challengeMatch, acceptMatch, rejectMatch, cancelMatchmaking, users } = useStore();
     const navigate = useNavigate();
-    const [searching, setSearching] = useState(false);
-    const [matchId, setMatchId] = useState<string | null>(null);
-    const [opponentFound, setOpponentFound] = useState(false);
+
+    const [matches, setMatches] = useState<any[]>([]);
+    const [isHosting, setIsHosting] = useState(false);
+    const [hostedMatchId, setHostedMatchId] = useState<string | null>(null);
+    const [challengerId, setChallengerId] = useState<string | null>(null);
+
+    const [isChallenging, setIsChallenging] = useState(false);
+    const [challengingMatchId, setChallengingMatchId] = useState<string | null>(null);
     const [countdown, setCountdown] = useState(3);
+    const [matchStarting, setMatchStarting] = useState(false);
+
     const channelRef = useRef<any>(null);
 
-    const startSearch = async () => {
-        if (!user) return;
-        setSearching(true);
-        const match = await findMatch(user.id);
-        if (!match) { setSearching(false); return; }
-
-        if (match.player2_id === null && match.player1_id === user.id) {
-            // We created a new match, wait for opponent
-            setMatchId(match.id);
-            // Subscribe to match changes
-            const channel = supabase.channel(`match-${match.id}`)
-                .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'arena_matches',
-                    filter: `id=eq.${match.id}`
-                }, (payload: any) => {
-                    if (payload.new.status === 'playing') {
-                        setOpponentFound(true);
-                    }
-                })
-                .subscribe();
-            channelRef.current = channel;
-        } else {
-            // Found existing waiting match, join it
-            setMatchId(match.id);
-            await joinMatch(match.id, user.id);
-            setOpponentFound(true);
-        }
+    const loadMatches = async () => {
+        const m = await fetchWaitingMatches();
+        setMatches(m);
     };
 
-    const cancelSearch = async () => {
-        if (matchId) {
-            await cancelMatchmaking(matchId);
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
-            }
-        }
-        setSearching(false);
-        setMatchId(null);
-    };
-
-    // Countdown when opponent found
     useEffect(() => {
-        if (!opponentFound) return;
+        loadMatches();
+        const sub = supabase.channel('public:arena_matches')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'arena_matches' }, () => {
+                loadMatches();
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(sub); };
+    }, []);
+
+    const handleCreateRoom = async () => {
+        if (!user) return;
+        const match = await createMatch(user.id);
+        if (match) {
+            setIsHosting(true);
+            setHostedMatchId(match.id);
+            setChallengerId(null);
+            subscribeToMatch(match.id, 'HOST');
+        }
+    };
+
+    const handleChallenge = async (matchId: string) => {
+        if (!user) return;
+        await challengeMatch(matchId, user.id);
+        setIsChallenging(true);
+        setChallengingMatchId(matchId);
+        subscribeToMatch(matchId, 'CHALLENGER');
+    };
+
+    const handleAccept = async () => {
+        if (!hostedMatchId) return;
+        await acceptMatch(hostedMatchId);
+        // Both will receive 'playing' status via sub
+    };
+
+    const handleReject = async () => {
+        if (!hostedMatchId) return;
+        await rejectMatch(hostedMatchId);
+        setChallengerId(null); // Back to waiting
+    };
+
+    const handleCancel = async () => {
+        if (hostedMatchId) {
+            await cancelMatchmaking(hostedMatchId);
+        }
+        if (channelRef.current) supabase.removeChannel(channelRef.current);
+        setIsHosting(false);
+        setHostedMatchId(null);
+        setIsChallenging(false);
+        setChallengingMatchId(null);
+        setChallengerId(null);
+    };
+
+    const subscribeToMatch = (matchId: string, role: 'HOST' | 'CHALLENGER') => {
+        if (channelRef.current) supabase.removeChannel(channelRef.current);
+
+        const channel = supabase.channel(`match-${matchId}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arena_matches', filter: `id=eq.${matchId}` }, (payload: any) => {
+                const updatedMatch = payload.new;
+
+                if (role === 'HOST') {
+                    if (updatedMatch.status === 'challenged' && updatedMatch.player2_id) {
+                        setChallengerId(updatedMatch.player2_id);
+                    } else if (updatedMatch.status === 'waiting') {
+                        setChallengerId(null); // Challenger gave up or was rejected
+                    }
+                }
+
+                if (role === 'CHALLENGER') {
+                    if (updatedMatch.status === 'waiting') {
+                        // We were rejected
+                        alert("Chủ phòng đã từ chối lời thách đấu.");
+                        handleCancel();
+                    }
+                }
+
+                if (updatedMatch.status === 'playing') {
+                    setMatchStarting(true);
+                }
+            })
+            .subscribe();
+
+        channelRef.current = channel;
+    };
+
+    useEffect(() => {
+        if (!matchStarting) return;
         if (countdown <= 0) {
-            navigate(`/arena/battle/${matchId}`);
+            navigate(`/arena/battle/${hostedMatchId || challengingMatchId}`);
             return;
         }
         const t = setTimeout(() => setCountdown(prev => prev - 1), 1000);
         return () => clearTimeout(t);
-    }, [opponentFound, countdown]);
+    }, [matchStarting, countdown]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
-            }
+            if (channelRef.current) supabase.removeChannel(channelRef.current);
         };
     }, []);
 
-    return (
-        <div className="max-w-xl mx-auto">
-            <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes bounce-in { 0% { transform: scale(0); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
-        @keyframes swords-clash { 
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(-15deg); }
-          75% { transform: rotate(15deg); }
-        }
-      `}</style>
+    const getPlayerName = (id: string) => users.find(u => u.id === id)?.name || 'Unknown';
 
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <button onClick={() => { cancelSearch(); navigate('/arena'); }} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors">
-                    <ArrowLeft className="h-5 w-5" /> Quay lại
+    if (matchStarting) {
+        return (
+            <div className="max-w-xl mx-auto text-center py-12 animate-fade-in">
+                <div className="flex items-center justify-center gap-6 mb-8">
+                    <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-lg bg-indigo-900 border-2 border-indigo-500">
+                        {AVATAR_EMOJIS[arenaProfile?.avatar_class || 'warrior']}
+                    </div>
+                    <div className="animate-pulse">
+                        <Swords className="h-12 w-12 text-red-500" />
+                    </div>
+                    <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-lg bg-gray-800 border-2 border-red-500">
+                        🤺
+                    </div>
+                </div>
+                <h2 className="text-3xl font-black text-gray-900 mb-4 animate-bounce">VÀO TRẬN!</h2>
+                <div className="text-7xl font-black text-red-500 drop-shadow-lg">{countdown}</div>
+            </div>
+        );
+    }
+
+    if (isHosting) {
+        return (
+            <div className="max-w-md mx-auto text-center py-8 animate-fade-in">
+                <h2 className="text-2xl font-black text-indigo-900 mb-6 flex items-center justify-center gap-2">
+                    <Shield className="h-6 w-6 text-indigo-500" /> Đang tạo phòng...
+                </h2>
+                <div className="bg-white rounded-2xl border-2 border-indigo-100 p-8 shadow-xl shadow-indigo-100/50 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-indigo-500"></div>
+
+                    {!challengerId ? (
+                        <div className="space-y-6">
+                            <div className="w-24 h-24 mx-auto rounded-full bg-indigo-50 flex items-center justify-center border-4 border-indigo-100 border-t-indigo-500 animate-spin">
+                                <span className="text-4xl animate-none">{AVATAR_EMOJIS[arenaProfile?.avatar_class || 'warrior']}</span>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Đang chờ đối thủ thách đấu...</h3>
+                                <p className="text-gray-500 text-sm mt-2">Người chơi khác sẽ thấy phòng của bạn ở sảnh chính.</p>
+                            </div>
+                            <button onClick={handleCancel} className="mt-4 px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
+                                Hủy phòng
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-6 animate-in zoom-in-95">
+                            <div className="bg-red-50 text-red-700 font-bold py-2 rounded-lg text-sm mb-4 border border-red-200">
+                                ⚔️ Có Lời Thách Đấu Mới!
+                            </div>
+                            <div className="flex items-center justify-center gap-4">
+                                <div className="text-center">
+                                    <h4 className="font-black text-xl text-gray-900">{getPlayerName(challengerId)}</h4>
+                                    <p className="text-gray-500 text-sm">Muốn tỉ thí với bạn</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 pt-4 border-t">
+                                <button onClick={handleReject} className="py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">
+                                    Từ chối
+                                </button>
+                                <button onClick={handleAccept} className="py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-red-200">
+                                    Chấp nhận
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (isChallenging) {
+        return (
+            <div className="max-w-md mx-auto text-center py-12 animate-fade-in">
+                <div className="w-24 h-24 mx-auto rounded-full bg-red-50 flex items-center justify-center border-4 border-red-100 border-t-red-500 animate-spin mb-6">
+                    <Swords className="h-10 w-10 text-red-500 animate-none" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Đã gửi lời thách đấu!</h3>
+                <p className="text-gray-500 mb-8">Vui lòng chờ chủ phòng chấp nhận...</p>
+                <button onClick={handleCancel} className="px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
+                    Rút lại lời thách đấu
                 </button>
-                <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                    <Swords className="h-6 w-6 text-red-500" /> Đấu Trường PvP
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto animate-fade-in">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => navigate('/arena')} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 font-medium">
+                    <ArrowLeft className="h-5 w-5" /> Rời sảnh
+                </button>
+                <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                    <Swords className="h-7 w-7 text-red-500" /> Sảnh Chờ PvP
                 </h1>
-                <div></div>
+                <button onClick={loadMatches} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full">
+                    <RefreshCw className="h-5 w-5" />
+                </button>
             </div>
 
-            {!searching ? (
-                /* Ready Screen */
-                <div className="text-center" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                    <div className="mb-8">
-                        <div className="w-32 h-32 mx-auto rounded-2xl flex items-center justify-center text-7xl shadow-lg shadow-purple-200 mb-6"
-                            style={{ background: 'linear-gradient(135deg, #1e1b4b, #4c1d95)' }}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1">
+                    <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-2xl p-6 text-white text-center shadow-lg sticky top-6">
+                        <div className="text-6xl mb-4">{AVATAR_EMOJIS[arenaProfile?.avatar_class || 'warrior']}</div>
+                        <h2 className="text-xl font-bold mb-1">{user?.name}</h2>
+                        <div className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-bold mb-6">
+                            Elo: {arenaProfile?.elo_rating || 1000}
+                        </div>
+                        <button
+                            onClick={handleCreateRoom}
+                            className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl transition-all hover:scale-105 shadow-xl shadow-red-500/30 flex items-center justify-center gap-2"
                         >
-                            {AVATAR_EMOJIS[arenaProfile?.avatar_class || 'warrior']}
-                        </div>
-                        <h2 className="text-2xl font-black text-gray-900">{user?.name}</h2>
-                        <p className="text-yellow-600 font-bold mt-1">⭐ Elo: {arenaProfile?.elo_rating || 1000}</p>
+                            <Shield className="h-5 w-5" /> TẠO PHÒNG
+                        </button>
+                        <p className="text-xs text-indigo-200 mt-4">Tạo phòng và chờ người khác thách đấu</p>
                     </div>
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-700">
-                        <p className="font-bold mb-1">⚔️ Luật chơi PvP</p>
-                        <p>Trả lời 5 câu hỏi. Đúng = gây sát thương lên đối thủ. Nhanh hơn = sát thương cao hơn!</p>
-                    </div>
-
-                    <button
-                        onClick={startSearch}
-                        className="w-full py-5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-2xl font-black text-xl hover:shadow-xl hover:shadow-red-200 transition-all hover:-translate-y-1 active:scale-95"
-                    >
-                        ⚔️ Tìm Đối Thủ
-                    </button>
                 </div>
-            ) : opponentFound ? (
-                /* Opponent Found */
-                <div className="text-center py-8" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                    <div className="flex items-center justify-center gap-6 mb-8">
-                        <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-lg"
-                            style={{ background: 'linear-gradient(135deg, #1e1b4b, #4c1d95)' }}
-                        >
-                            {AVATAR_EMOJIS[arenaProfile?.avatar_class || 'warrior']}
-                        </div>
-                        <div style={{ animation: 'swords-clash 0.5s ease-in-out infinite' }}>
-                            <Swords className="h-12 w-12 text-red-500" />
-                        </div>
-                        <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl bg-gray-800 shadow-lg"
-                            style={{ animation: 'bounce-in 0.5s ease-out' }}
-                        >
-                            ❓
-                        </div>
-                    </div>
 
-                    <h2 className="text-2xl font-black text-gray-900 mb-2">Đối thủ đã tìm thấy!</h2>
-                    <div className="text-6xl font-black text-red-500 my-6" style={{ animation: 'pulse 1s ease-in-out infinite' }}>
-                        {countdown}
-                    </div>
-                    <p className="text-gray-500">Trận đấu bắt đầu trong...</p>
+                <div className="md:col-span-2 space-y-4">
+                    <h3 className="font-bold text-gray-700 flex items-center justify-between">
+                        Danh sách phòng đang trống ({matches.filter(m => m.player1_id !== user?.id).length})
+                    </h3>
+
+                    {matches.filter(m => m.player1_id !== user?.id).length === 0 ? (
+                        <div className="bg-white border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center">
+                            <div className="text-4xl mb-4">🏜️</div>
+                            <p className="text-gray-500 font-medium">Sảnh đang vắng... Hãy nhấp "Tạo Phòng" để mời người khác!</p>
+                        </div>
+                    ) : (
+                        matches.filter(m => m.player1_id !== user?.id).map(match => (
+                            <div key={match.id} className="bg-white border rounded-xl p-4 flex items-center justify-between hover:border-indigo-300 hover:shadow-md transition-all group">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-2xl group-hover:bg-indigo-50 transition-colors">
+                                        🤺
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                            Phòng của {getPlayerName(match.player1_id)}
+                                        </h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-xs font-bold text-white bg-green-500 px-2 py-0.5 rounded-full">Đang chờ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleChallenge(match.id)}
+                                    className="px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 group-hover:shadow-md"
+                                >
+                                    Thách đấu
+                                </button>
+                            </div>
+                        ))
+                    )}
                 </div>
-            ) : (
-                /* Searching */
-                <div className="text-center py-12" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                    <div className="relative w-32 h-32 mx-auto mb-8">
-                        <div className="absolute inset-0 rounded-full border-4 border-purple-200" style={{ animation: 'spin-slow 3s linear infinite' }}></div>
-                        <div className="absolute inset-2 rounded-full border-4 border-t-purple-500 border-r-transparent border-b-transparent border-l-transparent" style={{ animation: 'spin-slow 1.5s linear infinite' }}></div>
-                        <div className="absolute inset-0 flex items-center justify-center text-5xl">
-                            {AVATAR_EMOJIS[arenaProfile?.avatar_class || 'warrior']}
-                        </div>
-                    </div>
-
-                    <h2 className="text-xl font-black text-gray-900 mb-2" style={{ animation: 'pulse 2s ease-in-out infinite' }}>
-                        Đang tìm đối thủ...
-                    </h2>
-                    <p className="text-gray-500 text-sm mb-8">Elo: {arenaProfile?.elo_rating || 1000}</p>
-
-                    <button
-                        onClick={cancelSearch}
-                        className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center gap-2 mx-auto"
-                    >
-                        <X className="h-4 w-4" /> Hủy tìm trận
-                    </button>
-                </div>
-            )}
+            </div>
         </div>
     );
 };

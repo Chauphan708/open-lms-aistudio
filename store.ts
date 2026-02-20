@@ -694,14 +694,17 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
 
-  findMatch: async (playerId) => {
-    // 1. Look for existing waiting match
-    const { data: waiting } = await supabase.from('arena_matches').select('*').eq('status', 'waiting').neq('player1_id', playerId).limit(1);
-    if (waiting && waiting.length > 0) {
-      // Join existing match
-      return waiting[0] as any;
-    }
-    // 2. Create new waiting match
+  fetchWaitingMatches: async () => {
+    const { data } = await supabase
+      .from('arena_matches')
+      .select('*')
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: false });
+    return (data || []) as any[];
+  },
+
+  createMatch: async (playerId) => {
+    // 1. Get questions
     const { data: questions } = await supabase.from('arena_questions').select('id');
     const allIds = questions?.map((q: any) => q.id) || [];
     // Shuffle and pick 5
@@ -720,16 +723,38 @@ export const useStore = create<AppState>((set, get) => ({
       player2_score: 0,
       winner_id: null
     };
-    await supabase.from('arena_matches').insert(newMatch);
+
+    const { error } = await supabase.from('arena_matches').insert(newMatch);
+    if (error) {
+      console.error("Match creation error", error);
+      return null;
+    }
     return newMatch as any;
   },
 
   cancelMatchmaking: async (matchId) => {
-    await supabase.from('arena_matches').delete().eq('id', matchId).eq('status', 'waiting');
+    await supabase.from('arena_matches').delete().eq('id', matchId).in('status', ['waiting', 'challenged']);
   },
 
-  joinMatch: async (matchId, playerId) => {
-    await supabase.from('arena_matches').update({ player2_id: playerId, status: 'playing' }).eq('id', matchId);
+  challengeMatch: async (matchId, challengerId) => {
+    await supabase.from('arena_matches')
+      .update({ player2_id: challengerId, status: 'challenged' })
+      .eq('id', matchId)
+      .eq('status', 'waiting');
+  },
+
+  acceptMatch: async (matchId) => {
+    await supabase.from('arena_matches')
+      .update({ status: 'playing' })
+      .eq('id', matchId)
+      .eq('status', 'challenged');
+  },
+
+  rejectMatch: async (matchId) => {
+    await supabase.from('arena_matches')
+      .update({ player2_id: null, status: 'waiting' })
+      .eq('id', matchId)
+      .eq('status', 'challenged');
   },
 
   submitArenaAnswer: async (matchId, playerId, questionIndex, answerIndex, timeTaken, isCorrect) => {

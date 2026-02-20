@@ -224,7 +224,7 @@ export interface DictionaryEntry {
 // ============================================
 
 export type AvatarClass = 'warrior' | 'mage' | 'archer' | 'healer';
-export type MatchStatus = 'waiting' | 'playing' | 'finished';
+export type MatchStatus = 'waiting' | 'challenged' | 'playing' | 'finished';
 
 export interface ArenaProfile {
   id: string;
@@ -352,9 +352,15 @@ export interface AppState {
   addArenaQuestion: (q: Omit<ArenaQuestion, 'id'>) => Promise<boolean>;
   updateArenaQuestion: (q: ArenaQuestion) => Promise<boolean>;
   deleteArenaQuestion: (id: string) => Promise<boolean>;
-  findMatch: (playerId: string) => Promise<ArenaMatch | null>;
+
+  // New Matchmaking logic
+  fetchWaitingMatches: () => Promise<ArenaMatch[]>;
+  createMatch: (playerId: string) => Promise<ArenaMatch | null>;
   cancelMatchmaking: (matchId: string) => Promise<void>;
-  joinMatch: (matchId: string, playerId: string) => Promise<void>;
+  challengeMatch: (matchId: string, challengerId: string) => Promise<void>;
+  acceptMatch: (matchId: string) => Promise<void>;
+  rejectMatch: (matchId: string) => Promise<void>;
+
   submitArenaAnswer: (matchId: string, playerId: string, questionIndex: number, answerIndex: number, timeTaken: number, isCorrect: boolean) => Promise<void>;
   finishMatch: (matchId: string, winnerId: string | null) => Promise<void>;
   updateMatchHp: (matchId: string, player1Hp: number, player2Hp: number) => Promise<void>;

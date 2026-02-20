@@ -81,26 +81,21 @@ export const PvPBattle: React.FC = () => {
         setMyHp(isPlayer1.current ? m.player1_hp : m.player2_hp);
         setOpHp(isPlayer1.current ? m.player2_hp : m.player1_hp);
 
-        // Subscribe to match events
+        // Subscribe to match events (Broadcast + Postgres)
         const channel = supabase.channel(`battle-${matchId}`)
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'arena_match_events',
-                filter: `match_id=eq.${matchId}`
-            }, (payload: any) => {
-                const evt = payload.new;
-                // Only process opponent's events
-                if (evt.player_id !== user!.id) {
-                    const dmg = evt.payload?.damage || 0;
-                    if (evt.event_type === 'answer_correct' && dmg > 0) {
-                        // Opponent answered correctly → I take damage
+            .on(
+                'broadcast',
+                { event: 'damage' },
+                (payload) => {
+                    // Instant HP update via Broadcast
+                    if (payload.payload.targetId === user!.id) {
+                        const dmg = payload.payload.amount;
                         setMyHp(prev => Math.max(0, prev - dmg));
                         setMyDamageAnim(true);
                         setTimeout(() => setMyDamageAnim(false), 600);
                     }
                 }
-            })
+            )
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
@@ -153,6 +148,16 @@ export const PvPBattle: React.FC = () => {
             setOpHp(prev => Math.max(0, prev - damage));
             setOpDamageAnim(true);
             setTimeout(() => setOpDamageAnim(false), 600);
+
+            // Broadcast instant damage to opponent
+            const targetId = isPlayer1.current ? match?.player2_id : match?.player1_id;
+            if (channelRef.current) {
+                channelRef.current.send({
+                    type: 'broadcast',
+                    event: 'damage',
+                    payload: { targetId, amount: damage }
+                });
+            }
         }
 
         await submitArenaAnswer(matchId, user.id, currentQIdx, idx, timeTaken, correct);
@@ -350,8 +355,8 @@ export const PvPBattle: React.FC = () => {
                                 >
                                     <div className="flex items-start gap-2">
                                         <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${showResult && idx === currentQuestion.correct_index ? 'bg-emerald-500' :
-                                                showResult && idx === selected && !isCorrect ? 'bg-red-500' :
-                                                    colors[idx]
+                                            showResult && idx === selected && !isCorrect ? 'bg-red-500' :
+                                                colors[idx]
                                             }`}>
                                             {showResult && idx === currentQuestion.correct_index ? '✓' :
                                                 showResult && idx === selected && !isCorrect ? '✗' :
