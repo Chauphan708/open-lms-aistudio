@@ -198,15 +198,26 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
 
-    // 2. Xóa user khỏi bảng profiles
+    // 2. Cascade delete dependent data manually as fallback
+    await Promise.all([
+      supabase.from('attempts').delete().eq('studentId', userId),
+      supabase.from('notifications').delete().eq('userId', userId),
+      supabase.from('arena_matches').delete().eq('player1_id', userId),
+      supabase.from('arena_matches').delete().eq('player2_id', userId),
+      supabase.from('arena_match_events').delete().eq('player_id', userId),
+    ]);
+
+    // 3. Xóa user khỏi bảng profiles
     const { error } = await supabase.from('profiles').delete().eq('id', userId);
     if (error) {
       console.error("Delete user error", error);
       return false;
     }
+
     set((state) => ({
       users: state.users.filter(u => u.id !== userId)
     }));
+
     return true;
   },
   changePassword: async (userId, newPass) => {
