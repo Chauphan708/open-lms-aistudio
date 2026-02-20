@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { ArenaQuestion } from '../../types';
@@ -25,9 +25,12 @@ export const TowerMode: React.FC = () => {
         fetchArenaQuestions().then(() => setLoading(false));
     }, []);
 
+    const initialized = useRef(false);
+
     useEffect(() => {
-        if (arenaProfile) {
+        if (arenaProfile && !initialized.current) {
             setFloor(arenaProfile.tower_floor);
+            initialized.current = true;
         }
     }, [arenaProfile]);
 
@@ -98,6 +101,9 @@ export const TowerMode: React.FC = () => {
     };
 
     const handleNext = () => {
+        if (isCorrect) {
+            setFloor(prev => prev + 1);
+        }
         pickNextQuestion();
     };
 
