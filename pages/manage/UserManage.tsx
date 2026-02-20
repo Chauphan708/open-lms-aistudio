@@ -11,7 +11,7 @@ interface Props {
 type ImportMode = 'SINGLE' | 'BULK';
 
 export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
-    const { users, addUser, updateUser, deleteUser, changePassword } = useStore();
+    const { users, classes, addUser, updateUser, deleteUser, changePassword } = useStore();
     const [mode, setMode] = useState<ImportMode>('SINGLE');
     const [isCreating, setIsCreating] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -60,7 +60,18 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             password: '123456', // Default password
             className: targetRole === 'STUDENT' ? className : undefined
         };
-        addUser(newUser);
+
+        // Find if a class ID was provided (since className now holds "classId|className")
+        let assignedClassId = '';
+        if (targetRole === 'STUDENT' && className) {
+            const parts = className.split('|');
+            if (parts.length === 2) {
+                newUser.className = parts[1]; // Store just the name for display if needed
+                assignedClassId = parts[0];
+            }
+        }
+
+        addUser(newUser, assignedClassId);
         setIsCreating(false);
         resetForms();
     };
@@ -267,8 +278,17 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                     </div>
                                     {targetRole === 'STUDENT' && (
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Lớp học (VD: 5A)</label>
-                                            <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={className} onChange={e => setClassName(e.target.value)} placeholder="5A" />
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Cần xếp vào lớp <span className="text-red-500">*</span></label>
+                                            <select
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                                                value={className}
+                                                onChange={e => setClassName(e.target.value)}
+                                            >
+                                                <option value="">-- Chọn lớp học --</option>
+                                                {classes.map(c => (
+                                                    <option key={c.id} value={`${c.id}|${c.name}`}>{c.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     )}
                                 </div>
@@ -404,14 +424,18 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                             </div>
                             {editingUser.role === 'STUDENT' && (
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Lớp học</label>
-                                    <input
-                                        type="text"
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Cần xếp vào lớp</label>
+                                    <select
                                         className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
                                         value={editClassName}
                                         onChange={e => setEditClassName(e.target.value)}
-                                        placeholder="VD: 5A"
-                                    />
+                                    >
+                                        <option value="">-- Chọn lớp học --</option>
+                                        {classes.map(c => (
+                                            <option key={c.id} value={`${c.id}|${c.name}`}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-blue-600 mt-1">Lưu ý: Bạn chỉ đang đổi nhãn hiển thị, học sinh chưa được di chuyển thực tế. (Tính năng chuyển lớp sẽ bổ sung sau)</p>
                                 </div>
                             )}
                             <div className="bg-gray-50 p-3 rounded-lg">

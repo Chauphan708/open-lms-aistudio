@@ -123,9 +123,38 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Users
   users: [],
-  addUser: async (user) => {
+  addUser: async (user: User, assignedClassId?: string) => {
+    // 1. Dùng Transaction giả lập bằng cách Insert User rồi Update Class
     const { error } = await supabase.from('profiles').insert(user);
-    if (!error) set((state) => ({ users: [...state.users, user] }));
+    if (error) {
+      console.error("Error creating user:", error);
+      return;
+    }
+
+    set((state) => ({ users: [...state.users, user] }));
+
+    // 2. Cập nhật ID học sinh vào class nếu có
+    if (assignedClassId && user.role === 'STUDENT') {
+      const state = get();
+      const targetClass = state.classes.find(c => c.id === assignedClassId);
+
+      if (targetClass) {
+        const updatedStudentIds = [...targetClass.studentIds, user.id];
+        const updatedClass = { ...targetClass, studentIds: updatedStudentIds };
+
+        const { error: clsError } = await supabase.from('classes')
+          .update({ studentIds: updatedStudentIds })
+          .eq('id', assignedClassId);
+
+        if (!clsError) {
+          set(s => ({
+            classes: s.classes.map(c => c.id === assignedClassId ? updatedClass : c)
+          }));
+        } else {
+          console.error("Error updating class student list:", clsError);
+        }
+      }
+    }
   },
   updateUser: async (updatedUser) => {
     const { error } = await supabase.from('profiles').update(updatedUser).eq('id', updatedUser.id);

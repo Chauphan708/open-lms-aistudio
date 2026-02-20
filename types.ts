@@ -282,7 +282,7 @@ export interface AppState {
   setUser: (user: User | null) => void;
 
   users: User[];
-  addUser: (user: User) => void;
+  addUser: (user: User, assignedClassId?: string) => void;
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => Promise<boolean>;
   saveUserPrompt: (prompt: string) => void;
