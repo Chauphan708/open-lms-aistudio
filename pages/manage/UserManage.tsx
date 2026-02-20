@@ -29,12 +29,49 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     // Single Form State
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [isAutoEmail, setIsAutoEmail] = useState(true);
     const [className, setClassName] = useState('');
 
     // Bulk Form State
     const [bulkText, setBulkText] = useState('');
     const [previewUsers, setPreviewUsers] = useState<User[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const removeVietnameseTones = (str: string) => {
+        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+        str = str.replace(/đ/g, "d");
+        str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+        str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+        str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+        str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|MỘ/g, "O");
+        str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+        str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+        str = str.replace(/Đ/g, "D");
+        return str;
+    };
+
+    React.useEffect(() => {
+        if (targetRole === 'STUDENT' && isAutoEmail && name) {
+            const nameParts = name.trim().split(/\s+/);
+            const lastName = nameParts[nameParts.length - 1] || "";
+            const cleanName = removeVietnameseTones(lastName).toLowerCase();
+
+            let cleanClass = "";
+            if (className) {
+                const parts = className.split('|');
+                const actualClass = parts.length === 2 ? parts[1] : className;
+                cleanClass = removeVietnameseTones(actualClass).toLowerCase().replace(/\s+/g, '');
+            }
+            setEmail(`${cleanName}${cleanClass}`);
+        } else if (targetRole === 'STUDENT' && isAutoEmail && !name) {
+            setEmail('');
+        }
+    }, [name, className, isAutoEmail, targetRole]);
 
     const filteredUsers = users.filter(u =>
         u.role === targetRole &&
@@ -178,6 +215,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                 role: targetRole,
                 avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=random`,
                 password: '123456',
+                // Temporarily store just the name, since ID is looked up on submit
                 className: targetRole === 'STUDENT' ? uClass : undefined
             });
         });
@@ -193,13 +231,16 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     const handleBulkSubmit = () => {
         previewUsers.forEach(u => {
             let assignedClassId = '';
+            let finalClassName = u.className;
+
             if (u.role === 'STUDENT' && u.className) {
                 const foundClass = classes.find(c => c.name.toLowerCase() === u.className?.toLowerCase().trim());
                 if (foundClass) {
                     assignedClassId = foundClass.id;
+                    finalClassName = foundClass.name;
                 }
             }
-            addUser(u, assignedClassId);
+            addUser({ ...u, className: finalClassName }, assignedClassId);
         });
         setIsCreating(false);
         resetForms();
@@ -239,6 +280,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
         setBulkText('');
         setPreviewUsers([]);
         setMode('SINGLE');
+        setIsAutoEmail(true);
     };
 
     return (
@@ -291,7 +333,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">{targetRole === 'STUDENT' ? 'Tên đăng nhập (VD: an5a1)' : 'Email'} <span className="text-red-500">*</span></label>
-                                        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={email} onChange={e => setEmail(e.target.value.replace(/\s/g, ''))} placeholder={targetRole === 'STUDENT' ? "an5a1" : "a@example.com"} />
+                                        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={email} onChange={e => { setEmail(e.target.value.replace(/\s/g, '')); setIsAutoEmail(false); }} placeholder={targetRole === 'STUDENT' ? "an5a1" : "a@example.com"} />
                                     </div>
                                     {targetRole === 'STUDENT' && (
                                         <div>
@@ -535,7 +577,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                 {targetRole === 'STUDENT' && (
                                     <td className="px-6 py-4">
                                         {u.className ? (
-                                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold font-mono">{u.className}</span>
+                                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold font-mono">{u.className.includes('|') ? u.className.split('|')[1] : u.className}</span>
                                         ) : (
                                             <span className="text-gray-300">-</span>
                                         )}
@@ -600,7 +642,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                 {targetRole === 'STUDENT' && (
                                     <div className="mt-1">
                                         {u.className ? (
-                                            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold font-mono">Lớp: {u.className}</span>
+                                            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold font-mono">Lớp: {u.className.includes('|') ? u.className.split('|')[1] : u.className}</span>
                                         ) : (
                                             <span className="text-xs text-gray-400 italic">Chưa xếp lớp</span>
                                         )}
