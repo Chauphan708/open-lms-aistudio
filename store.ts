@@ -823,17 +823,29 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   challengeMatch: async (matchId, challengerId) => {
-    await supabase.from('arena_matches')
+    const { error } = await supabase.from('arena_matches')
       .update({ player2_id: challengerId, status: 'challenged' })
       .eq('id', matchId)
       .eq('status', 'waiting');
+    if (error) {
+      console.error('challengeMatch error:', error);
+      alert(`Lỗi gửi thách đấu: ${error.message}`);
+      return false;
+    }
+    return true;
   },
 
   acceptMatch: async (matchId) => {
-    await supabase.from('arena_matches')
+    const { error } = await supabase.from('arena_matches')
       .update({ status: 'playing' })
       .eq('id', matchId)
       .eq('status', 'challenged');
+    if (error) {
+      console.error('acceptMatch error:', error);
+      alert(`Lỗi chấp nhận: ${error.message}`);
+      return false;
+    }
+    return true;
   },
 
   rejectMatch: async (matchId) => {

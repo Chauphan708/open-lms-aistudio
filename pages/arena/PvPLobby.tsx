@@ -85,7 +85,8 @@ export const PvPLobby: React.FC = () => {
 
     const handleChallenge = async (matchId: string) => {
         if (!user) return;
-        await challengeMatch(matchId, user.id);
+        const ok = await challengeMatch(matchId, user.id);
+        if (!ok) return; // Lỗi sẽ hiện alert từ store
         setIsChallenging(true);
         setChallengingMatchId(matchId);
         subscribeToMatch(matchId, 'CHALLENGER');
@@ -93,7 +94,12 @@ export const PvPLobby: React.FC = () => {
 
     const handleAccept = async () => {
         if (!hostedMatchId) return;
-        await acceptMatch(hostedMatchId);
+        const ok = await acceptMatch(hostedMatchId);
+        if (ok) {
+            // Immediately start — không chờ polling
+            if (pollingRef.current) clearInterval(pollingRef.current);
+            setMatchStarting(true);
+        }
     };
 
     const handleReject = async () => {

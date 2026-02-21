@@ -369,8 +369,8 @@ export interface AppState {
   createMatch: (playerId: string, filters?: ArenaMatchFilters) => Promise<ArenaMatch | null>;
   bulkAddArenaQuestions: (questions: Omit<ArenaQuestion, 'id'>[]) => Promise<number>;
   cancelMatchmaking: (matchId: string) => Promise<void>;
-  challengeMatch: (matchId: string, challengerId: string) => Promise<void>;
-  acceptMatch: (matchId: string) => Promise<void>;
+  challengeMatch: (matchId: string, challengerId: string) => Promise<boolean>;
+  acceptMatch: (matchId: string) => Promise<boolean>;
   rejectMatch: (matchId: string) => Promise<void>;
 
   submitArenaAnswer: (matchId: string, playerId: string, questionIndex: number, answerIndex: number, timeTaken: number, isCorrect: boolean) => Promise<void>;
