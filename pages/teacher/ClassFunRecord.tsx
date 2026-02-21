@@ -3,7 +3,7 @@ import { useStore } from '../../store';
 import { useClassFunStore, Behavior } from '../../services/classFunStore';
 import {
     ThumbsUp, ThumbsDown, Search, Plus, X, CheckSquare, Square, Zap,
-    Edit2, Trash2, Save, ChevronDown, ChevronUp, Users, Sparkles, Dices
+    Edit2, Trash2, Save, ChevronDown, ChevronUp, Users, Sparkles
 } from 'lucide-react';
 
 // --- Default behaviors for seeding ---
@@ -100,39 +100,8 @@ export const ClassFunRecord: React.FC = () => {
     const selectGroup = (groupId: string) => {
         const memberIds = groupMembers.filter(m => m.group_id === groupId).map(m => m.student_id);
         const validIds = memberIds.filter(id => currentAttendance[id] !== 'excused' && currentAttendance[id] !== 'unexcused');
-        setSelectedStudentIds(validIds);
-        // Note: Replacing instead of adding is more convenient when clicking 'Chọn Tổ 1'
+        setSelectedStudentIds(prev => [...new Set([...prev, ...validIds])]);
     };
-
-    const randomSelect = (poolIds: string[], count: number) => {
-        const validIds = poolIds.filter(id => currentAttendance[id] !== 'excused' && currentAttendance[id] !== 'unexcused');
-        const shuffled = [...validIds].sort(() => 0.5 - Math.random());
-        setSelectedStudentIds(shuffled.slice(0, count));
-    };
-
-    // Group students by group
-    const groupedStudents = useMemo(() => {
-        const result = {
-            groups: groups.map(g => ({ ...g, students: [] as typeof filteredStudents })).sort((a, b) => a.sort_order - b.sort_order),
-            ungrouped: [] as typeof filteredStudents
-        };
-
-        filteredStudents.forEach(s => {
-            const member = groupMembers.find(m => m.student_id === s.id);
-            if (member) {
-                const groupIndex = result.groups.findIndex(g => g.id === member.group_id);
-                if (groupIndex !== -1) {
-                    result.groups[groupIndex].students.push(s);
-                } else {
-                    result.ungrouped.push(s);
-                }
-            } else {
-                result.ungrouped.push(s);
-            }
-        });
-
-        return result;
-    }, [filteredStudents, groups, groupMembers]);
 
     // Apply behavior
     const applyBehavior = async (behavior: Behavior) => {
@@ -292,103 +261,47 @@ export const ClassFunRecord: React.FC = () => {
                     </div>
 
                     {/* Quick select */}
-                    <div className="flex flex-wrap gap-2 mb-3 items-center">
-                        <button onClick={selectAll} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full font-medium hover:bg-indigo-100 transition whitespace-nowrap">
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        <button onClick={selectAll} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium hover:bg-indigo-100 transition">
                             Chọn tất cả
                         </button>
-                        <button onClick={deselectAll} className="text-xs bg-gray-50 text-gray-600 px-3 py-1.5 rounded-full font-medium hover:bg-gray-100 transition whitespace-nowrap">
+                        <button onClick={deselectAll} className="text-xs bg-gray-50 text-gray-600 px-3 py-1 rounded-full font-medium hover:bg-gray-100 transition">
                             Bỏ chọn
                         </button>
-
-                        <div className="h-4 w-px bg-gray-300 mx-1"></div>
-
-                        <div className="flex items-center gap-1 bg-purple-50 rounded-full px-2 py-1">
-                            <Dices className="h-3 w-3 text-purple-600" />
-                            <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Cả lớp:</span>
-                            <button onClick={() => randomSelect(classStudents.map(s => s.id), 1)} className="text-xs text-purple-700 px-2 py-0.5 rounded-full hover:bg-purple-100 font-medium">1 HS</button>
-                            <button onClick={() => randomSelect(classStudents.map(s => s.id), 2)} className="text-xs text-purple-700 px-2 py-0.5 rounded-full hover:bg-purple-100 font-medium">2 HS</button>
-                            <button onClick={() => randomSelect(classStudents.map(s => s.id), 4)} className="text-xs text-purple-700 px-2 py-0.5 rounded-full hover:bg-purple-100 font-medium">4 HS</button>
-                        </div>
+                        {groups.map(g => (
+                            <button key={g.id} onClick={() => selectGroup(g.id)}
+                                className="text-xs bg-sky-50 text-sky-700 px-3 py-1 rounded-full font-medium hover:bg-sky-100 transition flex items-center gap-1">
+                                <Users className="h-3 w-3" /> {g.name}
+                            </button>
+                        ))}
                     </div>
 
                     {/* Student list */}
-                    <div className="max-h-[500px] overflow-y-auto space-y-4 pr-1">
-                        {groupedStudents.groups.map(g => g.students.length > 0 && (
-                            <div key={g.id} className="space-y-1 relative">
-                                <div className="sticky top-0 bg-white/95 backdrop-blur z-10 py-2 border-b mb-2 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color || '#6366f1' }}></div>
-                                        <h3 className="font-bold text-gray-800 text-sm">{g.name} <span className="text-gray-400 font-normal">({g.students.length})</span></h3>
+                    <div className="max-h-[400px] overflow-y-auto space-y-1">
+                        {filteredStudents.map(s => {
+                            const selected = selectedStudentIds.includes(s.id);
+                            const score = studentScores.get(s.id) || 0;
+                            const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
+
+                            return (
+                                <button key={s.id} onClick={() => toggleStudent(s.id)}
+                                    disabled={isAbsent}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left 
+                                        ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50' :
+                                            (selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent')}
+                                    `}>
+                                    {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className={`h-5 w-5 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
+                                    <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
+                                        alt="" className={`w-9 h-9 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
+                                    <div className="flex-1 min-w-0">
+                                        <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
                                     </div>
-                                    <div className="flex items-center gap-1 bg-gray-50 rounded text-xs">
-                                        <button onClick={() => selectGroup(g.id)} className="px-2 py-1 text-gray-600 hover:bg-gray-200 rounded font-medium">Chọn Tổ</button>
-                                        <div className="w-px h-3 bg-gray-300"></div>
-                                        <button onClick={() => randomSelect(g.students.map(s => s.id), 1)} className="px-2 py-1 text-purple-600 hover:bg-purple-100 rounded font-medium" title="Chọn ngẫu nhiên 1 người">🎲 1</button>
-                                        <button onClick={() => randomSelect(g.students.map(s => s.id), 2)} className="px-2 py-1 text-purple-600 hover:bg-purple-100 rounded font-medium" title="Chọn ngẫu nhiên 2 người">🎲 2</button>
-                                        <button onClick={() => randomSelect(g.students.map(s => s.id), 4)} className="px-2 py-1 text-purple-600 hover:bg-purple-100 rounded font-medium" title="Chọn ngẫu nhiên 4 người">🎲 4</button>
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    {g.students.map(s => {
-                                        const selected = selectedStudentIds.includes(s.id);
-                                        const score = studentScores.get(s.id) || 0;
-                                        const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
-
-                                        return (
-                                            <button key={s.id} onClick={() => toggleStudent(s.id)}
-                                                disabled={isAbsent}
-                                                className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left border ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50 border-transparent' :
-                                                    (selected ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-gray-100')
-                                                    }`}>
-                                                {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className={`h-5 w-5 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
-                                                <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
-                                                    alt="" className={`w-8 h-8 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
-                                                <div className="flex-1 min-w-0">
-                                                    <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
-                                                </div>
-                                                <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                    {score > 0 ? '+' : ''}{score}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-
-                        {/* Ungrouped */}
-                        {groupedStudents.ungrouped.length > 0 && (
-                            <div className="space-y-1 relative mt-4 pt-2 border-t border-dashed">
-                                <div className="sticky top-0 bg-white/95 backdrop-blur z-10 py-2 mb-2 flex items-center justify-between">
-                                    <h3 className="font-bold text-gray-500 text-sm italic">Chưa phân tổ <span className="font-normal">({groupedStudents.ungrouped.length})</span></h3>
-                                </div>
-                                <div className="space-y-1">
-                                    {groupedStudents.ungrouped.map(s => {
-                                        const selected = selectedStudentIds.includes(s.id);
-                                        const score = studentScores.get(s.id) || 0;
-                                        const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
-
-                                        return (
-                                            <button key={s.id} onClick={() => toggleStudent(s.id)}
-                                                disabled={isAbsent}
-                                                className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left border ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50 border-transparent' :
-                                                    (selected ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-gray-100')
-                                                    }`}>
-                                                {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className={`h-5 w-5 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
-                                                <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
-                                                    alt="" className={`w-8 h-8 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
-                                                <div className="flex-1 min-w-0">
-                                                    <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
-                                                </div>
-                                                <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                    {score > 0 ? '+' : ''}{score}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
+                                    <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {score > 0 ? '+' : ''}{score}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
