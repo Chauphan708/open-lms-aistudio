@@ -106,35 +106,52 @@ export const PvPLobby: React.FC = () => {
         setChallengerId(null);
     };
 
+    const pollingRef = useRef<any>(null);
+
     const subscribeToMatch = (matchId: string, role: 'HOST' | 'CHALLENGER') => {
         if (channelRef.current) supabase.removeChannel(channelRef.current);
+        if (pollingRef.current) clearInterval(pollingRef.current);
 
-        const channel = supabase.channel(`match-${matchId}`)
+        // Realtime subscription
+        const channel = supabase.channel(`match-${matchId}-${Date.now()}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arena_matches', filter: `id=eq.${matchId}` }, (payload: any) => {
-                const updatedMatch = payload.new;
-
-                if (role === 'HOST') {
-                    if (updatedMatch.status === 'challenged' && updatedMatch.player2_id) {
-                        setChallengerId(updatedMatch.player2_id);
-                    } else if (updatedMatch.status === 'waiting') {
-                        setChallengerId(null);
-                    }
-                }
-
-                if (role === 'CHALLENGER') {
-                    if (updatedMatch.status === 'waiting') {
-                        alert("Chủ phòng đã từ chối lời thách đấu.");
-                        handleCancel();
-                    }
-                }
-
-                if (updatedMatch.status === 'playing') {
-                    setMatchStarting(true);
-                }
+                console.log('[Arena Realtime]', payload.new.status, payload.new);
+                handleMatchUpdate(payload.new, role);
             })
-            .subscribe();
+            .subscribe((status: string) => {
+                console.log('[Arena] Realtime status:', status);
+            });
 
         channelRef.current = channel;
+
+        // Polling fallback mỗi 3 giây (đề phòng Realtime không hoạt động)
+        pollingRef.current = setInterval(async () => {
+            const { data } = await supabase.from('arena_matches').select('*').eq('id', matchId).single();
+            if (data) {
+                handleMatchUpdate(data, role);
+            }
+        }, 3000);
+    };
+
+    const handleMatchUpdate = (updatedMatch: any, role: 'HOST' | 'CHALLENGER') => {
+        if (role === 'HOST') {
+            if (updatedMatch.status === 'challenged' && updatedMatch.player2_id) {
+                setChallengerId(updatedMatch.player2_id);
+            } else if (updatedMatch.status === 'waiting') {
+                setChallengerId(null);
+            }
+        }
+
+        if (role === 'CHALLENGER') {
+            if (updatedMatch.status === 'waiting') {
+                alert("Chủ phòng đã từ chối lời thách đấu.");
+                handleCancel();
+            }
+        }
+
+        if (updatedMatch.status === 'playing') {
+            setMatchStarting(true);
+        }
     };
 
     useEffect(() => {
@@ -150,6 +167,7 @@ export const PvPLobby: React.FC = () => {
     useEffect(() => {
         return () => {
             if (channelRef.current) supabase.removeChannel(channelRef.current);
+            if (pollingRef.current) clearInterval(pollingRef.current);
         };
     }, []);
 
