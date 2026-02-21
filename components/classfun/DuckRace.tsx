@@ -57,9 +57,22 @@ export const DuckRace: React.FC<DuckRaceProps> = ({ students, onComplete, onClos
                         return racer;
                     }
 
-                    // Random speed bump to make it exciting
-                    let speedBump = (Math.random() - 0.2) * 0.5; // Changed from 0.4 to 0.2
-                    let newSpeed = Math.max(0.5, Math.min(5, racer.speed + speedBump));
+                    let newSpeed = racer.speed;
+
+                    // 1.5% chance per frame (approx once per second at 60fps) to drastically change behavior
+                    if (Math.random() < 0.015) {
+                        const roll = Math.random();
+                        if (roll < 0.2) {
+                            newSpeed = Math.random() * 1.5 + 0.1; // Stall (very slow)
+                        } else if (roll > 0.8) {
+                            newSpeed = Math.random() * 5 + 6; // Burst (very fast)
+                        } else {
+                            newSpeed = Math.random() * 4 + 2; // Normal range
+                        }
+                    } else {
+                        // Smooth drift
+                        newSpeed = Math.max(0.5, Math.min(10, newSpeed + (Math.random() - 0.5) * 0.4));
+                    }
 
                     // Base factor based on user selection
                     let baseFactor = 0.0015; // Normal (~20s)
