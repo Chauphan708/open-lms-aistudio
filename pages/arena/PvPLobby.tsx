@@ -48,14 +48,22 @@ export const PvPLobby: React.FC = () => {
         setMatches(m);
     };
 
+    // Auto-cleanup: xóa phòng waiting cũ hơn 30 phút của chính mình
+    const cleanupOldRooms = async () => {
+        if (!user) return;
+        const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        await supabase.from('arena_matches')
+            .delete()
+            .eq('player1_id', user.id)
+            .eq('status', 'waiting')
+            .lt('created_at', cutoff);
+    };
+
     useEffect(() => {
-        loadMatches();
-        const sub = supabase.channel('public:arena_matches')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'arena_matches' }, () => {
-                loadMatches();
-            })
-            .subscribe();
-        return () => { supabase.removeChannel(sub); };
+        cleanupOldRooms().then(() => loadMatches());
+        // Polling match list mỗi 5s (thay vì chỉ dùng Realtime)
+        const listPoll = setInterval(loadMatches, 5000);
+        return () => { clearInterval(listPoll); };
     }, []);
 
     const handleCreateRoom = async () => {
@@ -107,33 +115,44 @@ export const PvPLobby: React.FC = () => {
     };
 
     const pollingRef = useRef<any>(null);
+    const lastStatusRef = useRef<string>('');
+    const rejectedRef = useRef(false);
 
     const subscribeToMatch = (matchId: string, role: 'HOST' | 'CHALLENGER') => {
         if (channelRef.current) supabase.removeChannel(channelRef.current);
         if (pollingRef.current) clearInterval(pollingRef.current);
+        lastStatusRef.current = '';
+        rejectedRef.current = false;
 
         // Realtime subscription
         const channel = supabase.channel(`match-${matchId}-${Date.now()}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'arena_matches', filter: `id=eq.${matchId}` }, (payload: any) => {
-                console.log('[Arena Realtime]', payload.new.status, payload.new);
                 handleMatchUpdate(payload.new, role);
             })
-            .subscribe((status: string) => {
-                console.log('[Arena] Realtime status:', status);
-            });
+            .subscribe();
 
         channelRef.current = channel;
 
-        // Polling fallback mỗi 3 giây (đề phòng Realtime không hoạt động)
+        // Polling fallback mỗi 3 giây
         pollingRef.current = setInterval(async () => {
             const { data } = await supabase.from('arena_matches').select('*').eq('id', matchId).single();
             if (data) {
                 handleMatchUpdate(data, role);
+            } else if (role === 'CHALLENGER' && !rejectedRef.current) {
+                // Match bị xóa = chủ phòng hủy
+                rejectedRef.current = true;
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                alert('Chủ phòng đã hủy phòng.');
+                handleCancel();
             }
         }, 3000);
     };
 
     const handleMatchUpdate = (updatedMatch: any, role: 'HOST' | 'CHALLENGER') => {
+        // Tránh xử lý trùng status
+        if (updatedMatch.status === lastStatusRef.current) return;
+        lastStatusRef.current = updatedMatch.status;
+
         if (role === 'HOST') {
             if (updatedMatch.status === 'challenged' && updatedMatch.player2_id) {
                 setChallengerId(updatedMatch.player2_id);
@@ -143,13 +162,16 @@ export const PvPLobby: React.FC = () => {
         }
 
         if (role === 'CHALLENGER') {
-            if (updatedMatch.status === 'waiting') {
-                alert("Chủ phòng đã từ chối lời thách đấu.");
+            if (updatedMatch.status === 'waiting' && !rejectedRef.current) {
+                rejectedRef.current = true;
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                alert('Chủ phòng đã từ chối lời thách đấu.');
                 handleCancel();
             }
         }
 
         if (updatedMatch.status === 'playing') {
+            if (pollingRef.current) clearInterval(pollingRef.current);
             setMatchStarting(true);
         }
     };
@@ -289,8 +311,36 @@ export const PvPLobby: React.FC = () => {
                 </div>
 
                 <div className="md:col-span-2 space-y-4">
+                    {/* Phòng của mình (nếu có) */}
+                    {matches.filter(m => m.player1_id === user?.id).length > 0 && (
+                        <div>
+                            <h3 className="font-bold text-gray-700 mb-2">📌 Phòng của bạn</h3>
+                            {matches.filter(m => m.player1_id === user?.id).map(match => (
+                                <div key={match.id} className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+                                    <div>
+                                        <h4 className="font-bold text-indigo-900">Phòng của bạn</h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-xs font-bold text-white bg-green-500 px-2 py-0.5 rounded-full">Đang chờ</span>
+                                            {match.filter_subject && (
+                                                <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                                                    {SUBJECTS.find(s => s.value === match.filter_subject)?.label || match.filter_subject}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => { await cancelMatchmaking(match.id); loadMatches(); }}
+                                        className="px-4 py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-600 hover:text-white transition-all text-sm"
+                                    >
+                                        🗑️ Xóa phòng
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <h3 className="font-bold text-gray-700 flex items-center justify-between">
-                        Danh sách phòng đang trống ({matches.filter(m => m.player1_id !== user?.id).length})
+                        Phòng của người khác ({matches.filter(m => m.player1_id !== user?.id).length})
                     </h3>
 
                     {matches.filter(m => m.player1_id !== user?.id).length === 0 ? (
