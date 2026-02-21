@@ -87,21 +87,19 @@ export const RandomRoulette: React.FC<RandomRouletteProps> = ({ students, groups
                 <div className="p-6">
                     {phase === 'SETUP' && (
                         <div className="space-y-6">
-                            {groups.length > 0 && (
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Chọn nhóm đối tượng</label>
-                                    <select
-                                        className="w-full border rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                                        value={groupId}
-                                        onChange={e => setGroupId(e.target.value)}
-                                    >
-                                        <option value="all">Cả danh sách ({students.length})</option>
-                                        {groups.map(g => (
-                                            <option key={g.id} value={g.id}>{g.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Chọn nhóm đối tượng</label>
+                                <select
+                                    className="w-full border rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                                    value={groupId}
+                                    onChange={e => setGroupId(e.target.value)}
+                                >
+                                    <option value="all">Cả danh sách ({students.length})</option>
+                                    {groups.map(g => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Số lượng cần chọn</label>
