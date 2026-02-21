@@ -114,6 +114,15 @@ UPDATE public.arena_profiles SET avatar_class = 'scientist' WHERE avatar_class =
 UPDATE public.arena_profiles SET avatar_class = 'artist' WHERE avatar_class = 'archer';
 UPDATE public.arena_profiles SET avatar_class = 'explorer' WHERE avatar_class = 'healer';
 
+-- Bước 5: Cập nhật CHECK constraint cho arena_matches
+ALTER TABLE public.arena_matches DROP CONSTRAINT IF EXISTS arena_matches_status_check;
+ALTER TABLE public.arena_matches ADD CONSTRAINT arena_matches_status_check 
+  CHECK (status IN ('waiting', 'challenged', 'playing', 'finished'));
+
+ALTER TABLE public.arena_matches DROP CONSTRAINT IF EXISTS arena_matches_source_check;
+ALTER TABLE public.arena_matches ADD CONSTRAINT arena_matches_source_check 
+  CHECK (source IN ('exam', 'arena'));
+
 -- ============================================
 -- SEED DATA: 20 câu hỏi lớp 5 (Kết nối tri thức với cuộc sống)
 -- Toán (8 câu) + Khoa học (7 câu) + Công nghệ (5 câu)
