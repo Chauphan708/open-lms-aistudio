@@ -87,19 +87,21 @@ export const RandomRoulette: React.FC<RandomRouletteProps> = ({ students, groups
                 <div className="p-6">
                     {phase === 'SETUP' && (
                         <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Chọn nhóm đối tượng</label>
-                                <select
-                                    className="w-full border rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                                    value={groupId}
-                                    onChange={e => setGroupId(e.target.value)}
-                                >
-                                    <option value="all">Cả danh sách ({students.length})</option>
-                                    {groups.map(g => (
-                                        <option key={g.id} value={g.id}>{g.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {groups.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Chọn nhóm đối tượng</label>
+                                    <select
+                                        className="w-full border rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                                        value={groupId}
+                                        onChange={e => setGroupId(e.target.value)}
+                                    >
+                                        <option value="all">Cả danh sách ({students.length})</option>
+                                        {groups.map(g => (
+                                            <option key={g.id} value={g.id}>{g.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Số lượng cần chọn</label>
@@ -117,7 +119,7 @@ export const RandomRoulette: React.FC<RandomRouletteProps> = ({ students, groups
                             </div>
 
                             <button onClick={startSpin} disabled={availablePool.length === 0} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-md transition disabled:opacity-50 flex justify-center items-center gap-2 mt-4">
-                                <Play className="h-5 w-5 fill-current" /> BẮT ĐẦU CHỌN ({availablePool.length} HS)
+                                <Play className="h-5 w-5 fill-current" /> BẮT ĐẦU CHỌN ({Math.min(count, availablePool.length)} HS)
                             </button>
                         </div>
                     )}
