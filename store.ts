@@ -36,8 +36,25 @@ export const useStore = create<AppState>((set, get) => ({
       if (exams) set({ exams: exams as Exam[] });
 
       // 3. Fetch Classes
-      const { data: classes } = await supabase.from('classes').select('*');
-      if (classes) set({ classes: classes as Class[] });
+      const { data: rawClasses } = await supabase.from('classes').select('*');
+      if (rawClasses) {
+        const classes = rawClasses.map(c => {
+          let ids = c.studentIds || c.student_ids || [];
+          if (typeof ids === 'string') {
+            try { ids = JSON.parse(ids); } catch (e) { ids = []; }
+          }
+          if (!Array.isArray(ids)) ids = [];
+
+          return {
+            id: c.id,
+            name: c.name,
+            academicYearId: c.academicYearId || c.academic_year_id,
+            teacherId: c.teacherId || c.teacher_id,
+            studentIds: ids
+          };
+        });
+        set({ classes: classes as Class[] });
+      }
 
       // 4. Fetch Assignments
       const { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
@@ -139,9 +156,19 @@ export const useStore = create<AppState>((set, get) => ({
   users: [],
   addUser: async (user: User, assignedClassId?: string) => {
     // 1. Dùng Transaction giả lập bằng cách Insert User rồi Update Class
-    const { error } = await supabase.from('profiles').insert(user);
+    // Cố gắng chèn với camelCase trước, nếu lỗi thì thử lại với snake_case cho class_name thay vì className
+    let { error } = await supabase.from('profiles').insert(user);
     if (error) {
-      console.error("Error creating user:", error);
+      console.warn("addUser camelCase failed, trying snake_case", error);
+      const dbUser = { ...user, class_name: user.className };
+      delete dbUser.className;
+      const res = await supabase.from('profiles').insert(dbUser);
+      error = res.error;
+    }
+
+    if (error) {
+      console.error("Error creating user ultimate:", error);
+      alert("Lỗi tạo người dùng: " + error.message);
       return;
     }
 
@@ -156,9 +183,17 @@ export const useStore = create<AppState>((set, get) => ({
         const updatedStudentIds = [...targetClass.studentIds, user.id];
         const updatedClass = { ...targetClass, studentIds: updatedStudentIds };
 
-        const { error: clsError } = await supabase.from('classes')
+        let { error: clsError } = await supabase.from('classes')
           .update({ studentIds: updatedStudentIds })
           .eq('id', assignedClassId);
+
+        if (clsError) {
+          console.warn("addUser update class studentIds failed, trying student_ids", clsError);
+          const res = await supabase.from('classes')
+            .update({ student_ids: updatedStudentIds })
+            .eq('id', assignedClassId);
+          clsError = res.error;
+        }
 
         if (!clsError) {
           set(s => ({
@@ -170,24 +205,34 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
   },
+
   updateUser: async (updatedUser) => {
     const { error } = await supabase.from('profiles').update(updatedUser).eq('id', updatedUser.id);
     if (!error) {
       set((state) => ({
         users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
-        user: state.user?.id === updatedUser.id ? updatedUser : state.user
+        user: state.user && state.user.id === updatedUser.id ? updatedUser : state.user
       }));
     }
   },
+
   deleteUser: async (userId) => {
     // 1. Dọn dẹp id học sinh khỏi danh sách lớp nếu có
     const state = get();
     const affectedClass = state.classes.find(c => c.studentIds?.includes(userId));
     if (affectedClass) {
       const updatedStudentIds = affectedClass.studentIds.filter(id => id !== userId);
-      const { error: clsError } = await supabase.from('classes')
+      let { error: clsError } = await supabase.from('classes')
         .update({ studentIds: updatedStudentIds })
         .eq('id', affectedClass.id);
+
+      if (clsError) {
+        console.warn("deleteUser update class studentIds failed, trying student_ids", clsError);
+        const res = await supabase.from('classes')
+          .update({ student_ids: updatedStudentIds })
+          .eq('id', affectedClass.id);
+        clsError = res.error;
+      }
 
       if (!clsError) {
         set(s => ({
@@ -220,15 +265,17 @@ export const useStore = create<AppState>((set, get) => ({
 
     return true;
   },
+
   changePassword: async (userId, newPass) => {
     const { error } = await supabase.from('profiles').update({ password: newPass }).eq('id', userId);
     if (error) return false;
     set(state => ({
       users: state.users.map(u => u.id === userId ? { ...u, password: newPass } : u),
-      user: state.user?.id === userId ? { ...state.user, password: newPass } : state.user
+      user: state.user && state.user.id === userId ? { ...state.user, password: newPass } : state.user
     }));
     return true;
   },
+
   saveUserPrompt: async (prompt) => {
     const state = get();
     if (!state.user || !prompt.trim()) return;
@@ -262,14 +309,61 @@ export const useStore = create<AppState>((set, get) => ({
   // Classes
   classes: [],
   addClass: async (cls) => {
-    const { error } = await supabase.from('classes').insert(cls);
-    if (!error) set((state) => ({ classes: [...state.classes, cls] }));
+    // Map camelCase to potential snake_case for robust insertion
+    const dbCls = {
+      id: cls.id,
+      name: cls.name,
+      academicYearId: cls.academicYearId,
+      teacherId: cls.teacherId,
+      studentIds: cls.studentIds,
+      academic_year_id: cls.academicYearId, // Fallback if DB expects snake
+      teacher_id: cls.teacherId,
+      student_ids: cls.studentIds
+    };
+
+    // First try insert with camelCase, if it fails try snake_case
+    let { error } = await supabase.from('classes').insert(cls);
+    if (error) {
+      console.warn("addClass camelCase failed, trying snake_case", error);
+      const { id, name, academic_year_id, teacher_id, student_ids } = dbCls;
+      const res = await supabase.from('classes').insert({ id, name, academic_year_id, teacher_id, student_ids });
+      error = res.error;
+    }
+
+    if (!error) {
+      set((state) => ({ classes: [...state.classes, cls] }));
+    } else {
+      console.error("addClass ultimate error", error);
+      alert("Lỗi tạo lớp học: " + error.message);
+    }
   },
   updateClass: async (updatedClass) => {
-    const { error } = await supabase.from('classes').update(updatedClass).eq('id', updatedClass.id);
-    if (!error) set((state) => ({
-      classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
-    }));
+    let { error } = await supabase.from('classes').update({
+      name: updatedClass.name,
+      academicYearId: updatedClass.academicYearId,
+      teacherId: updatedClass.teacherId,
+      studentIds: updatedClass.studentIds
+    }).eq('id', updatedClass.id);
+
+    if (error) {
+      console.warn("updateClass camelCase failed, trying snake_case", error);
+      const res = await supabase.from('classes').update({
+        name: updatedClass.name,
+        academic_year_id: updatedClass.academicYearId,
+        teacher_id: updatedClass.teacherId,
+        student_ids: updatedClass.studentIds
+      }).eq('id', updatedClass.id);
+      error = res.error;
+    }
+
+    if (!error) {
+      set((state) => ({
+        classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
+      }));
+    } else {
+      console.error("updateClass ultimate error", error);
+      alert("Lỗi cập nhật lớp học: " + error.message);
+    }
   },
 
   // Exams
