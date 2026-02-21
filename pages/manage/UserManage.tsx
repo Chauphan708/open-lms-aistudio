@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../store';
 import { User, UserRole } from '../../types';
-import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit, GraduationCap, LayoutGrid, List } from 'lucide-react';
+import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit, Dices, GraduationCap, LayoutGrid, List } from 'lucide-react';
+import { DuckRace } from '../../components/classfun/DuckRace';
 
 interface Props {
     targetRole: UserRole; // 'TEACHER' or 'STUDENT'
@@ -36,6 +37,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     const [bulkText, setBulkText] = useState('');
     const [previewUsers, setPreviewUsers] = useState<User[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Random & Duck Race State
+    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+    const [showDuckRace, setShowDuckRace] = useState(false);
+    const [duckRacePool, setDuckRacePool] = useState<User[]>([]);
 
     const removeVietnameseTones = (str: string) => {
         str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
@@ -75,8 +81,27 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
     const filteredUsers = users.filter(u =>
         u.role === targetRole &&
-        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.includes(searchTerm) || (u.className && u.className.includes(searchTerm)))
+        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.includes(searchTerm) || (u.className && u.className.toLowerCase().includes(searchTerm.toLowerCase())))
     );
+
+    // --- RANDOM & DUCK RACE HANDLERS ---
+    const randomSelect = (count: number) => {
+        if (filteredUsers.length === 0) return;
+        const shuffled = [...filteredUsers].sort(() => 0.5 - Math.random());
+        setSelectedStudentIds(shuffled.slice(0, count).map(u => u.id));
+    };
+
+    const startDuckRace = () => {
+        if (filteredUsers.length > 0) {
+            setDuckRacePool(filteredUsers);
+            setShowDuckRace(true);
+        }
+    };
+
+    const handleDuckRaceComplete = (winner: User) => {
+        setSelectedStudentIds([winner.id]);
+        setShowDuckRace(false);
+    };
 
     // --- SINGLE ADD HANDLERS ---
     const handleCreateSingle = () => {
@@ -554,8 +579,29 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                 </div>
             )}
 
+            {/* RANDOM CONTROLS (Only for students) */}
+            {targetRole === 'STUDENT' && filteredUsers.length > 0 && (
+                <div className="bg-white p-3 rounded-xl border shadow-sm flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 text-indigo-700 font-bold text-sm">
+                        <Dices className="h-5 w-5" /> Gọi ngẫu nhiên:
+                    </div>
+                    <button onClick={() => randomSelect(1)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition">1 HS</button>
+                    <button onClick={() => randomSelect(2)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition">2 HS</button>
+                    <button onClick={() => randomSelect(4)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition">4 HS</button>
+                    <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                    <button onClick={startDuckRace} className="px-4 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-amber-200 shadow-sm">
+                        🦆 Đua Vịt
+                    </button>
+                    {selectedStudentIds.length > 0 && (
+                        <button onClick={() => setSelectedStudentIds([])} className="text-xs text-gray-500 hover:text-gray-700 underline ml-auto">
+                            Bỏ chọn
+                        </button>
+                    )}
+                </div>
+            )}
+
             {/* DESKTOP TABLE VIEW */}
-            <div className="hidden md:block bg-white rounded-xl border shadow-sm overflow-hidden animate-fade-in">
+            <div className="hidden md:block bg-white rounded-xl border shadow-sm overflow-hidden animate-fade-in relative">
                 <table className="w-full text-left text-sm text-gray-500">
                     <thead className="bg-gray-50 text-gray-700 uppercase">
                         <tr>
@@ -567,113 +613,128 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {filteredUsers.map(u => (
-                            <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4 flex items-center gap-3">
-                                    <img src={u.avatar} className="w-8 h-8 rounded-full border border-gray-200" alt="" />
-                                    <span className="font-medium text-gray-900">{u.name}</span>
-                                </td>
-                                <td className="px-6 py-4 font-mono text-indigo-700">{u.email}</td>
-                                {targetRole === 'STUDENT' && (
-                                    <td className="px-6 py-4">
-                                        {u.className ? (
-                                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold font-mono">{u.className.includes('|') ? u.className.split('|')[1] : u.className}</span>
-                                        ) : (
-                                            <span className="text-gray-300">-</span>
-                                        )}
+                        {filteredUsers.map(u => {
+                            const isSelected = selectedStudentIds.includes(u.id);
+                            return (
+                                <tr key={u.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/70' : 'hover:bg-gray-50'}`}>
+                                    <td className="px-6 py-4 flex items-center gap-3 relative">
+                                        {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>}
+                                        <img src={u.avatar} className={`w-8 h-8 rounded-full border border-gray-200 ${isSelected ? 'ring-2 ring-indigo-500' : ''}`} alt="" />
+                                        <span className={`font-medium ${isSelected ? 'text-indigo-900 font-bold' : 'text-gray-900'}`}>{u.name}</span>
                                     </td>
-                                )}
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold
+                                    <td className="px-6 py-4 font-mono text-indigo-700">{u.email}</td>
+                                    {targetRole === 'STUDENT' && (
+                                        <td className="px-6 py-4">
+                                            {u.className ? (
+                                                <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold font-mono">{u.className.includes('|') ? u.className.split('|')[1] : u.className}</span>
+                                            ) : (
+                                                <span className="text-gray-300">-</span>
+                                            )}
+                                        </td>
+                                    )}
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-bold
                      ${u.role === 'ADMIN' ? 'bg-red-100 text-red-700' :
-                                            u.role === 'TEACHER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}
+                                                u.role === 'TEACHER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}
                    `}>
-                                        {u.role}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <button
-                                            onClick={() => openEditModal(u)}
-                                            className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
-                                            title="Chỉnh sửa thông tin"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => { setResetUser(u); setNewPassword(''); }}
-                                            className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
-                                            title="Đổi mật khẩu"
-                                        >
-                                            <Key className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteUser(u)}
-                                            className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
-                                            title="Xóa người dùng"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                                            {u.role}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => openEditModal(u)}
+                                                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
+                                                title="Chỉnh sửa thông tin"
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => { setResetUser(u); setNewPassword(''); }}
+                                                className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
+                                                title="Đổi mật khẩu"
+                                            >
+                                                <Key className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteUser(u)}
+                                                className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                title="Xóa người dùng"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                        })}
                     </tbody>
                 </table>
             </div>
 
             {/* MOBILE CARD VIEW */}
-            <div className="md:hidden space-y-3 animate-fade-in">
-                {filteredUsers.map(u => (
-                    <div key={u.id} className="bg-white p-4 rounded-xl border shadow-sm">
-                        <div className="flex items-start gap-3 mb-3">
-                            <img src={u.avatar} className="w-10 h-10 rounded-full border" alt="" />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start">
-                                    <h4 className="font-bold text-gray-900 truncate">{u.name}</h4>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold
+            <div className="md:hidden space-y-3 animate-fade-in relative">
+                {filteredUsers.map(u => {
+                    const isSelected = selectedStudentIds.includes(u.id);
+                    return (
+                        <div key={u.id} className={`p-4 rounded-xl border shadow-sm transition-colors ${isSelected ? 'bg-indigo-50 border-indigo-200' : 'bg-white'}`}>
+                            <div className="flex items-start gap-3 mb-3">
+                                <img src={u.avatar} className={`w-10 h-10 rounded-full border ${isSelected ? 'ring-2 ring-indigo-500' : ''}`} alt="" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start">
+                                        <h4 className={`font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>{u.name}</h4>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold
                            ${u.role === 'ADMIN' ? 'bg-red-100 text-red-700' :
-                                            u.role === 'TEACHER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}
+                                                u.role === 'TEACHER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}
                          `}>
-                                        {u.role}
-                                    </span>
-                                </div>
-                                <div className="text-sm font-mono text-indigo-600 mt-1">ID: {u.email}</div>
-                                {targetRole === 'STUDENT' && (
-                                    <div className="mt-1">
-                                        {u.className ? (
-                                            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold font-mono">Lớp: {u.className.includes('|') ? u.className.split('|')[1] : u.className}</span>
-                                        ) : (
-                                            <span className="text-xs text-gray-400 italic">Chưa xếp lớp</span>
-                                        )}
+                                            {u.role}
+                                        </span>
                                     </div>
-                                )}
+                                    <div className="text-sm font-mono text-indigo-600 mt-1">ID: {u.email}</div>
+                                    {targetRole === 'STUDENT' && (
+                                        <div className="mt-1">
+                                            {u.className ? (
+                                                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold font-mono">Lớp: {u.className.includes('|') ? u.className.split('|')[1] : u.className}</span>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 italic">Chưa xếp lớp</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex border-t pt-3 gap-2">
+                                <button
+                                    onClick={() => openEditModal(u)}
+                                    className="flex-1 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1"
+                                >
+                                    <Edit className="h-3 w-3" /> Sửa
+                                </button>
+                                <button
+                                    onClick={() => { setResetUser(u); setNewPassword(''); }}
+                                    className="flex-1 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 flex items-center justify-center gap-1"
+                                >
+                                    <Key className="h-3 w-3" /> Mật khẩu
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteUser(u)}
+                                    className="flex-1 py-2 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1"
+                                >
+                                    <Trash2 className="h-3 w-3" /> Xóa
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex border-t pt-3 gap-2">
-                            <button
-                                onClick={() => openEditModal(u)}
-                                className="flex-1 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1"
-                            >
-                                <Edit className="h-3 w-3" /> Sửa
-                            </button>
-                            <button
-                                onClick={() => { setResetUser(u); setNewPassword(''); }}
-                                className="flex-1 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 flex items-center justify-center gap-1"
-                            >
-                                <Key className="h-3 w-3" /> Mật khẩu
-                            </button>
-                            <button
-                                onClick={() => handleDeleteUser(u)}
-                                className="flex-1 py-2 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1"
-                            >
-                                <Trash2 className="h-3 w-3" /> Xóa
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
+
+            {showDuckRace && (
+                <DuckRace
+                    students={duckRacePool}
+                    onClose={() => setShowDuckRace(false)}
+                    onComplete={handleDuckRaceComplete}
+                />
+            )}
         </div>
     );
 };

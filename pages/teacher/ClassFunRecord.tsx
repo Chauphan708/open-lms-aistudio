@@ -83,6 +83,30 @@ export const ClassFunRecord: React.FC = () => {
         return classStudents.filter(s => s.name.toLowerCase().includes(q));
     }, [classStudents, searchQuery]);
 
+    // Group students by group
+    const groupedStudents = useMemo(() => {
+        const result = {
+            groups: groups.map(g => ({ ...g, students: [] as typeof filteredStudents })).sort((a, b) => a.sort_order - b.sort_order),
+            ungrouped: [] as typeof filteredStudents
+        };
+
+        filteredStudents.forEach(s => {
+            const member = groupMembers.find(m => m.student_id === s.id);
+            if (member) {
+                const groupIndex = result.groups.findIndex(g => g.id === member.group_id);
+                if (groupIndex !== -1) {
+                    result.groups[groupIndex].students.push(s);
+                } else {
+                    result.ungrouped.push(s);
+                }
+            } else {
+                result.ungrouped.push(s);
+            }
+        });
+
+        return result;
+    }, [filteredStudents, groups, groupMembers]);
+
     // Student scores
     const studentScores = useMemo(() => {
         const scores = new Map<string, number>();
@@ -277,31 +301,79 @@ export const ClassFunRecord: React.FC = () => {
                     </div>
 
                     {/* Student list */}
-                    <div className="max-h-[400px] overflow-y-auto space-y-1">
-                        {filteredStudents.map(s => {
-                            const selected = selectedStudentIds.includes(s.id);
-                            const score = studentScores.get(s.id) || 0;
-                            const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
-
-                            return (
-                                <button key={s.id} onClick={() => toggleStudent(s.id)}
-                                    disabled={isAbsent}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left 
-                                        ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50' :
-                                            (selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent')}
-                                    `}>
-                                    {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className={`h-5 w-5 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
-                                    <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
-                                        alt="" className={`w-9 h-9 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
-                                    <div className="flex-1 min-w-0">
-                                        <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
+                    <div className="max-h-[400px] overflow-y-auto pr-1 space-y-4">
+                        {groupedStudents.groups.map(g => g.students.length > 0 && (
+                            <div key={g.id} className="bg-gray-50/50 rounded-xl overflow-hidden border border-gray-100">
+                                <div className="px-3 py-2 bg-gray-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color || '#6366f1' }}></div>
+                                        <h3 className="font-bold text-gray-700 text-sm">{g.name} <span className="font-normal text-gray-400">({g.students.length})</span></h3>
                                     </div>
-                                    <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                        {score > 0 ? '+' : ''}{score}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                                    <button onClick={() => selectGroup(g.id)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">Chọn cả tổ</button>
+                                </div>
+                                <div className="p-1 space-y-1">
+                                    {g.students.map(s => {
+                                        const selected = selectedStudentIds.includes(s.id);
+                                        const score = studentScores.get(s.id) || 0;
+                                        const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
+
+                                        return (
+                                            <button key={s.id} onClick={() => toggleStudent(s.id)}
+                                                disabled={isAbsent}
+                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all text-left 
+                                                    ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50' :
+                                                        (selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent')}
+                                                `}>
+                                                {selected ? <CheckSquare className="h-4 w-4 text-indigo-600 flex-shrink-0" /> : <Square className={`h-4 w-4 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
+                                                <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
+                                                    alt="" className={`w-8 h-8 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
+                                                </div>
+                                                <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    {score > 0 ? '+' : ''}{score}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Ungrouped */}
+                        {groupedStudents.ungrouped.length > 0 && (
+                            <div className="bg-gray-50/50 rounded-xl overflow-hidden border border-dashed border-gray-200">
+                                <div className="px-3 py-2 bg-gray-50/80 border-b border-dashed border-gray-200">
+                                    <h3 className="font-bold text-gray-500 text-sm italic">Chưa xếp tổ <span className="font-normal text-gray-400">({groupedStudents.ungrouped.length})</span></h3>
+                                </div>
+                                <div className="p-1 space-y-1">
+                                    {groupedStudents.ungrouped.map(s => {
+                                        const selected = selectedStudentIds.includes(s.id);
+                                        const score = studentScores.get(s.id) || 0;
+                                        const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
+
+                                        return (
+                                            <button key={s.id} onClick={() => toggleStudent(s.id)}
+                                                disabled={isAbsent}
+                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all text-left 
+                                                    ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50' :
+                                                        (selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent')}
+                                                `}>
+                                                {selected ? <CheckSquare className="h-4 w-4 text-indigo-600 flex-shrink-0" /> : <Square className={`h-4 w-4 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
+                                                <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
+                                                    alt="" className={`w-8 h-8 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
+                                                </div>
+                                                <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    {score > 0 ? '+' : ''}{score}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
