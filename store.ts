@@ -694,9 +694,12 @@ export const useStore = create<AppState>((set, get) => ({
   createArenaProfile: async (userId, avatarClass) => {
     const profile = { id: userId, avatar_class: avatarClass, elo_rating: 1000, total_xp: 0, wins: 0, losses: 0, tower_floor: 1 };
     const { error } = await supabase.from('arena_profiles').insert(profile);
-    if (!error) {
-      set({ arenaProfile: profile as any });
+    if (error) {
+      console.error('Lỗi tạo Arena Profile:', error);
+      alert(`Lỗi tạo hồ sơ Arena: ${error.message}\n\nHãy chạy script MIGRATION trong Supabase SQL Editor để cập nhật CHECK constraint.`);
+      return;
     }
+    set({ arenaProfile: profile as any });
   },
 
   updateArenaProfile: async (profile) => {

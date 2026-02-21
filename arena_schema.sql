@@ -91,16 +91,28 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ============================================
--- MIGRATION: Nếu đã có bảng cũ, chạy ALTER
+-- MIGRATION: Nếu đã có bảng cũ, CHẠY ĐOẠN NÀY trong Supabase SQL Editor
 -- ============================================
--- ALTER TABLE public.arena_questions ADD COLUMN IF NOT EXISTS topic TEXT DEFAULT 'general';
--- ALTER TABLE public.arena_matches ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'arena';
--- ALTER TABLE public.arena_matches ADD COLUMN IF NOT EXISTS filter_subject TEXT;
--- ALTER TABLE public.arena_matches ADD COLUMN IF NOT EXISTS filter_grade TEXT;
--- UPDATE public.arena_profiles SET avatar_class = 'scholar' WHERE avatar_class = 'warrior';
--- UPDATE public.arena_profiles SET avatar_class = 'scientist' WHERE avatar_class = 'mage';
--- UPDATE public.arena_profiles SET avatar_class = 'artist' WHERE avatar_class = 'archer';
--- UPDATE public.arena_profiles SET avatar_class = 'explorer' WHERE avatar_class = 'healer';
+
+-- Bước 1: Thêm cột mới
+ALTER TABLE public.arena_questions ADD COLUMN IF NOT EXISTS topic TEXT DEFAULT 'general';
+ALTER TABLE public.arena_matches ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'arena';
+ALTER TABLE public.arena_matches ADD COLUMN IF NOT EXISTS filter_subject TEXT;
+ALTER TABLE public.arena_matches ADD COLUMN IF NOT EXISTS filter_grade TEXT;
+
+-- Bước 2: XÓA CHECK constraint cũ (warrior/mage/archer/healer) và thêm CHECK mới
+ALTER TABLE public.arena_profiles DROP CONSTRAINT IF EXISTS arena_profiles_avatar_class_check;
+ALTER TABLE public.arena_profiles ADD CONSTRAINT arena_profiles_avatar_class_check
+  CHECK (avatar_class IN ('scholar', 'scientist', 'artist', 'explorer'));
+
+-- Bước 3: Đổi default value
+ALTER TABLE public.arena_profiles ALTER COLUMN avatar_class SET DEFAULT 'scholar';
+
+-- Bước 4: Cập nhật dữ liệu cũ (nếu có)
+UPDATE public.arena_profiles SET avatar_class = 'scholar' WHERE avatar_class = 'warrior';
+UPDATE public.arena_profiles SET avatar_class = 'scientist' WHERE avatar_class = 'mage';
+UPDATE public.arena_profiles SET avatar_class = 'artist' WHERE avatar_class = 'archer';
+UPDATE public.arena_profiles SET avatar_class = 'explorer' WHERE avatar_class = 'healer';
 
 -- ============================================
 -- SEED DATA: 20 câu hỏi lớp 5 (Kết nối tri thức với cuộc sống)
