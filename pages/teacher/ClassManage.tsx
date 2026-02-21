@@ -5,6 +5,7 @@ import { Class, User } from '../../types';
 import { School, Plus, Users, ChevronDown, UserPlus, Dices, CheckSquare, Square, Zap } from 'lucide-react';
 import { DuckRace } from '../../components/classfun/DuckRace';
 import { RandomRoulette } from '../../components/classfun/RandomRoulette';
+import { GroupManageModal } from '../../components/classfun/GroupManageModal';
 
 export const ClassManage: React.FC = () => {
   const { classes, academicYears, users, user: currentUser, addClass, updateClass } = useStore();
@@ -79,6 +80,8 @@ export const ClassManage: React.FC = () => {
     setSelectedStudentIds([winner.id]);
     setShowDuckRace(false);
   };
+
+  const [showGroupModal, setShowGroupModal] = useState(false);
 
   // Group students
   const groupedStudents = React.useMemo(() => {
@@ -181,14 +184,18 @@ export const ClassManage: React.FC = () => {
                 <p className="text-sm text-gray-500">Danh sách học sinh</p>
               </div>
 
-              {/* Random Controls */}
+              {/* Random Controls & Group Manage */}
               <div className="flex items-center flex-wrap gap-2 mt-2 md:mt-0">
+                <button onClick={() => setShowGroupModal(true)} className="text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-100 font-bold transition border border-indigo-100 flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Quản lý Tổ
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block"></div>
                 <button onClick={() => setShowRoulette(true)} className="text-sm bg-purple-50 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-100 font-bold transition border border-purple-100 flex items-center gap-2">
                   <Dices className="h-4 w-4" /> Gọi Ngẫu Nhiên
                 </button>
                 <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block"></div>
                 <button onClick={startDuckRace} className="text-sm bg-amber-100 text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-200 font-bold flex items-center gap-2 transition shadow-sm border border-amber-200">
-                  🦆 Đua Vịt
+                  <span className="text-lg leading-none">🦆</span> Đua Vịt
                 </button>
               </div>
 
@@ -294,6 +301,10 @@ export const ClassManage: React.FC = () => {
           onClose={() => setShowDuckRace(false)}
           onComplete={handleDuckRaceComplete}
         />
+      )}
+
+      {showGroupModal && selectedClassId && (
+        <GroupManageModal classId={selectedClassId} onClose={() => setShowGroupModal(false)} />
       )}
     </div>
   );

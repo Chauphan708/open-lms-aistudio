@@ -11,7 +11,7 @@ import { ClassManage } from './pages/teacher/ClassManage';
 import { ClassFunDashboard } from './pages/teacher/ClassFunDashboard';
 import { ClassFunRecord } from './pages/teacher/ClassFunRecord';
 import { ClassFunAttendance } from './pages/teacher/ClassFunAttendance';
-import { ClassFunGroups } from './pages/teacher/ClassFunGroups';
+import { ClassFunWarning } from './pages/teacher/ClassFunWarning';
 import { LiveRoom } from './pages/teacher/LiveRoom';
 import { LiveJoin } from './pages/student/LiveJoin';
 import { LiveLobby } from './pages/student/LiveLobby';
@@ -210,9 +210,9 @@ function App() {
             <ClassFunAttendance />
           </ProtectedRoute>
         } />
-        <Route path="/teacher/class-fun/groups" element={
+        <Route path="/teacher/class-fun/warning" element={
           <ProtectedRoute roles={['TEACHER']}>
-            <ClassFunGroups />
+            <ClassFunWarning />
           </ProtectedRoute>
         } />
 

@@ -12,24 +12,24 @@ const cleanJsonString = (text: string): string => {
 const getAiClient = () => {
   // Safely get API Key checking both process.env and import.meta.env
   let apiKey = '';
-  
+
   // @ts-ignore
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      // @ts-ignore
-      apiKey = process.env.API_KEY;
+    // @ts-ignore
+    apiKey = process.env.API_KEY;
   }
-  
+
   if (!apiKey) {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
       // @ts-ignore
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
-          // @ts-ignore
-          apiKey = import.meta.env.VITE_API_KEY;
-      }
+      apiKey = import.meta.env.VITE_API_KEY;
+    }
   }
-  
+
   if (!apiKey || apiKey.includes("API_KEY")) {
-      console.error("CRITICAL: Missing API KEY. Please check .env file or Vercel Environment Variables.");
-      throw new Error("API Key is missing or invalid.");
+    console.error("CRITICAL: Missing API KEY. Please check .env file or Vercel Environment Variables.");
+    throw new Error("API Key is missing or invalid.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -41,10 +41,10 @@ const QUESTION_SCHEMA: Schema = {
     properties: {
       content: { type: Type.STRING, description: "The main text of the question" },
       imageUrl: { type: Type.STRING, description: "Optional URL for an image associated with the question (if provided in text)" },
-      options: { 
-        type: Type.ARRAY, 
+      options: {
+        type: Type.ARRAY,
         items: { type: Type.STRING },
-        description: "List of answer choices or items to match/order." 
+        description: "List of answer choices or items to match/order."
       },
       correctOptionIndex: { type: Type.INTEGER, description: "Index of correct option (0-3) for MCQ, or -1 if not applicable" },
       solution: { type: Type.STRING, description: "Detailed step-by-step explanation including the final answer." },
@@ -59,7 +59,7 @@ const QUESTION_SCHEMA: Schema = {
  */
 export const parseQuestionsFromText = async (rawText: string): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview"; 
+  const modelId = "gemini-3-flash-preview";
 
   const prompt = `
     You are an AI exam parser for an LMS system. 
@@ -92,7 +92,7 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
 
     const cleanedText = cleanJsonString(response.text || "[]");
     const parsedData = JSON.parse(cleanedText);
-    
+
     return parsedData.map((item: any, index: number) => ({
       id: `gen_parse_${Date.now()}_${index}`,
       type: 'MCQ',
@@ -114,15 +114,15 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
  * Generates new questions based on sophisticated criteria.
  */
 export const generateQuestionsByTopic = async (
-  topic: string, 
+  topic: string,
   classLevel: string,
   questionType: string,
-  difficulty: string, 
+  difficulty: string,
   count: number,
   customPrompt: string
 ): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview"; 
+  const modelId = "gemini-3-flash-preview";
 
   // Mapping readable type to system type string for prompt clarity
   const typeDescription = {
@@ -308,5 +308,46 @@ export const analyzeClassPerformance = async (
   } catch (error) {
     console.error("Gemini Class Analysis Error:", error);
     return "Lỗi khi phân tích dữ liệu lớp học.";
+  }
+};
+
+/**
+ * Generates personalized behavior advice for a student based on recent negative behavior logs.
+ */
+export const generateBehaviorAdvice = async (
+  studentName: string,
+  className: string,
+  logSummary: string,
+  customPrompt?: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const modelId = "gemini-3-flash-preview";
+
+  const prompt = `
+    Đóng vai một Chuyên gia Tâm lý Học đường và Cố vấn Hành vi.
+    Hãy tư vấn cho Giáo viên cách xử lý và giáo dục học sinh sau đây:
+    
+    - Tên học sinh: ${studentName} (${className})
+    - Lịch sử vi phạm gần đây:
+${logSummary}
+
+    ${customPrompt ? `\n- Ghi chú thêm từ giáo viên (Hoàn cảnh/Bối cảnh lúc này): "${customPrompt}"\n` : ''}
+
+    YÊU CẦU:
+    - Viết bằng Tiếng Việt thân thiện, rõ ràng, dễ áp dụng (định dạng Markdown).
+    - Phân tích nguyên nhân có thể xảy ra từ góc độ tâm lý.
+    - Đưa ra 2-3 biện pháp cụ thể, thực tế để giáo viên có thể hỗ trợ/giáo dục học sinh này thay vì chỉ trách mắng.
+    - Cấu trúc gồm: "Nguyên nhân tiềm ẩn", "Góc nhìn tâm lý" và "Giải pháp đề xuất".
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+    });
+    return response.text || "Không thể tạo tư vấn từ AI vào lúc này.";
+  } catch (error) {
+    console.error("Gemini Behavior Advice Error:", error);
+    return "Lỗi khi kết nối với AI Tư vấn.";
   }
 };

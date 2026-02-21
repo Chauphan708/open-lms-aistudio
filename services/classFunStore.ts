@@ -72,6 +72,7 @@ interface ClassFunState {
   addBehaviorLog: (log: Omit<BehaviorLog, 'id' | 'created_at'>) => Promise<void>;
   batchAddBehaviorLogs: (logs: Omit<BehaviorLog, 'id' | 'created_at'>[]) => Promise<void>;
   fetchStudentLogs: (studentId: string) => Promise<void>;
+  fetchAllBehaviorLogs: (classId: string) => Promise<void>;
   deleteBehaviorLog: (id: string) => Promise<void>;
 
   // Actions - Attendance
@@ -211,6 +212,22 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
       .from('behavior_logs')
       .select('*, behaviors(*)')
       .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (data) {
+      // Map behavior description if joined
+      const mappedLogs = data.map(d => ({
+        ...d,
+        reason: d.reason || d.behaviors?.description || 'Ghi nhận hành vi'
+      }));
+      set({ logs: mappedLogs as BehaviorLog[] });
+    }
+  },
+
+  fetchAllBehaviorLogs: async (classId) => {
+    const { data } = await supabase
+      .from('behavior_logs')
+      .select('*, behaviors(*)')
+      .eq('class_id', classId)
       .order('created_at', { ascending: false });
     if (data) {
       // Map behavior description if joined
