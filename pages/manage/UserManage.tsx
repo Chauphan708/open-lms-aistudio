@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { User, UserRole } from '../../types';
 import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit, Dices, GraduationCap, LayoutGrid, List } from 'lucide-react';
 import { DuckRace } from '../../components/classfun/DuckRace';
+import { RandomRoulette } from '../../components/classfun/RandomRoulette';
 
 interface Props {
     targetRole: UserRole; // 'TEACHER' or 'STUDENT'
@@ -85,10 +86,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     );
 
     // --- RANDOM & DUCK RACE HANDLERS ---
-    const randomSelect = (count: number) => {
-        if (filteredUsers.length === 0) return;
-        const shuffled = [...filteredUsers].sort(() => 0.5 - Math.random());
-        setSelectedStudentIds(shuffled.slice(0, count).map(u => u.id));
+    const [showRoulette, setShowRoulette] = useState(false);
+
+    const handleRouletteComplete = (winners: User[]) => {
+        setSelectedStudentIds(winners.map(w => w.id));
+        setShowRoulette(false);
     };
 
     const startDuckRace = () => {
@@ -582,14 +584,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             {/* RANDOM CONTROLS (Only for students) */}
             {targetRole === 'STUDENT' && filteredUsers.length > 0 && (
                 <div className="bg-white p-3 rounded-xl border shadow-sm flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 text-indigo-700 font-bold text-sm">
-                        <Dices className="h-5 w-5" /> Gọi ngẫu nhiên:
-                    </div>
-                    <button onClick={() => randomSelect(1)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition">1 HS</button>
-                    <button onClick={() => randomSelect(2)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition">2 HS</button>
-                    <button onClick={() => randomSelect(4)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition">4 HS</button>
+                    <button onClick={() => setShowRoulette(true)} className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-indigo-100 shadow-sm">
+                        <Dices className="h-5 w-5" /> Gọi Ngẫu Nhiên
+                    </button>
                     <div className="w-px h-5 bg-gray-300 mx-1"></div>
-                    <button onClick={startDuckRace} className="px-4 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-amber-200 shadow-sm">
+                    <button onClick={startDuckRace} className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-amber-200 shadow-sm">
                         🦆 Đua Vịt
                     </button>
                     {selectedStudentIds.length > 0 && (
@@ -727,6 +726,14 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                     )
                 })}
             </div>
+
+            {showRoulette && (
+                <RandomRoulette
+                    students={filteredUsers}
+                    onComplete={handleRouletteComplete}
+                    onClose={() => setShowRoulette(false)}
+                />
+            )}
 
             {showDuckRace && (
                 <DuckRace

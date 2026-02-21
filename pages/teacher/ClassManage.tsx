@@ -4,6 +4,7 @@ import { useClassFunStore } from '../../services/classFunStore';
 import { Class, User } from '../../types';
 import { School, Plus, Users, ChevronDown, UserPlus, Dices, CheckSquare, Square, Zap } from 'lucide-react';
 import { DuckRace } from '../../components/classfun/DuckRace';
+import { RandomRoulette } from '../../components/classfun/RandomRoulette';
 
 export const ClassManage: React.FC = () => {
   const { classes, academicYears, users, user: currentUser, addClass, updateClass } = useStore();
@@ -60,15 +61,16 @@ export const ClassManage: React.FC = () => {
   const studentsInClass = allStudents.filter(s => selectedClassData?.studentIds.includes(s.id));
 
   // Random Selection Logic
-  const randomSelect = (poolIds: string[], count: number) => {
-    const shuffled = [...poolIds].sort(() => 0.5 - Math.random());
-    setSelectedStudentIds(shuffled.slice(0, count));
+  const [showRoulette, setShowRoulette] = useState(false);
+
+  const handleRouletteComplete = (winners: User[]) => {
+    setSelectedStudentIds(winners.map(w => w.id));
+    setShowRoulette(false);
   };
 
-  const startDuckRace = (poolIds: string[]) => {
-    const pool = studentsInClass.filter(s => poolIds.includes(s.id));
-    if (pool.length > 0) {
-      setDuckRacePool(pool);
+  const startDuckRace = () => {
+    if (studentsInClass.length > 0) {
+      setDuckRacePool(studentsInClass);
       setShowDuckRace(true);
     }
   };
@@ -180,14 +182,13 @@ export const ClassManage: React.FC = () => {
               </div>
 
               {/* Random Controls */}
-              <div className="flex items-center gap-1 bg-purple-50 rounded-full px-3 py-1.5 border border-purple-100">
-                <span className="text-xs font-bold text-purple-700 uppercase mr-1">Gọi ngẫu nhiên:</span>
-                <button onClick={() => randomSelect(studentsInClass.map(s => s.id), 1)} className="text-xs text-purple-700 px-2 py-1 rounded-full hover:bg-purple-100 font-bold transition">1 HS</button>
-                <button onClick={() => randomSelect(studentsInClass.map(s => s.id), 2)} className="text-xs text-purple-700 px-2 py-1 rounded-full hover:bg-purple-100 font-bold transition">2 HS</button>
-                <button onClick={() => randomSelect(studentsInClass.map(s => s.id), 4)} className="text-xs text-purple-700 px-2 py-1 rounded-full hover:bg-purple-100 font-bold transition">4 HS</button>
-                <div className="w-px h-4 bg-purple-200 mx-1"></div>
-                <button onClick={() => startDuckRace(studentsInClass.map(s => s.id))} className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full hover:bg-amber-200 font-bold flex items-center gap-1 transition shadow-sm">
-                  🦆 Đua vịt
+              <div className="flex items-center flex-wrap gap-2 mt-2 md:mt-0">
+                <button onClick={() => setShowRoulette(true)} className="text-sm bg-purple-50 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-100 font-bold transition border border-purple-100 flex items-center gap-2">
+                  <Dices className="h-4 w-4" /> Gọi Ngẫu Nhiên
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block"></div>
+                <button onClick={startDuckRace} className="text-sm bg-amber-100 text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-200 font-bold flex items-center gap-2 transition shadow-sm border border-amber-200">
+                  🦆 Đua Vịt
                 </button>
               </div>
 
@@ -226,11 +227,7 @@ export const ClassManage: React.FC = () => {
                           <h3 className="font-bold text-gray-800">{g.name} <span className="text-gray-500 font-normal">({g.students.length})</span></h3>
                         </div>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => randomSelect(g.students.map(s => s.id), 1)} className="text-xs px-2 py-1 text-purple-600 hover:bg-purple-100 rounded-md font-medium transition" title="Chọn 1 người">🎲 1</button>
-                          <button onClick={() => randomSelect(g.students.map(s => s.id), 2)} className="text-xs px-2 py-1 text-purple-600 hover:bg-purple-100 rounded-md font-medium transition" title="Chọn 2 người">🎲 2</button>
-                          <button onClick={() => randomSelect(g.students.map(s => s.id), 4)} className="text-xs px-2 py-1 text-purple-600 hover:bg-purple-100 rounded-md font-medium transition" title="Chọn 4 người">🎲 4</button>
-                          <div className="w-px h-3 bg-gray-300 mx-1"></div>
-                          <button onClick={() => startDuckRace(g.students.map(s => s.id))} className="text-xs text-amber-600 px-2 py-1 hover:bg-amber-100 rounded-md font-bold transition">🦆 Đua Vịt</button>
+                          <span className="text-xs text-gray-400 font-medium">Chọn để cập nhật</span>
                         </div>
                       </div>
                       <div className="divide-y divide-gray-100">
@@ -280,6 +277,16 @@ export const ClassManage: React.FC = () => {
           </>
         )}
       </div>
+
+      {showRoulette && (
+        <RandomRoulette
+          students={studentsInClass}
+          groups={groups}
+          groupMembers={groupMembers}
+          onComplete={handleRouletteComplete}
+          onClose={() => setShowRoulette(false)}
+        />
+      )}
 
       {showDuckRace && (
         <DuckRace

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Play, RotateCcw, X } from 'lucide-react';
 import { User } from '../../types';
+import { playVictorySound } from '../../utils/audio';
+import { Confetti } from './Confetti';
 
 interface DuckRaceProps {
     students: User[];
@@ -51,25 +53,32 @@ export const DuckRace: React.FC<DuckRaceProps> = ({ students, onComplete, onClos
 
                 const updated = prevRacers.map(racer => {
                     if (someoneWon) return racer; // Stop others if won
+                    if (racer.progress >= 100) { // Already finished
+                        return racer;
+                    }
 
                     // Random speed bump to make it exciting
-                    const speedBump = (Math.random() - 0.4) * 0.5;
+                    let speedBump = (Math.random() - 0.2) * 0.5; // Changed from 0.4 to 0.2
                     let newSpeed = Math.max(0.5, Math.min(5, racer.speed + speedBump));
 
-                    let newProgress = racer.progress + (newSpeed * deltaTime * 0.015);
+                    // Reduced speed factor from 0.015 to 0.003 to make the race last ~10-15 seconds
+                    let newProgress = racer.progress + (newSpeed * deltaTime * 0.003);
 
                     if (newProgress >= 100) {
                         newProgress = 100;
-                        someoneWon = true;
-                        newWinner = racer.student;
+                        if (!someoneWon) { // Only set the first one to cross the line as winner
+                            someoneWon = true;
+                            newWinner = racer.student;
+                        }
                     }
-
                     return { ...racer, progress: newProgress, speed: newSpeed };
                 });
 
+                // If someone just won in this frame
                 if (someoneWon && newWinner) {
                     setIsRunning(false);
                     setWinner(newWinner);
+                    playVictorySound(); // Play victory sound
                 }
 
                 return updated;
@@ -127,24 +136,30 @@ export const DuckRace: React.FC<DuckRaceProps> = ({ students, onComplete, onClos
 
                     <div className="space-y-4 relative z-10">
                         {racers.map((racer, idx) => (
-                            <div key={racer.id} className="relative h-14 bg-blue-100 rounded-full border-2 border-blue-200 shadow-inner overflow-hidden">
-                                {/* Water ripple effect */}
-                                <div className="absolute inset-0 opacity-30 bg-gradient-to-r from-blue-300 via-white to-blue-300 animate-pulse"></div>
+                            <div key={racer.id} className="relative h-14 bg-white/50 rounded-full border border-sky-200 shadow-inner overflow-hidden flex items-center px-2">
+                                {/* Water effect */}
+                                <div className="absolute left-0 top-0 bottom-0 bg-sky-200/50 transition-all duration-75" style={{ width: `${racer.progress}%` }}></div>
 
-                                <div className="absolute inset-0 py-2 px-3 flex items-center">
-                                    <div className="font-bold text-blue-900 w-32 truncate text-sm z-10 mix-blend-color-burn">
-                                        {idx + 1}. {racer.student.name}
-                                    </div>
+                                <div className="font-bold text-blue-900 w-32 truncate text-sm z-10 mix-blend-color-burn">
+                                    {idx + 1}. {racer.student.name}
                                 </div>
 
-                                {/* The Duck */}
+                                {/* Duck */}
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 transition-all duration-75 flex flex-col items-center z-20"
-                                    style={{ left: `calc(${racer.progress}% - 2rem)` }}
+                                    className="absolute transition-all duration-75 z-10"
+                                    style={{ left: `calc(${racer.progress}% - ${racer.progress === 100 ? '40px' : '20px'})` }}
                                 >
-                                    <span className={`text-4xl filter drop-shadow-md ${winner && winner.id !== racer.id ? 'opacity-50 grayscale' : ''}`}>
-                                        🦆
-                                    </span>
+                                    <div className="relative">
+                                        <span
+                                            className={`text-4xl filter drop-shadow-md ${winner && winner.id !== racer.id ? 'opacity-50 grayscale' : ''}`}
+                                            style={{ transform: 'scaleX(-1)', display: 'inline-block' }}
+                                        >
+                                            🦆
+                                        </span>
+                                        {winner?.id === racer.id && (
+                                            <Trophy className="absolute -top-4 -right-2 h-6 w-6 text-amber-500 fill-amber-500 drop-shadow-md animate-bounce" />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -186,6 +201,7 @@ export const DuckRace: React.FC<DuckRaceProps> = ({ students, onComplete, onClos
                     </div>
                 </div>
             </div>
+            {winner && <Confetti />}
         </div>
     );
 };
