@@ -19,9 +19,11 @@ export const ExamList: React.FC = () => {
   const [filterDuration, setFilterDuration] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('');
   const [filterQuestionType, setFilterQuestionType] = useState('');
+  const [filterTopic, setFilterTopic] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   const subjects = useMemo(() => Array.from(new Set(exams.map(e => e.subject).filter(Boolean))), [exams]);
+  const topics = useMemo(() => Array.from(new Set(exams.map(e => e.topic).filter(Boolean))) as string[], [exams]);
   const grades = useMemo(() => Array.from(new Set(exams.map(e => e.grade).filter(Boolean))).sort((a, b) => Number(a) - Number(b)), [exams]);
 
   const handleOpenAssign = (exam: Exam) => {
@@ -48,6 +50,7 @@ export const ExamList: React.FC = () => {
       const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesSubject = filterSubject ? exam.subject === filterSubject : true;
       const matchesGrade = filterGrade ? exam.grade === filterGrade : true;
+      const matchesTopic = filterTopic ? exam.topic === filterTopic : true;
       const matchesDate = filterDate ? exam.createdAt.startsWith(filterDate) : true;
       const matchesDifficulty = filterDifficulty ? exam.difficulty === filterDifficulty : true;
 
@@ -64,9 +67,9 @@ export const ExamList: React.FC = () => {
         matchesType = exam.questions.some(q => q.type === filterQuestionType);
       }
 
-      return matchesSearch && matchesSubject && matchesGrade && matchesDate && matchesDuration && matchesDifficulty && matchesType;
+      return matchesSearch && matchesSubject && matchesGrade && matchesTopic && matchesDate && matchesDuration && matchesDifficulty && matchesType;
     });
-  }, [exams, searchTerm, filterSubject, filterGrade, filterDate, filterDuration, filterDifficulty, filterQuestionType]);
+  }, [exams, searchTerm, filterSubject, filterGrade, filterTopic, filterDate, filterDuration, filterDifficulty, filterQuestionType]);
 
   const getDifficultyLabel = (diff: ExamDifficulty | undefined) => {
     switch (diff) {
@@ -192,7 +195,7 @@ export const ExamList: React.FC = () => {
 
       {showFilters && (
         <div className="bg-white p-5 rounded-xl border shadow-sm mb-6 animate-in slide-in-from-top-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
             {/* 1. Subject */}
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">Môn học</label>
@@ -234,6 +237,20 @@ export const ExamList: React.FC = () => {
                   <option value="LEVEL_1">Mức 1</option>
                   <option value="LEVEL_2">Mức 2</option>
                   <option value="LEVEL_3">Mức 3</option>
+                </select>
+              </div>
+            </div>
+            {/* 3.5 Topic */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">C.Đề / Nội dung</label>
+              <div className="relative">
+                <Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3" />
+                <select
+                  value={filterTopic} onChange={e => setFilterTopic(e.target.value)}
+                  className="w-full pl-8 pr-2 py-2 border rounded-lg text-xs bg-white text-gray-900 outline-none focus:border-indigo-500 appearance-none"
+                >
+                  <option value="">Tất cả</option>
+                  {topics.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
@@ -286,7 +303,7 @@ export const ExamList: React.FC = () => {
           <div className="mt-4 pt-3 border-t flex justify-end">
             <button
               onClick={() => {
-                setFilterSubject(''); setFilterGrade(''); setFilterDate('');
+                setFilterSubject(''); setFilterGrade(''); setFilterDate(''); setFilterTopic('');
                 setSearchTerm(''); setFilterDuration(''); setFilterDifficulty(''); setFilterQuestionType('');
               }}
               className="text-xs text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"

@@ -52,6 +52,7 @@ export interface Exam {
   id: string;
   title: string;
   subject: string;
+  topic?: string;
   grade: string;
   difficulty: ExamDifficulty;
   durationMinutes: number;

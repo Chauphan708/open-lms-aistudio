@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../../store';
 import { useClassFunStore, AttendanceRecord } from '../../services/classFunStore';
+import { supabase } from '../../services/supabaseClient';
 import {
     ClipboardCheck, CheckCircle, XCircle, AlertCircle, Save, Calendar, Users, ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -13,7 +14,7 @@ const StatusConfig = {
 
 export const ClassFunAttendance: React.FC = () => {
     const { user, classes, users } = useStore();
-    const { attendance, fetchAttendance, saveAttendance, isLoading } = useClassFunStore();
+    const { attendance, fetchAttendance, saveAttendance, batchAddBehaviorLogs, isLoading } = useClassFunStore();
 
     const myClasses = classes.filter(c => c.teacherId === user?.id);
     const [selectedClassId, setSelectedClassId] = useState(myClasses[0]?.id || '');
@@ -87,6 +88,40 @@ export const ClassFunAttendance: React.FC = () => {
             status,
         }));
         await saveAttendance(records);
+
+        // Auto +2 points for 'present' students (only for today's date)
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+        if (selectedDate === todayStr) {
+            const presentStudentIds = records.filter(r => r.status === 'present').map(r => r.student_id);
+            if (presentStudentIds.length > 0) {
+                // Check if existing "Có mặt" logs were already given today
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const { data: existingLogs } = await supabase
+                    .from('behavior_logs')
+                    .select('student_id')
+                    .eq('class_id', selectedClassId)
+                    .eq('reason', 'Có mặt (Điểm danh)')
+                    .gte('created_at', startOfDay.toISOString());
+
+                const alreadyGivenIds = new Set((existingLogs || []).map(l => l.student_id));
+                const toGiveIds = presentStudentIds.filter(id => !alreadyGivenIds.has(id));
+
+                if (toGiveIds.length > 0) {
+                    const logsToAdd = toGiveIds.map(sid => ({
+                        student_id: sid,
+                        class_id: selectedClassId,
+                        behavior_id: null,
+                        points: 2,
+                        reason: 'Có mặt (Điểm danh)',
+                        recorded_by: user?.id || null,
+                    }));
+                    await batchAddBehaviorLogs(logsToAdd);
+                }
+            }
+        }
+
         setSaving(false);
         setShowSaved(true);
         setTimeout(() => setShowSaved(false), 2000);
@@ -202,8 +237,8 @@ export const ClassFunAttendance: React.FC = () => {
                                     {(Object.entries(StatusConfig) as [string, typeof StatusConfig.present][]).map(([key, sc]) => (
                                         <button key={key} onClick={() => setLocalStatuses(prev => ({ ...prev, [s.id]: key as any }))}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${status === key
-                                                    ? `${sc.color} border-current shadow-sm scale-105`
-                                                    : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                                ? `${sc.color} border-current shadow-sm scale-105`
+                                                : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                                                 }`}>
                                             <sc.icon className="h-4 w-4" />
                                             <span className="hidden sm:inline">{sc.label}</span>

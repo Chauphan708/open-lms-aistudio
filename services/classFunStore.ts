@@ -72,6 +72,7 @@ interface ClassFunState {
   addBehaviorLog: (log: Omit<BehaviorLog, 'id' | 'created_at'>) => Promise<void>;
   batchAddBehaviorLogs: (logs: Omit<BehaviorLog, 'id' | 'created_at'>[]) => Promise<void>;
   fetchStudentLogs: (studentId: string) => Promise<void>;
+  deleteBehaviorLog: (id: string) => Promise<void>;
 
   // Actions - Attendance
   saveAttendance: (records: Omit<AttendanceRecord, 'id'>[]) => Promise<void>;
@@ -219,6 +220,11 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
       }));
       set({ logs: mappedLogs as BehaviorLog[] });
     }
+  },
+
+  deleteBehaviorLog: async (id) => {
+    const { error } = await supabase.from('behavior_logs').delete().eq('id', id);
+    if (!error) set(s => ({ logs: s.logs.filter(l => l.id !== id) }));
   },
 
   // --- Attendance ---

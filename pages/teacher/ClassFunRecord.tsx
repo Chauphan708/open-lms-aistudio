@@ -27,7 +27,8 @@ export const ClassFunRecord: React.FC = () => {
     const { user, classes, users } = useStore();
     const {
         behaviors, logs, groupMembers, groups, isLoading,
-        fetchClassFunData, addBehavior, updateBehavior, deleteBehavior, batchAddBehaviorLogs
+        fetchClassFunData, addBehavior, updateBehavior, deleteBehavior, batchAddBehaviorLogs,
+        attendance, fetchAttendance, deleteBehaviorLog
     } = useClassFunStore();
 
     // --- States ---
@@ -50,6 +51,13 @@ export const ClassFunRecord: React.FC = () => {
         }
     }, [selectedClassId, user?.id, fetchClassFunData]);
 
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    useEffect(() => {
+        if (selectedClassId) {
+            fetchAttendance(selectedClassId, todayStr);
+        }
+    }, [selectedClassId, todayStr, fetchAttendance]);
+
     useEffect(() => {
         if (!selectedClassId && myClasses.length > 0) setSelectedClassId(myClasses[0].id);
     }, [myClasses, selectedClassId]);
@@ -60,6 +68,13 @@ export const ClassFunRecord: React.FC = () => {
         if (!selectedClass) return [];
         return users.filter(u => selectedClass.studentIds.includes(u.id));
     }, [selectedClass, users]);
+
+    // Check attendance status
+    const currentAttendance = useMemo(() => {
+        const map: Record<string, 'present' | 'excused' | 'unexcused'> = {};
+        attendance.forEach(a => map[a.student_id] = a.status);
+        return map;
+    }, [attendance]);
 
     // Filter students
     const filteredStudents = useMemo(() => {
@@ -77,13 +92,15 @@ export const ClassFunRecord: React.FC = () => {
 
     // Toggle student selection
     const toggleStudent = (id: string) => {
+        if (currentAttendance[id] === 'excused' || currentAttendance[id] === 'unexcused') return;
         setSelectedStudentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     };
-    const selectAll = () => setSelectedStudentIds(classStudents.map(s => s.id));
+    const selectAll = () => setSelectedStudentIds(classStudents.filter(s => currentAttendance[s.id] !== 'excused' && currentAttendance[s.id] !== 'unexcused').map(s => s.id));
     const deselectAll = () => setSelectedStudentIds([]);
     const selectGroup = (groupId: string) => {
         const memberIds = groupMembers.filter(m => m.group_id === groupId).map(m => m.student_id);
-        setSelectedStudentIds(prev => [...new Set([...prev, ...memberIds])]);
+        const validIds = memberIds.filter(id => currentAttendance[id] !== 'excused' && currentAttendance[id] !== 'unexcused');
+        setSelectedStudentIds(prev => [...new Set([...prev, ...validIds])]);
     };
 
     // Apply behavior
@@ -264,15 +281,20 @@ export const ClassFunRecord: React.FC = () => {
                         {filteredStudents.map(s => {
                             const selected = selectedStudentIds.includes(s.id);
                             const score = studentScores.get(s.id) || 0;
+                            const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
+
                             return (
                                 <button key={s.id} onClick={() => toggleStudent(s.id)}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left ${selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent'
-                                        }`}>
-                                    {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className="h-5 w-5 text-gray-300 flex-shrink-0" />}
+                                    disabled={isAbsent}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left 
+                                        ${isAbsent ? 'opacity-50 cursor-not-allowed bg-gray-50' :
+                                            (selected ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm' : 'hover:bg-gray-50 border-2 border-transparent')}
+                                    `}>
+                                    {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <Square className={`h-5 w-5 flex-shrink-0 ${isAbsent ? 'text-gray-200' : 'text-gray-300'}`} />}
                                     <img src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=40`}
-                                        alt="" className="w-9 h-9 rounded-full flex-shrink-0" />
+                                        alt="" className={`w-9 h-9 rounded-full flex-shrink-0 ${isAbsent ? 'grayscale' : ''}`} />
                                     <div className="flex-1 min-w-0">
-                                        <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name}</span>
+                                        <span className={`text-sm font-semibold ${selected ? 'text-indigo-800' : 'text-gray-800'}`}>{s.name} {isAbsent && '(Vắng)'}</span>
                                     </div>
                                     <span className={`text-sm font-bold ${score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                         {score > 0 ? '+' : ''}{score}
@@ -306,8 +328,8 @@ export const ClassFunRecord: React.FC = () => {
                                     <button key={b.id} onClick={() => applyBehavior(b)}
                                         disabled={selectedStudentIds.length === 0}
                                         className={`group relative p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedStudentIds.length > 0
-                                                ? 'border-emerald-200 hover:border-emerald-400 hover:shadow-md hover:scale-[1.02] active:scale-95 bg-emerald-50/50'
-                                                : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                                            ? 'border-emerald-200 hover:border-emerald-400 hover:shadow-md hover:scale-[1.02] active:scale-95 bg-emerald-50/50'
+                                            : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
                                             }`}>
                                         <div className="text-2xl font-extrabold text-emerald-600">+{b.points}</div>
                                         <div className="text-sm font-medium text-gray-700 mt-1 line-clamp-2">{b.description}</div>
@@ -330,13 +352,49 @@ export const ClassFunRecord: React.FC = () => {
                                     <button key={b.id} onClick={() => applyBehavior(b)}
                                         disabled={selectedStudentIds.length === 0}
                                         className={`group relative p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedStudentIds.length > 0
-                                                ? 'border-red-200 hover:border-red-400 hover:shadow-md hover:scale-[1.02] active:scale-95 bg-red-50/50'
-                                                : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                                            ? 'border-red-200 hover:border-red-400 hover:shadow-md hover:scale-[1.02] active:scale-95 bg-red-50/50'
+                                            : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
                                             }`}>
                                         <div className="text-2xl font-extrabold text-red-600">{b.points}</div>
                                         <div className="text-sm font-medium text-gray-700 mt-1 line-clamp-2">{b.description}</div>
                                     </button>
                                 ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Recent History */}
+                    <div className="bg-white rounded-xl shadow-sm border p-5">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            Lịch sử cộng/trừ điểm (Hôm nay)
+                        </h2>
+                        {logs.filter(l => l.created_at.startsWith(todayStr)).length === 0 ? (
+                            <p className="text-center text-gray-400 text-sm py-4">Chưa có bản ghi nào.</p>
+                        ) : (
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                {logs.filter(l => l.created_at.startsWith(todayStr)).map(log => {
+                                    const student = users.find(u => u.id === log.student_id);
+                                    return (
+                                        <div key={log.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-gray-50 border gap-2 hover:bg-gray-100 transition">
+                                            <div className="flex items-center gap-3">
+                                                <img src={student?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(student?.name || '')}&background=6366f1&color=fff&size=32`} className="w-8 h-8 rounded-full" />
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">{student?.name}</p>
+                                                    <p className="text-xs text-gray-500">{log.reason}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 self-end sm:self-auto">
+                                                <span className={`text-sm font-bold ${log.points >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    {log.points > 0 ? '+' : ''}{log.points}
+                                                </span>
+                                                <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <button onClick={() => deleteBehaviorLog(log.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Xóa lịch sử này">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         )}
                     </div>

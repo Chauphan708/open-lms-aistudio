@@ -21,7 +21,7 @@ export const ClassFunGroups: React.FC = () => {
     const myClasses = classes.filter(c => c.teacherId === user?.id);
     const [selectedClassId, setSelectedClassId] = useState(myClasses[0]?.id || '');
     const [showAddForm, setShowAddForm] = useState(false);
-    const [newGroupName, setNewGroupName] = useState('');
+    const [newGroupName, setNewGroupName] = useState('Tổ 1');
     const [newGroupColor, setNewGroupColor] = useState(GROUP_COLORS[0]);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
@@ -127,9 +127,14 @@ export const ClassFunGroups: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-sm border p-5">
                     <h3 className="font-bold text-gray-800 mb-3">Tạo tổ mới</h3>
                     <div className="flex flex-col sm:flex-row gap-3">
-                        <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
-                            placeholder="Tên tổ (VD: Tổ 1)"
-                            className="flex-1 px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                        <select
+                            value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
+                            className="flex-1 px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            {[...Array(10)].map((_, i) => (
+                                <option key={i} value={`Tổ ${i + 1}`}>Tổ {i + 1}</option>
+                            ))}
+                        </select>
                         <div className="flex gap-1 items-center">
                             {GROUP_COLORS.map(c => (
                                 <button key={c} onClick={() => setNewGroupColor(c)}
