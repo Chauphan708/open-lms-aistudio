@@ -151,16 +151,13 @@ export const ClassFunWarning: React.FC = () => {
 
                                 <div className="p-4 flex-1 bg-gray-50">
                                     <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Chi tiết vi phạm:</h4>
-                                    <ul className="space-y-2 mb-4">
-                                        {item.logs.slice(0, 5).map((log: any) => (
-                                            <li key={log.id} className="text-sm bg-white p-2 rounded border border-gray-100 shadow-sm flex justify-between">
-                                                <span className="text-gray-700">{log.reason}</span>
-                                                <span className="text-rose-500 font-bold">{log.points}</span>
+                                    <ul className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300 transition-colors">
+                                        {item.logs.map((log: any) => (
+                                            <li key={log.id} className="text-sm bg-white p-2 rounded border border-gray-100 shadow-sm flex items-start justify-between gap-2">
+                                                <span className="text-gray-700 leading-snug">{log.reason}</span>
+                                                <span className="text-rose-500 font-bold whitespace-nowrap shrink-0">{log.points}</span>
                                             </li>
                                         ))}
-                                        {item.logs.length > 5 && (
-                                            <li className="text-xs text-center text-gray-500 italic">... và {item.logs.length - 5} vi phạm khác</li>
-                                        )}
                                     </ul>
 
                                     {/* AI Section */}
