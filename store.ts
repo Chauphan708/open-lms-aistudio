@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, Poll, BreakoutRoom } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, Poll, BreakoutRoom, ArenaMatchFilters } from './types';
 import { supabase } from './services/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -717,7 +717,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   addArenaQuestion: async (q) => {
     const id = `aq_${Date.now()}`;
-    const row = { id, content: q.content, answers: q.answers, correct_index: q.correct_index, difficulty: q.difficulty, subject: q.subject };
+    const row = { id, content: q.content, answers: q.answers, correct_index: q.correct_index, difficulty: q.difficulty, subject: q.subject, topic: q.topic || 'general' };
     const { error } = await supabase.from('arena_questions').insert(row);
     if (error) return false;
     set(state => ({ arenaQuestions: [...state.arenaQuestions, { ...row, answers: typeof row.answers === 'string' ? JSON.parse(row.answers as any) : row.answers } as any] }));
@@ -725,7 +725,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   updateArenaQuestion: async (q) => {
-    const { error } = await supabase.from('arena_questions').update({ content: q.content, answers: q.answers, correct_index: q.correct_index, difficulty: q.difficulty, subject: q.subject }).eq('id', q.id);
+    const { error } = await supabase.from('arena_questions').update({ content: q.content, answers: q.answers, correct_index: q.correct_index, difficulty: q.difficulty, subject: q.subject, topic: q.topic || 'general' }).eq('id', q.id);
     if (error) return false;
     set(state => ({ arenaQuestions: state.arenaQuestions.map(x => x.id === q.id ? q : x) }));
     return true;
@@ -747,25 +747,64 @@ export const useStore = create<AppState>((set, get) => ({
     return (data || []) as any[];
   },
 
-  createMatch: async (playerId) => {
-    // 1. Get questions
-    const { data: questions } = await supabase.from('arena_questions').select('id');
-    const allIds = questions?.map((q: any) => q.id) || [];
-    // Shuffle and pick 5
-    const shuffled = allIds.sort(() => Math.random() - 0.5).slice(0, 5);
+  createMatch: async (playerId, filters) => {
+    let questionIds: string[] = [];
+
+    if (filters?.source === 'exam') {
+      // Lấy câu hỏi MCQ từ ngân hàng đề Exam
+      const state = get();
+      const allMcqQuestions: { id: string }[] = [];
+
+      const difficultyMap: Record<string, number> = { 'LEVEL_1': 1, 'LEVEL_2': 2, 'LEVEL_3': 3 };
+
+      state.exams
+        .filter(exam => exam.status === 'PUBLISHED')
+        .filter(exam => !filters.subject || exam.subject === filters.subject)
+        .filter(exam => !filters.grade || exam.grade === filters.grade)
+        .forEach(exam => {
+          exam.questions
+            .filter(q => q.type === 'MCQ' && q.options.length >= 4 && q.correctOptionIndex !== undefined)
+            .forEach(q => {
+              allMcqQuestions.push({ id: `exam_${exam.id}_${q.id}` });
+            });
+        });
+
+      questionIds = allMcqQuestions
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 5)
+        .map(q => q.id);
+    } else {
+      // Lấy từ bảng arena_questions
+      let query = supabase.from('arena_questions').select('id');
+      if (filters?.subject) query = query.eq('subject', filters.subject);
+      if (filters?.topic) query = query.eq('topic', filters.topic);
+      const { data: questions } = await query;
+      const allIds = questions?.map((q: any) => q.id) || [];
+      questionIds = allIds.sort(() => Math.random() - 0.5).slice(0, 5);
+    }
+
+    if (questionIds.length === 0) {
+      // Fallback: lấy tất cả arena_questions
+      const { data: questions } = await supabase.from('arena_questions').select('id');
+      questionIds = (questions?.map((q: any) => q.id) || []).sort(() => Math.random() - 0.5).slice(0, 5);
+    }
+
     const matchId = `match_${Date.now()}`;
     const newMatch = {
       id: matchId,
       player1_id: playerId,
       player2_id: null,
       status: 'waiting',
-      question_ids: shuffled,
+      question_ids: questionIds,
       current_question: 0,
       player1_hp: 100,
       player2_hp: 100,
       player1_score: 0,
       player2_score: 0,
-      winner_id: null
+      winner_id: null,
+      source: filters?.source || 'arena',
+      filter_subject: filters?.subject || null,
+      filter_grade: filters?.grade || null
     };
 
     const { error } = await supabase.from('arena_matches').insert(newMatch);
@@ -873,6 +912,26 @@ export const useStore = create<AppState>((set, get) => ({
   fetchLeaderboard: async () => {
     const { data } = await supabase.from('arena_profiles').select('*').order('elo_rating', { ascending: false }).limit(50);
     return (data || []) as any[];
+  },
+
+  bulkAddArenaQuestions: async (questions) => {
+    const rows = questions.map((q, i) => ({
+      id: `aq_bulk_${Date.now()}_${i}`,
+      content: q.content,
+      answers: q.answers,
+      correct_index: q.correct_index,
+      difficulty: q.difficulty,
+      subject: q.subject,
+      topic: q.topic || 'general'
+    }));
+    const { error } = await supabase.from('arena_questions').insert(rows);
+    if (error) {
+      console.error('Bulk insert error:', error);
+      return 0;
+    }
+    const parsed = rows.map(r => ({ ...r, answers: typeof r.answers === 'string' ? JSON.parse(r.answers as any) : r.answers }));
+    set(state => ({ arenaQuestions: [...state.arenaQuestions, ...parsed as any[]] }));
+    return rows.length;
   },
 
 }));

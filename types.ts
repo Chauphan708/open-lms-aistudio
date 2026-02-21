@@ -223,7 +223,7 @@ export interface DictionaryEntry {
 // EDUQUEST ARENA TYPES
 // ============================================
 
-export type AvatarClass = 'warrior' | 'mage' | 'archer' | 'healer';
+export type AvatarClass = 'scholar' | 'scientist' | 'artist' | 'explorer';
 export type MatchStatus = 'waiting' | 'challenged' | 'playing' | 'finished';
 
 export interface ArenaProfile {
@@ -243,6 +243,7 @@ export interface ArenaQuestion {
   correct_index: number; // 0-3
   difficulty: number; // 1-3
   subject: string;
+  topic?: string; // Chủ đề (VD: 'Phân số', 'Hình học')
 }
 
 export interface ArenaMatch {
@@ -258,6 +259,16 @@ export interface ArenaMatch {
   player2_score: number;
   winner_id: string | null;
   created_at: string;
+  source?: 'exam' | 'arena'; // Nguồn câu hỏi
+  filter_subject?: string;
+  filter_grade?: string;
+}
+
+export interface ArenaMatchFilters {
+  source: 'exam' | 'arena';
+  subject?: string;
+  grade?: string;
+  topic?: string;
 }
 
 export interface ArenaMatchEvent {
@@ -355,7 +366,8 @@ export interface AppState {
 
   // New Matchmaking logic
   fetchWaitingMatches: () => Promise<ArenaMatch[]>;
-  createMatch: (playerId: string) => Promise<ArenaMatch | null>;
+  createMatch: (playerId: string, filters?: ArenaMatchFilters) => Promise<ArenaMatch | null>;
+  bulkAddArenaQuestions: (questions: Omit<ArenaQuestion, 'id'>[]) => Promise<number>;
   cancelMatchmaking: (matchId: string) => Promise<void>;
   challengeMatch: (matchId: string, challengerId: string) => Promise<void>;
   acceptMatch: (matchId: string) => Promise<void>;

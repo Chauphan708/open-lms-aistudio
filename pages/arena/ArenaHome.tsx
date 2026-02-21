@@ -3,13 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { AvatarClass } from '../../types';
-import { Swords, Trophy, Castle, Shield, Wand2, Target, Heart, ArrowLeft, Star, Zap } from 'lucide-react';
+import { Brain, Trophy, GraduationCap, BookOpen, Sparkles, Target, Heart, ArrowLeft, Star, Zap } from 'lucide-react';
 
-const AVATAR_CLASSES: { id: AvatarClass; name: string; icon: any; color: string; desc: string; emoji: string }[] = [
-    { id: 'warrior', name: 'Chiến Binh', icon: Shield, color: '#ef4444', desc: 'Mạnh mẽ, dũng cảm', emoji: '🗡️' },
-    { id: 'mage', name: 'Phù Thủy', icon: Wand2, color: '#8b5cf6', desc: 'Thông minh, bí ẩn', emoji: '🔮' },
-    { id: 'archer', name: 'Cung Thủ', icon: Target, color: '#10b981', desc: 'Nhanh nhẹn, chính xác', emoji: '🏹' },
-    { id: 'healer', name: 'Thầy Thuốc', icon: Heart, color: '#f59e0b', desc: 'Nhân hậu, khôn ngoan', emoji: '💚' },
+const AVATAR_CLASSES: { id: AvatarClass; name: string; icon: any; color: string; desc: string; emoji: string; lore: string }[] = [
+    { id: 'scholar', name: 'Nhà Thông Thái', icon: BookOpen, color: '#6366f1', desc: 'Trí tuệ uyên bác', emoji: '📖', lore: '"Đọc vạn quyển sách, hiểu vạn lẽ đời"' },
+    { id: 'scientist', name: 'Nhà Khoa Học', icon: Sparkles, color: '#8b5cf6', desc: 'Khám phá & sáng tạo', emoji: '🔬', lore: '"Khám phá bí ẩn của tự nhiên"' },
+    { id: 'artist', name: 'Nghệ Sĩ', icon: Target, color: '#10b981', desc: 'Sáng tạo vô hạn', emoji: '🎨', lore: '"Sáng tạo là sức mạnh vô hạn"' },
+    { id: 'explorer', name: 'Nhà Thám Hiểm', icon: Heart, color: '#f59e0b', desc: 'Dũng cảm khám phá', emoji: '🌍', lore: '"Mỗi câu hỏi là một vùng đất mới"' },
 ];
 
 export const ArenaHome: React.FC = () => {
@@ -37,7 +37,7 @@ export const ArenaHome: React.FC = () => {
             <div className="min-h-[60vh] flex items-center justify-center">
                 <div className="text-center">
                     <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full" style={{ animation: 'spin 1s linear infinite' }}></div>
-                    <p className="mt-4 text-gray-500">Đang tải Arena...</p>
+                    <p className="mt-4 text-gray-500">Đang tải Đấu Trí...</p>
                 </div>
             </div>
         );
@@ -54,9 +54,16 @@ export const ArenaHome: React.FC = () => {
           @keyframes spin { to { transform: rotate(360deg); } }
         `}</style>
                 <div className="w-full max-w-2xl px-4" style={{ animation: 'fadeIn 0.6s ease-out' }}>
-                    <div className="text-center mb-8">
-                        <h1 className="text-3xl font-black text-gray-900 mb-2">⚔️ Chọn Nhân Vật</h1>
-                        <p className="text-gray-500">Hãy chọn lớp nhân vật của bạn để bắt đầu cuộc phiêu lưu!</p>
+                    <div className="text-center mb-4">
+                        <h1 className="text-3xl font-black text-gray-900 mb-2">🧠 Chọn Vai Trò Học Tập</h1>
+                        <p className="text-gray-500">Hãy chọn vai trò để bắt đầu Hành Trình Tri Thức!</p>
+                    </div>
+
+                    {/* Lore intro */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 mb-6 text-center" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                        <p className="text-sm text-indigo-700 italic">
+                            ✨ Trên đỉnh núi Thông Thái, có một ngôi trường huyền thoại nơi các học giả từ khắp nơi đến để thi tài kiến thức...
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 mb-8">
@@ -68,8 +75,8 @@ export const ArenaHome: React.FC = () => {
                                     key={cls.id}
                                     onClick={() => setSelectedClass(cls.id)}
                                     className={`relative p-6 rounded-2xl border-2 transition-all duration-300 text-left group hover:shadow-lg ${isSelected
-                                            ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-100 scale-[1.02]'
-                                            : 'border-gray-200 bg-white hover:border-gray-300'
+                                        ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-100 scale-[1.02]'
+                                        : 'border-gray-200 bg-white hover:border-gray-300'
                                         }`}
                                     style={{ animation: `fadeIn 0.5s ease-out ${idx * 0.1}s both` }}
                                 >
@@ -84,6 +91,7 @@ export const ArenaHome: React.FC = () => {
                                     </div>
                                     <h3 className="font-bold text-gray-900 text-lg">{cls.name}</h3>
                                     <p className="text-sm text-gray-500 mt-1">{cls.desc}</p>
+                                    <p className="text-xs text-indigo-500 mt-2 italic">{cls.lore}</p>
                                 </button>
                             );
                         })}
@@ -93,11 +101,11 @@ export const ArenaHome: React.FC = () => {
                         onClick={handleCreateProfile}
                         disabled={!selectedClass}
                         className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${selectedClass
-                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-lg hover:shadow-purple-200 hover:-translate-y-0.5'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-lg hover:shadow-purple-200 hover:-translate-y-0.5'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                             }`}
                     >
-                        🚀 Bắt đầu phiêu lưu!
+                        🚀 Bắt đầu Hành Trình Tri Thức!
                     </button>
                 </div>
             </div>
@@ -161,18 +169,18 @@ export const ArenaHome: React.FC = () => {
                 {/* PvP */}
                 <button
                     onClick={() => navigate('/arena/pvp')}
-                    className="relative overflow-hidden p-6 rounded-2xl text-left group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-red-100"
-                    style={{ background: 'linear-gradient(135deg, #fef2f2, #fff1f2)', animation: 'fadeIn 0.5s ease-out 0.1s both' }}
+                    className="relative overflow-hidden p-6 rounded-2xl text-left group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-indigo-100"
+                    style={{ background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', animation: 'fadeIn 0.5s ease-out 0.1s both' }}
                 >
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Swords className="w-full h-full text-red-500" />
+                        <Brain className="w-full h-full text-indigo-500" />
                     </div>
                     <div className="relative">
-                        <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-red-200 group-hover:scale-110 transition-transform">
-                            ⚔️
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                            🧠
                         </div>
-                        <h3 className="text-xl font-black text-gray-900 mb-1">Đấu Trường PvP</h3>
-                        <p className="text-sm text-gray-500">Thách đấu 1v1 realtime</p>
+                        <h3 className="text-xl font-black text-gray-900 mb-1">Đấu Trí 1v1</h3>
+                        <p className="text-sm text-gray-500">Thách đấu kiến thức realtime</p>
                     </div>
                 </button>
 
@@ -183,13 +191,13 @@ export const ArenaHome: React.FC = () => {
                     style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', animation: 'fadeIn 0.5s ease-out 0.2s both' }}
                 >
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Castle className="w-full h-full text-amber-500" />
+                        <GraduationCap className="w-full h-full text-amber-500" />
                     </div>
                     <div className="relative">
                         <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                            🗼
+                            🎓
                         </div>
-                        <h3 className="text-xl font-black text-gray-900 mb-1">Leo Tháp</h3>
+                        <h3 className="text-xl font-black text-gray-900 mb-1">Leo Cấp Kiến Thức</h3>
                         <p className="text-sm text-gray-500">Tầng {arenaProfile.tower_floor} • Luyện tập PvE</p>
                     </div>
                 </button>
@@ -208,7 +216,7 @@ export const ArenaHome: React.FC = () => {
                             🏆
                         </div>
                         <h3 className="text-xl font-black text-gray-900 mb-1">Bảng Xếp Hạng</h3>
-                        <p className="text-sm text-gray-500">Xem Top chiến binh</p>
+                        <p className="text-sm text-gray-500">Xem Top học giả</p>
                     </div>
                 </button>
             </div>

@@ -2,11 +2,30 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
-import { ArenaQuestion } from '../../types';
-import { ArrowLeft, Heart, HeartOff, Star, Zap, Castle, CheckCircle, XCircle } from 'lucide-react';
+import { ArenaQuestion, ArenaMatchFilters } from '../../types';
+import { ArrowLeft, Heart, HeartOff, Star, Zap, GraduationCap, CheckCircle, XCircle } from 'lucide-react';
+
+const TOWER_FLOORS = [
+    { range: [1, 5], name: 'Sân Trường', emoji: '🏫', color: '#10b981' },
+    { range: [6, 10], name: 'Thư Viện Cổ', emoji: '📚', color: '#6366f1' },
+    { range: [11, 15], name: 'Phòng Thí Nghiệm', emoji: '🧪', color: '#8b5cf6' },
+    { range: [16, 20], name: 'Đỉnh Trí Tuệ', emoji: '🏔️', color: '#f59e0b' },
+    { range: [21, Infinity], name: 'Vùng Đất Huyền Thoại', emoji: '✨', color: '#ef4444' },
+];
+
+const getFloorInfo = (floor: number) => {
+    return TOWER_FLOORS.find(f => floor >= f.range[0] && floor <= f.range[1]) || TOWER_FLOORS[0];
+};
+
+const SUBJECTS = [
+    { value: '', label: '🎲 Tất cả' },
+    { value: 'math', label: '📐 Toán' },
+    { value: 'science', label: '🔬 Khoa học' },
+    { value: 'technology', label: '💻 Công nghệ' },
+];
 
 export const TowerMode: React.FC = () => {
-    const { user, arenaProfile, arenaQuestions, fetchArenaQuestions, updateArenaProfile } = useStore();
+    const { user, arenaProfile, arenaQuestions, fetchArenaQuestions, updateArenaProfile, exams } = useStore();
     const navigate = useNavigate();
 
     const [lives, setLives] = useState(3);
@@ -21,6 +40,12 @@ export const TowerMode: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [timer, setTimer] = useState(30);
 
+    // Setup state
+    const [started, setStarted] = useState(false);
+    const [sourceType, setSourceType] = useState<'arena' | 'exam'>('arena');
+    const [filterSubject, setFilterSubject] = useState('');
+    const [allQuestions, setAllQuestions] = useState<ArenaQuestion[]>([]);
+
     useEffect(() => {
         fetchArenaQuestions().then(() => setLoading(false));
     }, []);
@@ -34,29 +59,57 @@ export const TowerMode: React.FC = () => {
         }
     }, [arenaProfile]);
 
-    useEffect(() => {
-        if (!loading && arenaQuestions.length > 0 && !currentQ && !gameOver) {
-            pickNextQuestion();
+    const buildQuestionPool = () => {
+        let pool: ArenaQuestion[] = [];
+
+        if (sourceType === 'exam') {
+            exams
+                .filter(e => e.status === 'PUBLISHED')
+                .filter(e => !filterSubject || e.subject === filterSubject)
+                .forEach(exam => {
+                    exam.questions
+                        .filter(q => q.type === 'MCQ' && q.options.length >= 4 && q.correctOptionIndex !== undefined)
+                        .forEach(q => {
+                            pool.push({
+                                id: `exam_${exam.id}_${q.id}`,
+                                content: q.content,
+                                answers: q.options.slice(0, 4),
+                                correct_index: q.correctOptionIndex!,
+                                difficulty: exam.difficulty === 'LEVEL_1' ? 1 : exam.difficulty === 'LEVEL_2' ? 2 : 3,
+                                subject: exam.subject
+                            });
+                        });
+                });
+        } else {
+            pool = arenaQuestions.filter(q => !filterSubject || q.subject === filterSubject);
         }
-    }, [loading, arenaQuestions, gameOver]);
+
+        return pool;
+    };
+
+    const handleStart = () => {
+        const pool = buildQuestionPool();
+        if (pool.length === 0) return;
+        setAllQuestions(pool);
+        setStarted(true);
+        pickNextQuestion(pool, new Set());
+    };
 
     // Timer countdown
     useEffect(() => {
-        if (!currentQ || showResult || gameOver) return;
-        if (timer <= 0) {
-            handleAnswer(-1); // timeout
-            return;
-        }
+        if (!currentQ || showResult || gameOver || !started) return;
+        if (timer <= 0) { handleAnswer(-1); return; }
         const t = setTimeout(() => setTimer(prev => prev - 1), 1000);
         return () => clearTimeout(t);
-    }, [timer, currentQ, showResult, gameOver]);
+    }, [timer, currentQ, showResult, gameOver, started]);
 
-    const pickNextQuestion = () => {
-        const available = arenaQuestions.filter(q => !usedIds.has(q.id));
+    const pickNextQuestion = (pool?: ArenaQuestion[], used?: Set<string>) => {
+        const qPool = pool || allQuestions;
+        const usedSet = used || usedIds;
+        const available = qPool.filter(q => !usedSet.has(q.id));
         if (available.length === 0) {
-            // Reset used questions
             setUsedIds(new Set());
-            const shuffled = arenaQuestions.sort(() => Math.random() - 0.5);
+            const shuffled = qPool.sort(() => Math.random() - 0.5);
             setCurrentQ(shuffled[0]);
             setUsedIds(new Set([shuffled[0].id]));
         } else {
@@ -79,13 +132,8 @@ export const TowerMode: React.FC = () => {
         if (correct) {
             const xp = 10 + floor * 2;
             setXpGained(xp);
-            // Update profile
             if (arenaProfile) {
-                updateArenaProfile({
-                    id: arenaProfile.id,
-                    tower_floor: floor + 1,
-                    total_xp: arenaProfile.total_xp + xp
-                });
+                updateArenaProfile({ id: arenaProfile.id, tower_floor: floor + 1, total_xp: arenaProfile.total_xp + xp });
             }
         } else {
             setXpGained(0);
@@ -101,9 +149,7 @@ export const TowerMode: React.FC = () => {
     };
 
     const handleNext = () => {
-        if (isCorrect) {
-            setFloor(prev => prev + 1);
-        }
+        if (isCorrect) setFloor(prev => prev + 1);
         pickNextQuestion();
     };
 
@@ -114,8 +160,10 @@ export const TowerMode: React.FC = () => {
         setUsedIds(new Set());
         setCurrentQ(null);
         setXpGained(0);
-        // Will trigger pickNextQuestion via useEffect
+        setStarted(false);
     };
+
+    const floorInfo = getFloorInfo(floor);
 
     if (loading) {
         return (
@@ -129,15 +177,62 @@ export const TowerMode: React.FC = () => {
         );
     }
 
-    if (arenaQuestions.length === 0) {
+    // Setup screen
+    if (!started) {
+        const pool = buildQuestionPool();
         return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center">
-                    <Castle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold text-gray-700 mb-2">Chưa có câu hỏi</h2>
-                    <p className="text-gray-500 mb-4">Giáo viên cần thêm câu hỏi vào hệ thống Arena trước.</p>
-                    <button onClick={() => navigate('/arena')} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
-                        ← Quay lại
+            <div className="max-w-md mx-auto">
+                <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+                <div className="flex items-center gap-3 mb-6">
+                    <button onClick={() => navigate('/arena')} className="text-gray-400 hover:text-gray-600">
+                        <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                        <GraduationCap className="h-6 w-6 text-amber-500" /> Leo Cấp Kiến Thức
+                    </h1>
+                </div>
+
+                <div className="bg-white rounded-2xl border p-6 space-y-5" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                    {/* Lore */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4 text-center">
+                        <p className="text-4xl mb-2">{floorInfo.emoji}</p>
+                        <h3 className="font-bold text-amber-800">{floorInfo.name}</h3>
+                        <p className="text-xs text-amber-600 mt-1">Bạn đang ở tầng {floor}</p>
+                    </div>
+
+                    {/* Source */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Nguồn câu hỏi</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => setSourceType('exam')}
+                                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'exam' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600'}`}>
+                                📋 Ngân hàng đề
+                            </button>
+                            <button onClick={() => setSourceType('arena')}
+                                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'arena' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600'}`}>
+                                🧠 Bộ câu hỏi Arena
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Subject */}
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Môn học</label>
+                        <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
+                            className="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                            {SUBJECTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Question count */}
+                    <div className="bg-gray-50 rounded-xl p-3 text-center">
+                        <span className="text-2xl font-black text-gray-800">{pool.length}</span>
+                        <span className="text-sm text-gray-500 ml-2">câu hỏi có sẵn</span>
+                    </div>
+
+                    <button onClick={handleStart} disabled={pool.length === 0}
+                        className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${pool.length > 0 ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:shadow-lg' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                        🚀 Bắt đầu leo cấp!
                     </button>
                 </div>
             </div>
@@ -162,17 +257,15 @@ export const TowerMode: React.FC = () => {
                     {/* Lives */}
                     <div className="flex items-center gap-1">
                         {[...Array(3)].map((_, i) => (
-                            <Heart
-                                key={i}
-                                className={`h-6 w-6 transition-all duration-300 ${i < lives ? 'text-red-500 fill-red-500' : 'text-gray-300'}`}
-                                style={i >= lives ? { animation: 'shake 0.3s ease-in-out' } : {}}
-                            />
+                            <Heart key={i} className={`h-6 w-6 transition-all duration-300 ${i < lives ? 'text-red-500 fill-red-500' : 'text-gray-300'}`}
+                                style={i >= lives ? { animation: 'shake 0.3s ease-in-out' } : {}} />
                         ))}
                     </div>
                     {/* Floor */}
-                    <div className="px-4 py-1.5 bg-amber-100 text-amber-700 rounded-full font-bold text-sm flex items-center gap-1.5">
-                        <Castle className="h-4 w-4" />
-                        Tầng {floor}
+                    <div className="px-4 py-1.5 rounded-full font-bold text-sm flex items-center gap-1.5"
+                        style={{ backgroundColor: floorInfo.color + '20', color: floorInfo.color }}>
+                        <span>{floorInfo.emoji}</span>
+                        {floorInfo.name} • Tầng {floor}
                     </div>
                 </div>
             </div>
@@ -180,21 +273,15 @@ export const TowerMode: React.FC = () => {
             {/* Game Over */}
             {gameOver ? (
                 <div className="text-center py-16" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                    <div className="text-6xl mb-4">💀</div>
+                    <div className="text-6xl mb-4">😔</div>
                     <h2 className="text-2xl font-black text-gray-900 mb-2">Hết mạng!</h2>
-                    <p className="text-gray-500 mb-2">Bạn đã leo đến tầng <strong className="text-amber-600">{floor}</strong></p>
+                    <p className="text-gray-500 mb-2">Bạn đã leo đến <strong className="text-amber-600">{floorInfo.name} - Tầng {floor}</strong></p>
                     <p className="text-gray-500 mb-6">Tổng XP kiếm được: <strong className="text-emerald-600">{xpGained}</strong></p>
                     <div className="flex gap-3 justify-center">
-                        <button
-                            onClick={handleRestart}
-                            className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all"
-                        >
+                        <button onClick={handleRestart} className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all">
                             🔄 Thử lại
                         </button>
-                        <button
-                            onClick={() => navigate('/arena')}
-                            className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-lg hover:bg-gray-200 transition-all"
-                        >
+                        <button onClick={() => navigate('/arena')} className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-lg hover:bg-gray-200 transition-all">
                             Quay lại
                         </button>
                     </div>
@@ -204,17 +291,12 @@ export const TowerMode: React.FC = () => {
                     {/* Timer Bar */}
                     <div className="mb-4">
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                                className="h-full rounded-full transition-all duration-1000 ease-linear"
-                                style={{
-                                    width: `${(timer / 30) * 100}%`,
-                                    backgroundColor: timer > 15 ? '#10b981' : timer > 5 ? '#f59e0b' : '#ef4444'
-                                }}
-                            ></div>
+                            <div className="h-full rounded-full transition-all duration-1000 ease-linear"
+                                style={{ width: `${(timer / 30) * 100}%`, backgroundColor: timer > 15 ? '#10b981' : timer > 5 ? '#f59e0b' : '#ef4444' }}></div>
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 mt-1">
                             <span>⏱️ {timer}s</span>
-                            <span className="text-gray-300">Câu hỏi cho tầng {floor}</span>
+                            <span className="text-gray-300">{floorInfo.emoji} {floorInfo.name} - Tầng {floor}</span>
                         </div>
                     </div>
 
@@ -222,7 +304,7 @@ export const TowerMode: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-sm border p-6 mb-4" style={{ animation: 'fadeIn 0.4s ease-out' }}>
                         <div className="flex items-start gap-3 mb-1">
                             <span className="bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-xs font-bold flex-shrink-0">
-                                {currentQ.subject === 'math' ? '📐 Toán' : currentQ.subject === 'science' ? '🔬 Khoa học' : '💻 Công nghệ'}
+                                {currentQ.subject === 'math' ? '📐 Toán' : currentQ.subject === 'science' ? '🔬 Khoa học' : currentQ.subject === 'technology' ? '💻 Công nghệ' : '📋 ' + currentQ.subject}
                             </span>
                             <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
                                 {currentQ.difficulty === 1 ? 'Dễ' : currentQ.difficulty === 2 ? 'TB' : 'Khó'}
@@ -236,30 +318,16 @@ export const TowerMode: React.FC = () => {
                         {currentQ.answers.map((answer, idx) => {
                             let btnClass = 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700';
                             if (showResult) {
-                                if (idx === currentQ.correct_index) {
-                                    btnClass = 'bg-emerald-50 border-emerald-500 text-emerald-700';
-                                } else if (idx === selected && !isCorrect) {
-                                    btnClass = 'bg-red-50 border-red-500 text-red-700';
-                                } else {
-                                    btnClass = 'bg-gray-50 border-gray-200 text-gray-400';
-                                }
+                                if (idx === currentQ.correct_index) btnClass = 'bg-emerald-50 border-emerald-500 text-emerald-700';
+                                else if (idx === selected && !isCorrect) btnClass = 'bg-red-50 border-red-500 text-red-700';
+                                else btnClass = 'bg-gray-50 border-gray-200 text-gray-400';
                             }
                             return (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleAnswer(idx)}
-                                    disabled={showResult}
-                                    className={`w-full p-4 rounded-xl border-2 text-left font-medium transition-all duration-200 flex items-center gap-3 ${btnClass} ${!showResult ? 'hover:shadow-md active:scale-[0.98]' : ''
-                                        }`}
-                                    style={{ animation: `fadeIn 0.3s ease-out ${idx * 0.05}s both` }}
-                                >
-                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${showResult && idx === currentQ.correct_index ? 'bg-emerald-500 text-white' :
-                                        showResult && idx === selected && !isCorrect ? 'bg-red-500 text-white' :
-                                            'bg-gray-100 text-gray-500'
-                                        }`}>
-                                        {showResult && idx === currentQ.correct_index ? <CheckCircle className="h-4 w-4" /> :
-                                            showResult && idx === selected && !isCorrect ? <XCircle className="h-4 w-4" /> :
-                                                String.fromCharCode(65 + idx)}
+                                <button key={idx} onClick={() => handleAnswer(idx)} disabled={showResult}
+                                    className={`w-full p-4 rounded-xl border-2 text-left font-medium transition-all duration-200 flex items-center gap-3 ${btnClass} ${!showResult ? 'hover:shadow-md active:scale-[0.98]' : ''}`}
+                                    style={{ animation: `fadeIn 0.3s ease-out ${idx * 0.05}s both` }}>
+                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${showResult && idx === currentQ.correct_index ? 'bg-emerald-500 text-white' : showResult && idx === selected && !isCorrect ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                        {showResult && idx === currentQ.correct_index ? <CheckCircle className="h-4 w-4" /> : showResult && idx === selected && !isCorrect ? <XCircle className="h-4 w-4" /> : String.fromCharCode(65 + idx)}
                                     </span>
                                     <span>{answer}</span>
                                 </button>
@@ -281,10 +349,7 @@ export const TowerMode: React.FC = () => {
                                     <p className="text-red-700 font-bold mt-1">Sai rồi! Mất 1 mạng ({lives} mạng còn lại)</p>
                                 </div>
                             )}
-                            <button
-                                onClick={handleNext}
-                                className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
-                            >
+                            <button onClick={handleNext} className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
                                 {isCorrect ? `Lên tầng ${floor + 1} →` : 'Câu tiếp →'}
                             </button>
                         </div>

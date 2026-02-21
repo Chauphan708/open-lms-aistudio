@@ -19,7 +19,8 @@ import {
   History,
   Globe,
   Trophy,
-  Swords
+  Swords,
+  Brain
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole } from '../types';
@@ -88,8 +89,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: 'Thảo luận & Vote', path: '/discussion/join', icon: MessageSquare, roles: ['STUDENT'] },
 
     // ARENA
-    { label: '⚔️ Đấu Trường', path: '/arena', icon: Swords, roles: ['STUDENT'] },
-    { label: '⚔️ QL Đấu Trường', path: '/arena/admin', icon: Swords, roles: ['TEACHER', 'ADMIN'] },
+    { label: '🧠 Đấu Trí', path: '/arena', icon: Brain, roles: ['STUDENT'] },
+    { label: '🧠 QL Đấu Trí', path: '/arena/admin', icon: Brain, roles: ['TEACHER', 'ADMIN'] },
 
     // SETTINGS
     { label: 'Cài đặt', path: '/settings', icon: Settings, roles: ['ADMIN', 'TEACHER'] },
