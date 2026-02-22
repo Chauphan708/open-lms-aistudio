@@ -931,6 +931,36 @@ export const useStore = create<AppState>((set, get) => ({
       console.error("Match creation error", error);
       return null;
     }
+
+    // Send notification to related students
+    const state = get();
+    const currentUser = state.users.find(u => u.id === playerId);
+
+    if (currentUser) {
+      // Find classes this user belongs to
+      const relatedClasses = state.classes.filter(c =>
+        c.teacherId === playerId || c.studentIds.includes(playerId)
+      );
+
+      // Gather all unique student IDs from these classes
+      const studentIdsToNotify = new Set<string>();
+      relatedClasses.forEach(c => {
+        c.studentIds.forEach(sid => {
+          if (sid !== playerId) studentIdsToNotify.add(sid);
+        });
+      });
+
+      // Send notifications
+      studentIdsToNotify.forEach(sid => {
+        state.addNotification(sid, {
+          type: 'INFO',
+          title: 'Thách Đấu Mới',
+          message: `${currentUser.name} vừa tạo phòng Đấu Trí mới. Vào sảnh để tham gia ngay!`,
+          link: '/arena/pvp'
+        });
+      });
+    }
+
     return newMatch as any;
   },
 

@@ -130,15 +130,52 @@ export const ClassFunRecord: React.FC = () => {
     // Apply behavior
     const applyBehavior = async (behavior: Behavior) => {
         if (selectedStudentIds.length === 0) return;
+        const reason = customReason || behavior.description;
         const logsToAdd = selectedStudentIds.map(sid => ({
             student_id: sid,
             class_id: selectedClassId,
             behavior_id: behavior.id,
             points: behavior.points,
-            reason: customReason || behavior.description,
+            reason: reason,
             recorded_by: user?.id || null,
         }));
         await batchAddBehaviorLogs(logsToAdd);
+
+        // Notify students
+        if (selectedClass) {
+            // Recalculate scores including the new points
+            const newScores = new Map<string, number>(studentScores);
+            selectedStudentIds.forEach(sid => {
+                newScores.set(sid, (newScores.get(sid) || 0) + behavior.points);
+            });
+
+            // Calculate ranks
+            const sortedStudents = [...classStudents].sort((a, b) => (newScores.get(b.id) || 0) - (newScores.get(a.id) || 0));
+            const totalStudents = sortedStudents.length;
+
+            selectedStudentIds.forEach(async (sid) => {
+                const rank = sortedStudents.findIndex(s => s.id === sid) + 1;
+
+                // Normal point notification
+                useStore.getState().addNotification(sid, {
+                    type: behavior.points > 0 ? 'SUCCESS' : 'WARNING',
+                    title: behavior.points > 0 ? 'Tích cực' : 'Cần cố gắng',
+                    message: `Bạn vừa được ${behavior.points > 0 ? 'cộng' : 'trừ'} ${Math.abs(behavior.points)} điểm. Lý do: ${reason}.`,
+                    link: '/student/class-fun'
+                });
+
+                // Top 10 notification
+                if (rank > 0 && rank <= 10) {
+                    useStore.getState().addNotification(sid, {
+                        type: 'INFO',
+                        title: 'Bảng Vàng',
+                        message: `🎉 Chúc mừng! Bạn đang đạt Hạng ${rank}/${totalStudents} trong bảng vàng của môn học!`,
+                        link: '/student/class-fun'
+                    });
+                }
+            });
+        }
+
         setShowSuccess({ points: behavior.points, count: selectedStudentIds.length });
         setSelectedStudentIds([]);
         setCustomReason('');
