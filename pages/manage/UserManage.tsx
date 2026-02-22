@@ -106,6 +106,29 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     };
 
     // --- SINGLE ADD HANDLERS ---
+    const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+    // Auto-select class if there's exactly 1 class
+    React.useEffect(() => {
+        if (targetRole === 'STUDENT' && classes.length === 1 && !className) {
+            setClassName(`${classes[0].id}|${classes[0].name}`);
+        }
+    }, [classes, targetRole, className]);
+
+    // Check for duplicate warning when email changes
+    React.useEffect(() => {
+        if (targetRole === 'STUDENT' && email) {
+            const isDuplicate = users.some(u => u.email.toLowerCase() === email.trim().toLowerCase());
+            if (isDuplicate) {
+                setDuplicateWarning('Tên đăng nhập này đã tồn tại! Vui lòng sửa lại.');
+            } else {
+                setDuplicateWarning(null);
+            }
+        } else {
+            setDuplicateWarning(null);
+        }
+    }, [email, users, targetRole]);
+
     const handleCreateSingle = () => {
         if (!name || !email) return;
 
@@ -118,7 +141,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
         const newUser: User = {
             id: `${targetRole.toLowerCase().substr(0, 1)}_${Date.now()}`,
             name,
-            email: email.trim(),
+            email: email.trim().toLowerCase(),
             role: targetRole,
             avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
             password: '123456', // Default password
@@ -360,7 +383,12 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">{targetRole === 'STUDENT' ? 'Tên đăng nhập (VD: an5a1)' : 'Email'} <span className="text-red-500">*</span></label>
-                                        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" value={email} onChange={e => { setEmail(e.target.value.replace(/\s/g, '')); setIsAutoEmail(false); }} placeholder={targetRole === 'STUDENT' ? "an5a1" : "a@example.com"} />
+                                        <input className={`w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 ${duplicateWarning ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`} value={email} onChange={e => { setEmail(e.target.value.replace(/\s/g, '')); setIsAutoEmail(false); }} placeholder={targetRole === 'STUDENT' ? "an5a1" : "a@example.com"} />
+                                        {duplicateWarning && (
+                                            <p className="text-xs font-medium text-red-600 mt-1 flex items-center gap-1 animate-in fade-in">
+                                                <AlertCircle className="h-3 w-3" /> {duplicateWarning}
+                                            </p>
+                                        )}
                                     </div>
                                     {targetRole === 'STUDENT' && (
                                         <div>
