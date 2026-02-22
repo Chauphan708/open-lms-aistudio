@@ -69,8 +69,17 @@ export const useStore = create<AppState>((set, get) => ({
       if (years) set({ academicYears: years as AcademicYear[] });
 
       // 7. Notifications
-      const { data: notifs } = await supabase.from('notifications').select('*').order('createdAt', { ascending: false });
-      if (notifs) set({ notifications: notifs as Notification[] });
+      const { data: notifs, error: notifErr } = await supabase.from('notifications').select('*');
+      if (notifErr) console.error("Error fetching notifications:", notifErr);
+      if (notifs) {
+        const mappedNotifs = notifs.map(n => ({
+          ...n,
+          userId: n.userId || n.user_id || n.userid,
+          isRead: n.isRead ?? n.is_read ?? n.isread ?? false,
+          createdAt: n.createdAt || n.created_at || n.createdat
+        })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        set({ notifications: mappedNotifs as Notification[] });
+      }
 
       // 8. Resources
       const { data: rawResources } = await supabase.from('resources').select('*');
@@ -461,17 +470,34 @@ export const useStore = create<AppState>((set, get) => ({
   // Notifications
   notifications: [],
   addNotification: async (notif) => {
-    await supabase.from('notifications').insert(notif);
+    // Add fallback properties for Supabase auto-lowercase and snake_case tables
+    const dbNotif = {
+      ...notif,
+      user_id: notif.userId, userid: notif.userId,
+      is_read: notif.isRead, isread: notif.isRead,
+      created_at: notif.createdAt, createdat: notif.createdAt
+    };
+
+    let { error } = await supabase.from('notifications').insert(dbNotif);
+    if (error) {
+      console.warn('fallback notification insert', error);
+      // minimal fallback
+      await supabase.from('notifications').insert(notif);
+    }
     set((state) => ({ notifications: [notif, ...state.notifications] }));
   },
   markNotificationRead: async (id) => {
-    await supabase.from('notifications').update({ isRead: true }).eq('id', id);
+    await supabase.from('notifications').update({ isRead: true, is_read: true, isread: true }).eq('id', id);
     set((state) => ({
       notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
     }));
   },
   markAllNotificationsRead: async (userId) => {
-    await supabase.from('notifications').update({ isRead: true }).eq('userId', userId);
+    await supabase.from('notifications').update({ isRead: true, is_read: true, isread: true }).filter('userId', 'eq', userId);
+    // Also try the other columns just in case
+    await supabase.from('notifications').update({ is_read: true }).filter('user_id', 'eq', userId);
+    await supabase.from('notifications').update({ isread: true }).filter('userid', 'eq', userId);
+
     set((state) => ({
       notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
     }));
@@ -958,11 +984,15 @@ export const useStore = create<AppState>((set, get) => ({
 
       // Send notifications
       studentIdsToNotify.forEach(sid => {
-        state.addNotification(sid, {
+        state.addNotification({
+          id: `notif_arena_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          userId: sid,
           type: 'INFO',
           title: 'Thách Đấu Mới',
           message: `${currentUser.name} vừa tạo phòng Đấu Trí mới. Vào sảnh để tham gia ngay!`,
-          link: '/arena/pvp'
+          link: '/arena/pvp',
+          isRead: false,
+          createdAt: new Date().toISOString()
         });
       });
     }

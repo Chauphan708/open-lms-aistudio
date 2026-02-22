@@ -40,18 +40,48 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [showGamificationGuide, setShowGamificationGuide] = useState(false);
 
-  // --- LOGIC FOR CLASSFUN REWARDS ---
-  const { logs: behaviorLogs, fetchStudentLogs } = useClassFunStore();
+  // --- LOGIC FOR CLASSFUN REWARDS & RANKING ---
+  const { logs: allBehaviorLogs, fetchAllBehaviorLogs, fetchStudentLogs } = useClassFunStore();
+
+  const myClass = useMemo(() => {
+    return classes.find(c => user && c.studentIds.includes(user.id));
+  }, [classes, user]);
 
   useEffect(() => {
     if (user?.role === 'STUDENT') {
-      fetchStudentLogs(user.id);
+      if (myClass?.id) {
+        fetchAllBehaviorLogs(myClass.id);
+      } else {
+        fetchStudentLogs(user.id);
+      }
     }
-  }, [user]);
+  }, [user, myClass?.id]);
 
-  const behaviorScore = useMemo(() => {
-    return behaviorLogs.reduce((acc, log) => acc + log.points, 0);
-  }, [behaviorLogs]);
+  const { behaviorScore, behaviorRank, totalStudents } = useMemo(() => {
+    if (!user) return { behaviorScore: 0, behaviorRank: 0, totalStudents: 0 };
+
+    // Total score for this student
+    const myLogs = allBehaviorLogs.filter(log => log.student_id === user.id);
+    const score = myLogs.reduce((acc, log) => acc + log.points, 0);
+
+    // Calculate rank
+    const scoresMap = new Map<string, number>();
+    allBehaviorLogs.forEach(log => {
+      scoresMap.set(log.student_id, (scoresMap.get(log.student_id) || 0) + log.points);
+    });
+
+    // include all students in the class even if 0 points
+    if (myClass) {
+      myClass.studentIds.forEach(sid => {
+        if (!scoresMap.has(sid)) scoresMap.set(sid, 0);
+      });
+    }
+
+    const sortedScores = Array.from(scoresMap.entries()).sort((a, b) => b[1] - a[1]);
+    const rank = sortedScores.findIndex(entry => entry[0] === user.id) + 1;
+
+    return { behaviorScore: score, behaviorRank: rank, totalStudents: sortedScores.length };
+  }, [allBehaviorLogs, user, myClass]);
 
   // --- LOGIC FOR STUDENTS (GAMIFICATION) ---
   const studentGamification = useMemo(() => {
@@ -249,7 +279,7 @@ export const Dashboard: React.FC = () => {
           <StatCard icon={BookOpen} label="Đề đã làm" value={studentStats?.examsTakenCount} color="bg-blue-500" />
           <StatCard icon={TrendingUp} label="Điểm trung bình" value={studentStats?.avgScore} color="bg-green-500" />
           <StatCard icon={Clock} label="Giờ học tập" value={`${studentStats?.studyHours}h`} color="bg-orange-500" />
-          <StatCard icon={Heart} label="Điểm rèn luyện" value={behaviorScore} color="bg-pink-500" />
+          <StatCard icon={Heart} label="Điểm rèn luyện" value={`${behaviorScore} đ (Hạng ${behaviorRank}/${totalStudents})`} color="bg-pink-500" />
           <StatCard icon={School} label="Lớp hiện tại" value={studentStats?.className} color="bg-indigo-500" />
         </div>
 
@@ -282,10 +312,10 @@ export const Dashboard: React.FC = () => {
               <h2 className="text-lg font-bold text-gray-900 mb-4">Hoạt động & Thông báo</h2>
 
               {/* Behavior Logs (ClassFun) */}
-              {behaviorLogs.length > 0 && (
+              {allBehaviorLogs.filter(log => log.student_id === user?.id).length > 0 && (
                 <div className="mb-6 space-y-3">
                   <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Hành vi & Khen thưởng</h3>
-                  {behaviorLogs.slice(0, 5).map(log => (
+                  {allBehaviorLogs.filter(log => log.student_id === user?.id).slice(0, 5).map(log => (
                     <div key={log.id} className="flex gap-3 items-start p-3 bg-pink-50/50 hover:bg-pink-50 rounded-lg transition-colors border border-pink-100/50">
                       <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm
                         ${log.points > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>

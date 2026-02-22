@@ -157,20 +157,28 @@ export const ClassFunRecord: React.FC = () => {
                 const rank = sortedStudents.findIndex(s => s.id === sid) + 1;
 
                 // Normal point notification
-                useStore.getState().addNotification(sid, {
+                useStore.getState().addNotification({
+                    id: `notif_beh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                    userId: sid,
                     type: behavior.points > 0 ? 'SUCCESS' : 'WARNING',
                     title: behavior.points > 0 ? 'Tích cực' : 'Cần cố gắng',
                     message: `Bạn vừa được ${behavior.points > 0 ? 'cộng' : 'trừ'} ${Math.abs(behavior.points)} điểm. Lý do: ${reason}.`,
-                    link: '/student/class-fun'
+                    link: '/',
+                    isRead: false,
+                    createdAt: new Date().toISOString()
                 });
 
                 // Top 10 notification
                 if (rank > 0 && rank <= 10) {
-                    useStore.getState().addNotification(sid, {
+                    useStore.getState().addNotification({
+                        id: `notif_top10_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                        userId: sid,
                         type: 'INFO',
                         title: 'Bảng Vàng',
                         message: `🎉 Chúc mừng! Bạn đang đạt Hạng ${rank}/${totalStudents} trong bảng vàng của môn học!`,
-                        link: '/student/class-fun'
+                        link: '/',
+                        isRead: false,
+                        createdAt: new Date().toISOString()
                     });
                 }
             });
