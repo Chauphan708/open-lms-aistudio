@@ -77,8 +77,8 @@ export const useStore = create<AppState>((set, get) => ({
       if (rawResources) {
         const resources = rawResources.map(r => ({
           ...r,
-          createdAt: r.createdAt || r.created_at,
-          addedBy: r.addedBy || r.added_by
+          createdAt: r.createdAt || r.created_at || r.createdat,
+          addedBy: r.addedBy || r.added_by || r.addedby
         }));
         set({ resources: resources as WebResource[] });
       }
@@ -481,25 +481,31 @@ export const useStore = create<AppState>((set, get) => ({
   resources: [],
   addResource: async (res) => {
     set(state => ({ resources: [res, ...state.resources] }));
-    const dbRes = {
-      id: res.id,
-      title: res.title,
-      url: res.url,
-      type: res.type,
-      topic: res.topic,
-      description: res.description,
+    const dbResCamel = {
+      id: res.id, title: res.title, url: res.url, type: res.type, topic: res.topic, description: res.description,
       addedBy: res.addedBy,
-      added_by: res.addedBy, // Add snake_case for Supabase
-      createdAt: res.createdAt,
-      created_at: res.createdAt // Add snake_case for Supabase
+      createdAt: res.createdAt
     };
 
-    let { error } = await supabase.from('resources').insert(dbRes);
+    let { error } = await supabase.from('resources').insert(dbResCamel);
     if (error) {
       console.warn("addResource camelCase failed, trying snake_case", error);
-      const { id, title, url, type, topic, description, added_by, created_at } = dbRes;
-      const res2 = await supabase.from('resources').insert({ id, title, url, type, topic, description, addedBy: added_by, added_by, createdAt: created_at, created_at });
+      const dbResSnake = {
+        id: res.id, title: res.title, url: res.url, type: res.type, topic: res.topic, description: res.description,
+        added_by: res.addedBy, created_at: res.createdAt
+      };
+      const res2 = await supabase.from('resources').insert(dbResSnake);
       error = res2.error;
+
+      if (error) {
+        console.warn("addResource snake_case failed, trying lowercase", error);
+        const dbResLower = {
+          id: res.id, title: res.title, url: res.url, type: res.type, topic: res.topic, description: res.description,
+          addedby: res.addedBy, createdat: res.createdAt
+        };
+        const res3 = await supabase.from('resources').insert(dbResLower);
+        error = res3.error;
+      }
     }
 
     if (error) {
