@@ -277,14 +277,21 @@ export const ResourceLibrary: React.FC = () => {
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <a
-                                    href={viewingResource.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        let finalUrl = viewingResource.url;
+                                        if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                                            finalUrl = 'https://' + finalUrl;
+                                        }
+                                        window.open(finalUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer border-none"
+                                    type="button"
                                 >
                                     <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">Mở trang gốc</span>
-                                </a>
+                                </button>
                                 <button onClick={() => setViewingResource(null)} className="p-2 hover:bg-red-500/20 rounded-full text-white/80 hover:text-white transition-colors">
                                     <X className="h-6 w-6" />
                                 </button>
