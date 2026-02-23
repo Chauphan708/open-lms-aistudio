@@ -299,10 +299,9 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
                         </div>
 
                         <div
-                            className="grid gap-3 px-4 pb-8 mx-auto"
+                            className="grid gap-2 sm:gap-3 px-2 sm:px-4 pb-8 mx-auto w-full max-w-4xl"
                             style={{
-                                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                                width: 'max-content'
+                                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
                             }}
                         >
                             {seats.map((seat, idx) => {
@@ -314,27 +313,27 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
                                         key={`${seat.row}-${seat.col}`}
                                         onClick={() => handleSeatClick(seat)}
                                         className={`
-                                    relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-200
+                                    relative aspect-square w-full rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 p-1 sm:p-2 overflow-hidden
                                     ${isSelected ? 'border-indigo-500 bg-indigo-50 ring-4 ring-indigo-500/20 scale-105 shadow-xl z-20' : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md'}
                                 `}
                                     >
-                                        <span className="absolute top-1 left-2 text-[10px] sm:text-xs text-gray-400 font-medium">H{seat.row + 1}-C{seat.col + 1}</span>
+                                        <span className="absolute top-1 left-1.5 text-[8px] sm:text-[10px] text-gray-400 font-medium">H{seat.row + 1}-C{seat.col + 1}</span>
 
                                         {student ? (
                                             <>
-                                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mb-1 shadow-sm
+                                                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-lg mb-1 shadow-sm shrink-0
                                             ${student.gender === 'FEMALE' ? 'bg-pink-400' : 'bg-blue-500'}
                                         `}>
                                                     {student.name.charAt(0).toUpperCase()}
                                                 </div>
-                                                <span className="font-semibold text-gray-800 text-xs sm:text-sm text-center px-1 truncate w-full">{student.name}</span>
+                                                <span className="font-semibold text-gray-800 text-[9px] sm:text-xs md:text-sm text-center px-1 truncate w-full">{student.name}</span>
                                             </>
                                         ) : (
-                                            <div className="text-gray-300 flex flex-col items-center gap-1 group-hover:text-indigo-400 transition-colors">
-                                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-current flex items-center justify-center">
-                                                    <span className="text-lg">+</span>
+                                            <div className="text-gray-300 flex flex-col items-center gap-0.5 sm:gap-1 group-hover:text-indigo-400 transition-colors">
+                                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-dashed border-current flex items-center justify-center shrink-0">
+                                                    <span className="text-sm sm:text-lg">+</span>
                                                 </div>
-                                                <span className="text-xs font-medium">Trống</span>
+                                                <span className="text-[9px] sm:text-xs font-medium">Trống</span>
                                             </div>
                                         )}
 
