@@ -223,10 +223,10 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-gray-50">
+                <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-gray-50 min-h-[400px]">
 
                     {/* Sidebar Controls & Unassigned */}
-                    <div className="w-full md:w-80 bg-white border-r flex flex-col h-full overflow-hidden shadow-sm z-10">
+                    <div className="w-full md:w-80 bg-white border-r flex flex-col h-full overflow-hidden shadow-sm z-10 shrink-0">
                         <div className="p-4 border-b border-gray-100 space-y-4">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                 <LayoutGrid className="h-4 w-4 text-indigo-500" /> Cấu hình Lưới
@@ -292,17 +292,17 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
                     </div>
 
                     {/* Grid Area */}
-                    <div className="flex-1 p-6 flex items-center justify-center overflow-auto relative bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
+                    <div className="flex-1 p-6 flex flex-col items-center justify-start overflow-auto relative bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] resize-x min-w-[300px]" style={{ resize: 'horizontal', overflow: 'auto' }}>
                         {/* Teacher Desk indicator */}
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-12 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                        <div className="sticky top-0 bg-gray-800 text-white px-12 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 mb-8 mt-4 z-30 mx-auto w-max shrink-0">
                             BÀN GIÁO VIÊN
                         </div>
 
                         <div
-                            className="grid gap-3 pt-16 pb-8 px-4"
+                            className="grid gap-3 px-4 pb-8 mx-auto"
                             style={{
                                 gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                                maxWidth: '100%'
+                                width: 'max-content'
                             }}
                         >
                             {seats.map((seat, idx) => {
