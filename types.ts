@@ -287,6 +287,26 @@ export interface ArenaMatchEvent {
   created_at: string;
 }
 
+// ============================================
+// SEATING CHART TYPES
+// ============================================
+
+export interface ClassSeat {
+  row: number;
+  col: number;
+  studentId: string | null;
+}
+
+export interface ClassSeatingChart {
+  id: string;
+  classId: string;
+  rows: number;
+  columns: number;
+  seats: ClassSeat[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppState {
   isDataLoading: boolean;
   fetchInitialData: () => Promise<void>;

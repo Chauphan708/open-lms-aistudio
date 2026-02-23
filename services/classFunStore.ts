@@ -45,6 +45,8 @@ export interface GroupMember {
   student_id: string;
 }
 
+import { ClassSeatingChart } from '../types';
+
 // --- Store Interface ---
 interface ClassFunState {
   // Data
@@ -53,6 +55,7 @@ interface ClassFunState {
   logs: BehaviorLog[];
   attendance: AttendanceRecord[];
   groupMembers: GroupMember[];
+  seatingChart: ClassSeatingChart | null;
   isLoading: boolean;
 
   // Actions - Groups
@@ -78,6 +81,10 @@ interface ClassFunState {
   // Actions - Attendance
   saveAttendance: (records: Omit<AttendanceRecord, 'id'>[]) => Promise<void>;
   fetchAttendance: (classId: string, date: string) => Promise<void>;
+
+  // Actions - Seating Chart
+  fetchSeatingChart: (classId: string) => Promise<void>;
+  saveSeatingChart: (chart: Omit<ClassSeatingChart, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
 }
 
 export const useClassFunStore = create<ClassFunState>((set, get) => ({
@@ -86,6 +93,7 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
   logs: [],
   attendance: [],
   groupMembers: [],
+  seatingChart: null,
   isLoading: false,
 
   // --- Fetch all data for a class ---
@@ -271,4 +279,88 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
       .eq('class_id', classId).eq('date', date);
     if (data) set({ attendance: data as AttendanceRecord[] });
   },
+
+  // --- Seating Chart ---
+  fetchSeatingChart: async (classId) => {
+    const { data } = await supabase
+      .from('class_seating_charts')
+      .select('*')
+      .eq('class_id', classId)
+      .single();
+
+    if (data) {
+      set({
+        seatingChart: {
+          id: data.id,
+          classId: data.class_id,
+          rows: data.rows,
+          columns: data.columns,
+          seats: data.seats,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        } as ClassSeatingChart
+      });
+    } else {
+      set({ seatingChart: null });
+    }
+  },
+
+  saveSeatingChart: async (chart) => {
+    const dbChart = {
+      class_id: chart.classId,
+      rows: chart.rows,
+      columns: chart.columns,
+      seats: chart.seats
+    };
+
+    // Upsert equivalent: check if exists
+    const { data: existing } = await supabase
+      .from('class_seating_charts')
+      .select('id')
+      .eq('class_id', chart.classId)
+      .single();
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('class_seating_charts')
+        .update(dbChart)
+        .eq('class_id', chart.classId)
+        .select()
+        .single();
+
+      if (!error && data) {
+        set({
+          seatingChart: {
+            id: data.id,
+            classId: data.class_id,
+            rows: data.rows,
+            columns: data.columns,
+            seats: data.seats,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          } as ClassSeatingChart
+        });
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('class_seating_charts')
+        .insert(dbChart)
+        .select()
+        .single();
+
+      if (!error && data) {
+        set({
+          seatingChart: {
+            id: data.id,
+            classId: data.class_id,
+            rows: data.rows,
+            columns: data.columns,
+            seats: data.seats,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          } as ClassSeatingChart
+        });
+      }
+    }
+  }
 }));
