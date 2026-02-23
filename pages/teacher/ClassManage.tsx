@@ -23,7 +23,9 @@ export const ClassManage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(academicYears[0]?.id || '');
 
   // Add Student State
-  const [studentToAdd, setStudentToAdd] = useState('');
+  const [studentsToAdd, setStudentsToAdd] = useState<string[]>([]);
+  const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
 
   const handleCreateClass = () => {
     if (!newClassName || !selectedYear) return;
@@ -39,13 +41,18 @@ export const ClassManage: React.FC = () => {
     setNewClassName('');
   };
 
-  const handleAddStudentToClass = (classId: string) => {
-    if (!studentToAdd) return;
+  const handleAddStudentsToClass = (classId: string) => {
+    if (studentsToAdd.length === 0) return;
     const cls = classes.find(c => c.id === classId);
-    if (cls && !cls.studentIds.includes(studentToAdd)) {
-      const updated = { ...cls, studentIds: [...cls.studentIds, studentToAdd] };
-      updateClass(updated);
-      setStudentToAdd('');
+    if (cls) {
+      const newStudents = studentsToAdd.filter(id => !cls.studentIds.includes(id));
+      if (newStudents.length > 0) {
+        const updated = { ...cls, studentIds: [...cls.studentIds, ...newStudents] };
+        updateClass(updated);
+      }
+      setStudentsToAdd([]);
+      setIsAddDropdownOpen(false);
+      setStudentSearchTerm('');
     }
   };
 
@@ -211,22 +218,82 @@ export const ClassManage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
-                <select
-                  className="border rounded-lg text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900 flex-1 md:w-48"
-                  value={studentToAdd}
-                  onChange={e => setStudentToAdd(e.target.value)}
-                >
-                  <option value="">Chọn học sinh để thêm...</option>
-                  {allStudents
-                    .filter(s => !selectedClassData.studentIds.includes(s.id))
-                    .map(s => <option key={s.id} value={s.id}>{s.name} ({s.email})</option>)
-                  }
-                </select>
+              <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0 relative">
+                <div className="relative flex-1 md:w-64">
+                  <button
+                    onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+                    className="w-full bg-white border border-gray-300 rounded-lg text-sm px-3 py-2 text-left flex justify-between items-center text-gray-700 hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <span className="truncate">
+                      {studentsToAdd.length === 0
+                        ? "Chọn học sinh để thêm..."
+                        : `Đã chọn ${studentsToAdd.length} học sinh`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 ml-2 text-gray-400" />
+                  </button>
+
+                  {isAddDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsAddDropdownOpen(false)}
+                      ></div>
+                      <div className="absolute z-20 w-full md:w-80 right-0 mt-1 bg-white border rounded-lg shadow-xl overflow-hidden flex flex-col">
+                        <div className="p-2 border-b bg-gray-50">
+                          <input
+                            type="text"
+                            className="w-full px-3 py-1.5 text-sm border rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Tìm kiếm..."
+                            value={studentSearchTerm}
+                            onChange={(e) => setStudentSearchTerm(e.target.value)}
+                          />
+                        </div>
+                        <div className="max-h-60 overflow-y-auto p-1 bg-white">
+                          {allStudents
+                            .filter(s => !selectedClassData.studentIds.includes(s.id))
+                            .filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || s.email.toLowerCase().includes(studentSearchTerm.toLowerCase()))
+                            .map(s => {
+                              const isSelected = studentsToAdd.includes(s.id);
+                              return (
+                                <label
+                                  key={s.id}
+                                  className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 rounded cursor-pointer transition-colors"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setStudentsToAdd(prev => [...prev, s.id]);
+                                      } else {
+                                        setStudentsToAdd(prev => prev.filter(id => id !== s.id));
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-medium text-gray-900 truncate">{s.name}</span>
+                                    <span className="text-xs text-gray-500 truncate font-mono">{s.email}</span>
+                                  </div>
+                                </label>
+                              );
+                            })
+                          }
+                          {allStudents.filter(s => !selectedClassData.studentIds.includes(s.id)).length === 0 && (
+                            <div className="p-4 text-sm text-center text-gray-500 italic">
+                              Đã thêm tất cả học sinh vào lớp.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button
-                  disabled={!studentToAdd}
-                  onClick={() => handleAddStudentToClass(selectedClassData.id)}
-                  className="bg-indigo-600 text-white px-3 py-2 rounded-lg disabled:bg-gray-300 hover:bg-indigo-700 flex-shrink-0"
+                  disabled={studentsToAdd.length === 0}
+                  onClick={() => handleAddStudentsToClass(selectedClassData.id)}
+                  className="bg-indigo-600 text-white px-3 py-2 rounded-lg disabled:bg-gray-300 hover:bg-indigo-700 flex-shrink-0 transition shadow-sm"
+                  title="Thêm vào lớp"
                 >
                   <UserPlus className="h-5 w-5" />
                 </button>
