@@ -70,9 +70,9 @@ export const RandomGroupModal: React.FC<RandomGroupModalProps> = ({ students, on
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
-                <div className="bg-indigo-600 p-4 flex justify-between items-centertext-white">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-0 md:p-4">
+            <div className="bg-white rounded-none md:rounded-2xl shadow-xl w-full h-full md:max-w-6xl md:h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+                <div className="bg-indigo-600 p-4 flex justify-between items-center text-white">
                     <h2 className="text-xl font-bold flex items-center gap-2 text-white">
                         <Users className="h-6 w-6" /> Chia Nhóm Ngẫu Nhiên
                     </h2>
@@ -145,7 +145,7 @@ export const RandomGroupModal: React.FC<RandomGroupModalProps> = ({ students, on
                             )}
                         </div>
 
-                        <div className="flex-1 overflow-y-auto pr-2 space-y-4 pb-4">
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-4 pb-4 custom-scrollbar">
                             {groups.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 min-h-[200px] border-2 border-dashed rounded-xl">
                                     <Users className="h-10 w-10 opacity-50" />
@@ -159,7 +159,7 @@ export const RandomGroupModal: React.FC<RandomGroupModalProps> = ({ students, on
                                                 <span className="font-bold text-indigo-700">{group.name}</span>
                                                 <span className="text-xs bg-white border px-2 py-0.5 rounded-full font-bold text-gray-500">{group.members.length} HS</span>
                                             </div>
-                                            <div className="p-3 max-h-[200px] overflow-y-auto text-sm space-y-2">
+                                            <div className="p-3 max-h-[300px] overflow-y-auto custom-scrollbar text-sm space-y-2">
                                                 {group.members.map((m, i) => (
                                                     <div key={m.id} className="flex gap-2 items-center text-gray-700">
                                                         <span className="text-xs text-gray-400 w-4 text-right">{i + 1}.</span>
