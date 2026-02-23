@@ -242,11 +242,30 @@ export const ClassManage: React.FC = () => {
                         <div className="p-2 border-b bg-gray-50">
                           <input
                             type="text"
-                            className="w-full px-3 py-1.5 text-sm border rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-1.5 text-sm border rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 mb-2"
                             placeholder="Tìm kiếm..."
                             value={studentSearchTerm}
                             onChange={(e) => setStudentSearchTerm(e.target.value)}
                           />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const availableStudents = allStudents
+                                  .filter(s => !selectedClassData.studentIds.includes(s.id))
+                                  .filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || s.email.toLowerCase().includes(studentSearchTerm.toLowerCase()));
+                                setStudentsToAdd(availableStudents.map(s => s.id));
+                              }}
+                              className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs py-1.5 rounded font-medium border border-indigo-200 transition-colors"
+                            >
+                              Chọn tất cả
+                            </button>
+                            <button
+                              onClick={() => setStudentsToAdd([])}
+                              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs py-1.5 rounded font-medium border border-gray-300 transition-colors"
+                            >
+                              Bỏ chọn
+                            </button>
+                          </div>
                         </div>
                         <div className="max-h-60 overflow-y-auto p-1 bg-white">
                           {allStudents
