@@ -6,6 +6,7 @@ import { School, Plus, Users, ChevronDown, UserPlus, Dices, CheckSquare, Square,
 import { DuckRace } from '../../components/classfun/DuckRace';
 import { RandomRoulette } from '../../components/classfun/RandomRoulette';
 import { GroupManageModal } from '../../components/classfun/GroupManageModal';
+import { RandomGroupModal } from '../../components/classfun/RandomGroupModal';
 
 export const ClassManage: React.FC = () => {
   const { classes, academicYears, users, user: currentUser, addClass, updateClass } = useStore();
@@ -82,6 +83,7 @@ export const ClassManage: React.FC = () => {
   };
 
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showRandomGroup, setShowRandomGroup] = useState(false);
 
   // Group students
   const groupedStudents = React.useMemo(() => {
@@ -186,8 +188,12 @@ export const ClassManage: React.FC = () => {
 
               {/* Random Controls & Group Manage */}
               <div className="flex items-center flex-wrap gap-2 mt-2 md:mt-0">
+                <button onClick={() => setShowRandomGroup(true)} className="text-sm bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-100 font-bold transition border border-emerald-100 flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Chia Nhóm
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block"></div>
                 <button onClick={() => setShowGroupModal(true)} className="text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-100 font-bold transition border border-indigo-100 flex items-center gap-2">
-                  <Users className="h-4 w-4" /> Quản lý Tổ
+                  <span className="flex items-center gap-2 leading-none"><Users className="h-4 w-4" /> Quản lý Tổ</span>
                 </button>
                 <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block"></div>
                 <button onClick={() => setShowRoulette(true)} className="text-sm bg-purple-50 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-100 font-bold transition border border-purple-100 flex items-center gap-2">
@@ -300,6 +306,13 @@ export const ClassManage: React.FC = () => {
           students={duckRacePool}
           onClose={() => setShowDuckRace(false)}
           onComplete={handleDuckRaceComplete}
+        />
+      )}
+
+      {showRandomGroup && (
+        <RandomGroupModal
+          students={studentsInClass}
+          onClose={() => setShowRandomGroup(false)}
         />
       )}
 

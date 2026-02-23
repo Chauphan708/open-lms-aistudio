@@ -4,6 +4,7 @@ import { User, UserRole } from '../../types';
 import { Users, Plus, Search, Upload, FileText, CheckCircle, AlertCircle, X, Save, Trash2, Key, Edit, Dices, GraduationCap, LayoutGrid, List } from 'lucide-react';
 import { DuckRace } from '../../components/classfun/DuckRace';
 import { RandomRoulette } from '../../components/classfun/RandomRoulette';
+import { RandomGroupModal } from '../../components/classfun/RandomGroupModal';
 
 interface Props {
     targetRole: UserRole; // 'TEACHER' or 'STUDENT'
@@ -39,10 +40,11 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     const [previewUsers, setPreviewUsers] = useState<User[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Random & Duck Race State
+    // Random, Duck Race & Grouping State
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [showDuckRace, setShowDuckRace] = useState(false);
     const [duckRacePool, setDuckRacePool] = useState<User[]>([]);
+    const [showRandomGroup, setShowRandomGroup] = useState(false);
 
     const removeVietnameseTones = (str: string) => {
         str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
@@ -239,13 +241,21 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                 if (otherParts.length > 1) uClass = otherParts[1];
             } else {
                 uName = parts[0];
-                if (parts.length > 1) uClass = parts[1];
+                if (parts.length > 1) uClass = parts[1] || '';
 
                 const nameParts = uName.trim().split(' ');
                 const firstName = nameParts.length > 0 ? nameParts[nameParts.length - 1] : 'user';
-                const slug = firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-                const classSlug = uClass ? uClass.toLowerCase().replace(/[^a-z0-9]/g, '') : Math.floor(Math.random() * 1000).toString();
-                uEmail = `${slug}${classSlug}`;
+                const cleanName = removeVietnameseTones(firstName).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                // Use either the parsed class, the selected class from dropdown, or empty
+                let appliedClass = uClass;
+                if (!appliedClass && targetRole === 'STUDENT' && className) {
+                    const classParts = className.split('|');
+                    appliedClass = classParts.length === 2 ? classParts[1] : className;
+                    uClass = appliedClass; // Set the class for the user if it was empty
+                }
+                const classSlug = appliedClass ? removeVietnameseTones(appliedClass).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+                uEmail = `${cleanName}${classSlug}`;
             }
 
             // Clean up quotes
@@ -434,6 +444,18 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                         <div className="flex justify-between items-center mb-2">
                                             <label className="text-sm font-bold text-gray-700">Dữ liệu thô</label>
                                             <div className="flex gap-2">
+                                                {targetRole === 'STUDENT' && (
+                                                    <select
+                                                        className="text-xs border border-gray-300 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-indigo-500 max-w-[120px]"
+                                                        value={className}
+                                                        onChange={e => setClassName(e.target.value)}
+                                                    >
+                                                        <option value="">-- Lớp mặc định --</option>
+                                                        {classes.map(c => (
+                                                            <option key={c.id} value={`${c.id}|${c.name}`}>{c.name}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
                                                 <button
                                                     onClick={() => fileInputRef.current?.click()}
                                                     className="text-xs flex items-center gap-1 text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded"
@@ -612,6 +634,9 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             {/* RANDOM CONTROLS (Only for students) */}
             {targetRole === 'STUDENT' && filteredUsers.length > 0 && (
                 <div className="bg-white p-3 rounded-xl border shadow-sm flex flex-wrap items-center gap-3">
+                    <button onClick={() => setShowRandomGroup(true)} className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-emerald-100 shadow-sm">
+                        <Users className="h-5 w-5" /> Chia Nhóm
+                    </button>
                     <button onClick={() => setShowRoulette(true)} className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-indigo-100 shadow-sm">
                         <Dices className="h-5 w-5" /> Gọi Ngẫu Nhiên
                     </button>
@@ -760,6 +785,13 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                     students={filteredUsers}
                     onComplete={handleRouletteComplete}
                     onClose={() => setShowRoulette(false)}
+                />
+            )}
+
+            {showRandomGroup && (
+                <RandomGroupModal
+                    students={filteredUsers}
+                    onClose={() => setShowRandomGroup(false)}
                 />
             )}
 
