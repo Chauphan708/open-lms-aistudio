@@ -28,12 +28,14 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
     const [editName, setEditName] = useState('');
     const [editEmail, setEditEmail] = useState('');
     const [editClassName, setEditClassName] = useState('');
+    const [editGender, setEditGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('OTHER');
 
     // Single Form State
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [isAutoEmail, setIsAutoEmail] = useState(true);
     const [className, setClassName] = useState('');
+    const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('OTHER');
 
     // Bulk Form State
     const [bulkText, setBulkText] = useState('');
@@ -147,7 +149,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             role: targetRole,
             avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
             password: '123456', // Default password
-            className: targetRole === 'STUDENT' ? className : undefined
+            className: targetRole === 'STUDENT' ? className : undefined,
+            gender: targetRole === 'STUDENT' ? gender : undefined
         };
 
         // Find if a class ID was provided (since className now holds "classId|className")
@@ -171,6 +174,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
         setEditName(user.name);
         setEditEmail(user.email);
         setEditClassName(user.className || '');
+        setEditGender(user.gender || 'OTHER');
     };
 
     const handleUpdateUser = () => {
@@ -196,7 +200,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
             ...editingUser,
             name: editName,
             email: editEmail.trim(),
-            className: finalClassName
+            className: finalClassName,
+            gender: targetRole === 'STUDENT' ? editGender : editingUser.gender
         };
         updateUser(updated);
         setEditingUser(null);
@@ -258,6 +263,17 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                 uEmail = `${cleanName}${classSlug}`;
             }
 
+            // Guess gender from name
+            let guessedGender: 'MALE' | 'FEMALE' | 'OTHER' = 'OTHER';
+            const nameLower = uName.toLowerCase();
+            const namePartsLower = nameLower.split(' ');
+
+            if (namePartsLower.includes('thị') || namePartsLower.includes('nữ') || namePartsLower.includes('ngọc') || namePartsLower.includes('như')) {
+                guessedGender = 'FEMALE';
+            } else if (namePartsLower.includes('văn') || namePartsLower.includes('nam') || namePartsLower.includes('hữu') || namePartsLower.includes('đình')) {
+                guessedGender = 'MALE';
+            }
+
             // Clean up quotes
             uName = uName.replace(/^["']|["']$/g, '');
 
@@ -276,7 +292,8 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                 avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=random`,
                 password: '123456',
                 // Temporarily store just the name, since ID is looked up on submit
-                className: targetRole === 'STUDENT' ? uClass : undefined
+                className: targetRole === 'STUDENT' ? uClass : undefined,
+                gender: targetRole === 'STUDENT' ? guessedGender : undefined
             });
         });
 
@@ -337,6 +354,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
         setName('');
         setEmail('');
         setClassName('');
+        setGender('OTHER');
         setBulkText('');
         setPreviewUsers([]);
         setMode('SINGLE');
@@ -412,6 +430,20 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                                 {classes.map(c => (
                                                     <option key={c.id} value={`${c.id}|${c.name}`}>{c.name}</option>
                                                 ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                    {targetRole === 'STUDENT' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Giới tính</label>
+                                            <select
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                                                value={gender}
+                                                onChange={e => setGender(e.target.value as any)}
+                                            >
+                                                <option value="MALE">Nam</option>
+                                                <option value="FEMALE">Nữ</option>
+                                                <option value="OTHER">Chưa rõ / Khác</option>
                                             </select>
                                         </div>
                                     )}
@@ -506,7 +538,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                                     <div key={i} className="bg-white p-2 rounded border flex items-center justify-between text-sm">
                                                         <div>
                                                             <p className="font-bold text-gray-900">{u.name}</p>
-                                                            <p className="text-xs text-indigo-600 font-mono font-bold">ID: {u.email}</p>
+                                                            <p className="text-xs text-indigo-600 font-mono font-bold">ID: {u.email} {u.gender === 'MALE' ? '👦 (Nam)' : u.gender === 'FEMALE' ? '👧 (Nữ)' : '❓ (Chưa rõ)'}</p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             {u.className && <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold font-mono">{u.className}</span>}
@@ -572,6 +604,20 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
                                         ))}
                                     </select>
                                     <p className="text-xs text-blue-600 mt-1">Lưu ý: Bạn chỉ đang đổi nhãn hiển thị, học sinh chưa được di chuyển thực tế. (Tính năng chuyển lớp sẽ bổ sung sau)</p>
+                                </div>
+                            )}
+                            {editingUser.role === 'STUDENT' && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Giới tính</label>
+                                    <select
+                                        className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                                        value={editGender}
+                                        onChange={e => setEditGender(e.target.value as any)}
+                                    >
+                                        <option value="MALE">Nam</option>
+                                        <option value="FEMALE">Nữ</option>
+                                        <option value="OTHER">Chưa rõ / Khác</option>
+                                    </select>
                                 </div>
                             )}
                             <div className="bg-gray-50 p-3 rounded-lg">

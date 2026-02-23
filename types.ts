@@ -10,6 +10,7 @@ export interface User {
   avatar?: string;
   password?: string;
   className?: string; // For students
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'; // For grouping
   savedPrompts?: string[]; // For teachers/admins
 }
 
