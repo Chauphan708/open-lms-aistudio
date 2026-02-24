@@ -42,7 +42,7 @@ export const ClassFunRecord: React.FC = () => {
 
     // New behavior form
     const [newBehavior, setNewBehavior] = useState({ description: '', type: 'POSITIVE' as 'POSITIVE' | 'NEGATIVE', points: 5 });
-    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingBehavior, setEditingBehavior] = useState<{ id: string; description: string; type: 'POSITIVE' | 'NEGATIVE'; points: number } | null>(null);
 
     // Load data
     useEffect(() => {
@@ -202,6 +202,17 @@ export const ClassFunRecord: React.FC = () => {
         setNewBehavior({ description: '', type: 'POSITIVE', points: 5 });
     };
 
+    // Save edited behavior
+    const handleSaveEditBehavior = async () => {
+        if (!editingBehavior || !editingBehavior.description.trim()) return;
+        await updateBehavior(editingBehavior.id, {
+            description: editingBehavior.description,
+            type: editingBehavior.type,
+            points: editingBehavior.type === 'NEGATIVE' ? -Math.abs(editingBehavior.points) : Math.abs(editingBehavior.points),
+        });
+        setEditingBehavior(null);
+    };
+
     // Seed default behaviors
     const seedDefaults = async () => {
         if (!user?.id) return;
@@ -289,22 +300,62 @@ export const ClassFunRecord: React.FC = () => {
                         <div>
                             <h3 className="text-sm font-bold text-emerald-700 mb-2 flex items-center gap-1"><ThumbsUp className="h-4 w-4" /> Tích cực</h3>
                             {positiveBehaviors.map(b => (
-                                <div key={b.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-emerald-50 group">
-                                    <span className="text-sm">{b.description} <span className="text-emerald-600 font-bold">+{b.points}</span></span>
-                                    <button onClick={() => deleteBehavior(b.id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition">
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                <div key={b.id} className="flex flex-col p-2 rounded-lg hover:bg-emerald-50 group">
+                                    {editingBehavior?.id === b.id ? (
+                                        <div className="flex flex-col gap-2 w-full mt-1">
+                                            <input autoFocus value={editingBehavior.description} onChange={e => setEditingBehavior({ ...editingBehavior, description: e.target.value })}
+                                                className="w-full px-2 py-1 text-sm border rounded outline-none focus:border-indigo-500" placeholder="Mô tả" />
+                                            <div className="flex gap-2">
+                                                <input type="number" value={editingBehavior.points} onChange={e => setEditingBehavior({ ...editingBehavior, points: parseInt(e.target.value) || 0 })}
+                                                    className="w-16 px-2 py-1 text-sm border rounded outline-none focus:border-indigo-500" />
+                                                <button onClick={handleSaveEditBehavior} className="px-2 py-1 bg-emerald-600 text-white rounded text-xs flex items-center gap-1 hover:bg-emerald-700"><Save className="w-3 h-3" /> Lưu</button>
+                                                <button onClick={() => setEditingBehavior(null)} className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs flex items-center gap-1 hover:bg-gray-300"><X className="w-3 h-3" /> Hủy</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className="text-sm">{b.description} <span className="text-emerald-600 font-bold">+{b.points}</span></span>
+                                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition">
+                                                <button onClick={() => setEditingBehavior({ id: b.id, description: b.description, type: b.type, points: Math.abs(b.points) })} className="text-blue-500 hover:text-blue-700" title="Sửa">
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                <button onClick={() => deleteBehavior(b.id)} className="text-red-400 hover:text-red-600" title="Xóa">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
                         <div>
                             <h3 className="text-sm font-bold text-red-700 mb-2 flex items-center gap-1"><ThumbsDown className="h-4 w-4" /> Tiêu cực</h3>
                             {negativeBehaviors.map(b => (
-                                <div key={b.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-red-50 group">
-                                    <span className="text-sm">{b.description} <span className="text-red-600 font-bold">{b.points}</span></span>
-                                    <button onClick={() => deleteBehavior(b.id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition">
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                <div key={b.id} className="flex flex-col p-2 rounded-lg hover:bg-red-50 group">
+                                    {editingBehavior?.id === b.id ? (
+                                        <div className="flex flex-col gap-2 w-full mt-1">
+                                            <input autoFocus value={editingBehavior.description} onChange={e => setEditingBehavior({ ...editingBehavior, description: e.target.value })}
+                                                className="w-full px-2 py-1 text-sm border rounded outline-none focus:border-indigo-500" placeholder="Mô tả" />
+                                            <div className="flex gap-2">
+                                                <input type="number" value={editingBehavior.points} onChange={e => setEditingBehavior({ ...editingBehavior, points: parseInt(e.target.value) || 0 })}
+                                                    className="w-16 px-2 py-1 text-sm border rounded outline-none focus:border-indigo-500" />
+                                                <button onClick={handleSaveEditBehavior} className="px-2 py-1 bg-red-600 text-white rounded text-xs flex items-center gap-1 hover:bg-red-700"><Save className="w-3 h-3" /> Lưu</button>
+                                                <button onClick={() => setEditingBehavior(null)} className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs flex items-center gap-1 hover:bg-gray-300"><X className="w-3 h-3" /> Hủy</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className="text-sm">{b.description} <span className="text-red-600 font-bold">{b.points}</span></span>
+                                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition">
+                                                <button onClick={() => setEditingBehavior({ id: b.id, description: b.description, type: b.type, points: Math.abs(b.points) })} className="text-blue-500 hover:text-blue-700" title="Sửa">
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                <button onClick={() => deleteBehavior(b.id)} className="text-red-400 hover:text-red-600" title="Xóa">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
