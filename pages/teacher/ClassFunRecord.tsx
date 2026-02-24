@@ -397,7 +397,7 @@ export const ClassFunRecord: React.FC = () => {
                     </div>
 
                     {/* Student list */}
-                    <div className="max-h-[400px] overflow-y-auto pr-1 space-y-4">
+                    <div className="max-h-[900px] overflow-y-auto pr-1 space-y-4">
                         {groupedStudents.groups.map(g => g.students.length > 0 && (
                             <div key={g.id} className="bg-gray-50/50 rounded-xl overflow-hidden border border-gray-100">
                                 <div className="px-3 py-2 bg-gray-100 flex items-center justify-between">
