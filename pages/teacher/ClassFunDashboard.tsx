@@ -23,6 +23,9 @@ export const ClassFunDashboard: React.FC = () => {
     const [viewMode, setViewMode] = useState<'week' | 'all'>('week');
     const [weekOffset, setWeekOffset] = useState(0);
 
+    // Leaderboard Tab
+    const [leaderboardTab, setLeaderboardTab] = useState<'top10' | 'all'>('top10');
+
     // Load data khi chọn lớp
     useEffect(() => {
         if (selectedClassId && user?.id) {
@@ -93,13 +96,40 @@ export const ClassFunDashboard: React.FC = () => {
         }).sort((a, b) => b.totalPoints - a.totalPoints);
     }, [groups, groupMembers, studentScores]);
 
-    // Top students
-    const topStudents = useMemo(() => {
-        return classStudents.map(s => ({
+    // Rank calculation and Top students
+    const rankedStudents = useMemo(() => {
+        const sorted = classStudents.map(s => ({
             ...s,
             score: studentScores.get(s.id) || 0,
-        })).sort((a, b) => b.score - a.score).slice(0, 10);
+        })).sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            // Tie-breaker: if scores are equal, sort alphabetically for Top 10, but randomly for "All" to reduce pressure
+            if (leaderboardTab === 'top10') {
+                return a.name.localeCompare(b.name);
+            } else {
+                return Math.random() - 0.5;
+            }
+        });
+
+        // Calculate actual rank (same score = same rank)
+        let currentRank = 1;
+        let lastScore = sorted.length > 0 ? sorted[0].score : 0;
+
+        return sorted.map((s, index) => {
+            if (s.score < lastScore) {
+                currentRank = index + 1;
+                lastScore = s.score;
+            }
+            return { ...s, rank: currentRank };
+        });
     }, [classStudents, studentScores]);
+
+    const topStudents = useMemo(() => rankedStudents.slice(0, 10), [rankedStudents]);
+
+    // Max score for progress bar scaling
+    const maxScore = useMemo(() => {
+        return Math.max(1, ...rankedStudents.map(s => s.score));
+    }, [rankedStudents]);
 
     if (isLoading) {
         return (
@@ -255,28 +285,78 @@ export const ClassFunDashboard: React.FC = () => {
 
             {/* Individual Leaderboard */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Star className="h-6 w-6 text-amber-500" />
-                    Top 10 Học Sinh
-                </h2>
-                {topStudents.length === 0 ? (
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <Star className="h-6 w-6 text-amber-500" />
+                        Bảng Xếp Hạng Học Sinh
+                    </h2>
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setLeaderboardTab('top10')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all ${leaderboardTab === 'top10' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Top 10
+                        </button>
+                        <button
+                            onClick={() => setLeaderboardTab('all')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all ${leaderboardTab === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Cả Lớp
+                        </button>
+                    </div>
+                </div>
+
+                {(leaderboardTab === 'top10' ? topStudents : rankedStudents).length === 0 ? (
                     <p className="text-gray-400 text-center py-8">Chưa có dữ liệu điểm.</p>
                 ) : (
-                    <div className="space-y-2">
-                        {topStudents.map((s, idx) => (
-                            <div key={s.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition">
-                                <div className="flex items-center gap-3">
-                                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-400' : 'bg-indigo-400'
-                                        }`}>
-                                        {idx + 1}
-                                    </span>
-                                    <span className="font-semibold text-gray-800">{s.name}</span>
+                    <div className={`space-y-3 ${leaderboardTab === 'all' ? 'max-h-[500px] overflow-y-auto pr-2' : ''}`}>
+                        {(leaderboardTab === 'top10' ? topStudents : rankedStudents).map((s) => {
+                            const isTop3 = s.rank <= 3;
+                            const percentage = Math.max(0, Math.min(100, (s.score / maxScore) * 100));
+
+                            return (
+                                <div key={s.id} className={`flex flex-col p-3 rounded-xl border transition-all hover:shadow-md
+                                    ${s.rank === 1 ? 'bg-amber-50/30 border-amber-200' :
+                                        s.rank === 2 ? 'bg-gray-50/50 border-gray-200' :
+                                            s.rank === 3 ? 'bg-orange-50/30 border-orange-200' : 'bg-white border-gray-100'}`}>
+
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative">
+                                                <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm
+                                                    ${s.rank === 1 ? 'bg-gradient-to-br from-amber-400 to-amber-600 ring-2 ring-amber-200' :
+                                                        s.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 ring-2 ring-gray-100' :
+                                                            s.rank === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600 ring-2 ring-orange-200' :
+                                                                'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                                    }`}>
+                                                    {s.rank}
+                                                </span>
+                                                {s.rank === 1 && <Trophy className="absolute -top-2 -right-2 h-4 w-4 text-amber-500 drop-shadow-sm" />}
+                                            </div>
+                                            <span className={`font-semibold ${isTop3 ? 'text-gray-900' : 'text-gray-700'}`}>{s.name}</span>
+                                        </div>
+                                        <span className={`font-black text-lg ${s.score >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                            {s.score > 0 ? '+' : ''}{s.score}
+                                        </span>
+                                    </div>
+
+                                    {/* Progress Bar representing score visually */}
+                                    {s.score > 0 && (
+                                        <div className="w-full bg-gray-100 rounded-full h-2 mt-1 overflow-hidden">
+                                            <div
+                                                className={`h-2 rounded-full transition-all duration-1000 ease-out
+                                                    ${s.rank === 1 ? 'bg-amber-400' :
+                                                        s.rank === 2 ? 'bg-gray-400' :
+                                                            s.rank === 3 ? 'bg-orange-400' : 'bg-emerald-400'}`}
+                                                style={{ width: `${percentage}%` }}
+                                            ></div>
+                                        </div>
+                                    )}
                                 </div>
-                                <span className={`font-bold text-lg ${s.score >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                    {s.score > 0 ? '+' : ''}{s.score}
-                                </span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
