@@ -311,49 +311,56 @@ export const ClassFunDashboard: React.FC = () => {
                 {(leaderboardTab === 'top10' ? topStudents : rankedStudents).length === 0 ? (
                     <p className="text-gray-400 text-center py-8">Chưa có dữ liệu điểm.</p>
                 ) : (
-                    <div className={`space-y-3 ${leaderboardTab === 'all' ? 'max-h-[500px] overflow-y-auto pr-2' : ''}`}>
+                    <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 ${leaderboardTab === 'all' ? 'max-h-[600px] overflow-y-auto pr-2 p-1' : 'p-1'}`}>
                         {(leaderboardTab === 'top10' ? topStudents : rankedStudents).map((s) => {
                             const isTop3 = s.rank <= 3;
                             const percentage = Math.max(0, Math.min(100, (s.score / maxScore) * 100));
 
                             return (
-                                <div key={s.id} className={`flex flex-col p-3 rounded-xl border transition-all hover:shadow-md
-                                    ${s.rank === 1 ? 'bg-amber-50/30 border-amber-200' :
-                                        s.rank === 2 ? 'bg-gray-50/50 border-gray-200' :
-                                            s.rank === 3 ? 'bg-orange-50/30 border-orange-200' : 'bg-white border-gray-100'}`}>
+                                <div key={s.id} className={`flex flex-col p-4 rounded-2xl border transition-all hover:shadow-lg hover:-translate-y-1
+                                    ${s.rank === 1 ? 'bg-gradient-to-br from-amber-50 to-white border-amber-200' :
+                                        s.rank === 2 ? 'bg-gradient-to-br from-gray-50 to-white border-gray-200' :
+                                            s.rank === 3 ? 'bg-gradient-to-br from-orange-50 to-white border-orange-200' : 'bg-white border-gray-100'}`}>
 
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative">
-                                                <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm
-                                                    ${s.rank === 1 ? 'bg-gradient-to-br from-amber-400 to-amber-600 ring-2 ring-amber-200' :
-                                                        s.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 ring-2 ring-gray-100' :
-                                                            s.rank === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600 ring-2 ring-orange-200' :
-                                                                'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                                                    }`}>
-                                                    {s.rank}
-                                                </span>
-                                                {s.rank === 1 && <Trophy className="absolute -top-2 -right-2 h-4 w-4 text-amber-500 drop-shadow-sm" />}
-                                            </div>
-                                            <span className={`font-semibold ${isTop3 ? 'text-gray-900' : 'text-gray-700'}`}>{s.name}</span>
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="relative">
+                                            <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-sm
+                                                ${s.rank === 1 ? 'bg-gradient-to-br from-amber-400 to-amber-600 ring-2 ring-amber-100' :
+                                                    s.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 ring-2 ring-gray-100' :
+                                                        s.rank === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600 ring-2 ring-orange-100' :
+                                                            'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                                }`}>
+                                                #{s.rank}
+                                            </span>
+                                            {s.rank === 1 && <Trophy className="absolute -top-3 -right-3 h-6 w-6 text-amber-500 drop-shadow-sm" />}
                                         </div>
-                                        <span className={`font-black text-lg ${s.score >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                            {s.score > 0 ? '+' : ''}{s.score}
-                                        </span>
+                                        <div className="text-right">
+                                            <span className={`block font-black text-2xl leading-none ${s.score >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                {s.score > 0 ? '+' : ''}{s.score}
+                                            </span>
+                                            <span className="text-xs text-gray-400 font-medium">điểm</span>
+                                        </div>
                                     </div>
 
-                                    {/* Progress Bar representing score visually */}
-                                    {s.score > 0 && (
-                                        <div className="w-full bg-gray-100 rounded-full h-2 mt-1 overflow-hidden">
-                                            <div
-                                                className={`h-2 rounded-full transition-all duration-1000 ease-out
-                                                    ${s.rank === 1 ? 'bg-amber-400' :
-                                                        s.rank === 2 ? 'bg-gray-400' :
-                                                            s.rank === 3 ? 'bg-orange-400' : 'bg-emerald-400'}`}
-                                                style={{ width: `${percentage}%` }}
-                                            ></div>
-                                        </div>
-                                    )}
+                                    <div className="mt-auto">
+                                        <span className={`block font-bold mb-2 truncate ${isTop3 ? 'text-gray-900' : 'text-gray-700'}`} title={s.name}>{s.name}</span>
+
+                                        {/* Progress Bar representing score visually */}
+                                        {s.score > 0 && (
+                                            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                                <div
+                                                    className={`h-2.5 rounded-full transition-all duration-1000 ease-out
+                                                        ${s.rank === 1 ? 'bg-gradient-to-r from-amber-400 to-amber-500' :
+                                                            s.rank === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
+                                                                s.rank === 3 ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 'bg-gradient-to-r from-emerald-400 to-emerald-500'}`}
+                                                    style={{ width: `${percentage}%` }}
+                                                ></div>
+                                            </div>
+                                        )}
+                                        {s.score <= 0 && (
+                                            <div className="w-full bg-gray-50 rounded-full h-2.5 border border-dashed border-gray-200"></div>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
