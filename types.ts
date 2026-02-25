@@ -1,6 +1,12 @@
 
-
 export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT';
+
+export interface CustomToolMenu {
+  id: string;
+  title: string;
+  url?: string; // Optional if it's just a grouping header
+  children?: CustomToolMenu[];
+}
 
 export interface User {
   id: string;
@@ -11,7 +17,8 @@ export interface User {
   password?: string;
   className?: string; // For students
   gender?: 'MALE' | 'FEMALE' | 'OTHER'; // For grouping
-  savedPrompts?: string[]; // For teachers/admins
+  savedPrompts?: string[];
+  customTools?: CustomToolMenu[]; // For teachers/admins
 }
 
 export interface AcademicYear {
@@ -319,6 +326,7 @@ export interface AppState {
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => Promise<boolean>;
   saveUserPrompt: (prompt: string) => void;
+  updateUserCustomTools: (tools: CustomToolMenu[]) => void;
   changePassword: (userId: string, newPass: string) => Promise<boolean>;
 
   academicYears: AcademicYear[];

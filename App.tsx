@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ExamCreate } from './pages/ExamCreate';
@@ -131,9 +131,18 @@ const Login = () => {
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: UserRole[] }> = ({ children, roles }) => {
   const { user } = useStore();
-  if (!user) return <Navigate to="/login" />;
+  const location = useLocation();
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" />;
   return <Layout>{children}</Layout>;
+};
+
+const LoginRoute = () => {
+  const { user } = useStore();
+  const location = useLocation();
+  const from = location.state?.from?.pathname + (location.state?.from?.search || '') || "/";
+  if (user) return <Navigate to={from} replace />;
+  return <Login />;
 };
 
 function App() {
@@ -166,7 +175,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+        <Route path="/login" element={<LoginRoute />} />
 
         <Route path="/" element={
           <ProtectedRoute>

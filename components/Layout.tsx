@@ -21,10 +21,13 @@ import {
   Trophy,
   Swords,
   Brain,
-  Bot
+  Bot,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink
 } from 'lucide-react';
 import { useStore } from '../store';
-import { UserRole } from '../types';
+import { UserRole, CustomToolMenu } from '../types';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, setUser, notifications, markNotificationRead, markAllNotificationsRead } = useStore();
@@ -33,7 +36,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
+  // State to track expanded custom tools
+  const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
+
   const isActive = (path: string) => location.pathname === path;
+
+  const toggleTool = (toolId: string) => {
+    setExpandedTools(prev => ({ ...prev, [toolId]: !prev[toolId] }));
+  };
 
   // Filter notifications for current user
   const myNotifications = notifications.filter(n => n.userId === user?.id);
@@ -75,7 +85,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: '⚡ Ghi Nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
     { label: '⚠️ Cảnh Báo Hành Vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
     { label: 'Tạo Đề Thi', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
-    { label: 'Chấm Bài AI', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
+    { label: 'Chấm Bài', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
 
     // STUDENT ONLY
     { label: 'Lịch sử làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
@@ -154,6 +164,59 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </Link>
               );
             })}
+
+            {/* CUSTOM TOOLS RENDERER (TEACHER AND ADMIN) */}
+            {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && user.customTools && user.customTools.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Các Công Cụ Hỗ Trợ</p>
+                {user.customTools.map(tool => (
+                  <div key={tool.id} className="mb-1">
+                    {tool.children && tool.children.length > 0 ? (
+                      // Parent with children
+                      <div>
+                        <button
+                          onClick={() => toggleTool(tool.id)}
+                          className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <ExternalLink className="h-4 w-4 text-gray-400" />
+                            <span className="truncate">{tool.title}</span>
+                          </div>
+                          {expandedTools[tool.id] ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                        </button>
+                        {/* Recursive Children Render (1 Level Deep) */}
+                        {expandedTools[tool.id] && (
+                          <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-6">
+                            {tool.children.map(child => (
+                              <a
+                                key={child.id}
+                                href={child.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors truncate"
+                              >
+                                {child.title}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Standalone Parent Link
+                      <a
+                        href={tool.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 text-gray-400" />
+                        <span className="truncate">{tool.title}</span>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </nav>
 
           <div className="p-4 border-t bg-gray-50/50">

@@ -25,7 +25,8 @@ export const AIGrading: React.FC = () => {
 
     // Form states
     const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('Bài Tập Về Nhà');
+    const [subject, setSubject] = useState('Toán');
+    const [category, setCategory] = useState('Bài tập về nhà');
     const [customPrompt, setCustomPrompt] = useState('Hãy tìm những lỗi tính toán nhỏ nhất và dùng lời nhận xét khích lệ.');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -155,6 +156,7 @@ export const AIGrading: React.FC = () => {
                     class_id: selectedClassId,
                     teacher_id: user?.id,
                     title,
+                    subject, // Added subject to database call
                     category,
                     external_file_url: JSON.stringify(publicUrls),
                     file_type: selectedFiles[0].type.startsWith('image/') ? 'image' : 'pdf',
@@ -244,6 +246,17 @@ export const AIGrading: React.FC = () => {
                             </select>
                         </div>
 
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề Môn học *</label>
+                            <select
+                                value={subject}
+                                onChange={e => setSubject(e.target.value)}
+                                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                {['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề bài làm *</label>
@@ -262,10 +275,9 @@ export const AIGrading: React.FC = () => {
                                     onChange={e => setCategory(e.target.value)}
                                     className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                 >
-                                    <option value="Bài Tập Về Nhà">Bài Tập Về Nhà</option>
-                                    <option value="Kiểm Tra Miệng">Kiểm Tra Miệng</option>
-                                    <option value="Kiểm Tra 15p">Kiểm Tra 15p</option>
-                                    <option value="Bài Thu Hoạch">Bài Thu Hoạch</option>
+                                    <option value="Bài tập về nhà">Bài tập về nhà</option>
+                                    <option value="Bài kiểm tra">Bài kiểm tra</option>
+                                    <option value="Bài ôn tập">Bài ôn tập</option>
                                 </select>
                             </div>
                         </div>
@@ -440,10 +452,15 @@ export const AIGrading: React.FC = () => {
                             />
                         </div>
                         <select className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            <option value="">Tất cả Môn</option>
+                            {['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+
+                        <select className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                             <option value="">Tất cả Chủ Đề</option>
-                            <option value="Bài Tập Về Nhà">Bài Tập Về Nhà</option>
-                            <option value="Kiểm Tra Miệng">Kiểm Tra Miệng</option>
-                            <option value="Kiểm Tra 15p">Kiểm Tra 15p</option>
+                            <option value="Bài tập về nhà">Bài tập về nhà</option>
+                            <option value="Bài kiểm tra">Bài kiểm tra</option>
+                            <option value="Bài ôn tập">Bài ôn tập</option>
                         </select>
                     </div>
                 </div>

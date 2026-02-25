@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, Poll, BreakoutRoom, ArenaMatchFilters } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, CustomToolMenu, Poll, BreakoutRoom, ArenaMatchFilters } from './types';
 import { supabase } from './services/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -292,22 +292,47 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
 
-  saveUserPrompt: async (prompt) => {
-    const state = get();
-    if (!state.user || !prompt.trim()) return;
-    const currentPrompts = state.user.savedPrompts || [];
-    if (currentPrompts.includes(prompt)) return;
+  saveUserPrompt: (prompt) => set(state => {
+    if (!state.user) return state;
+    const isTeacherInfo = state.user.id !== 'admin1' && state.user.id !== 'teacher1' && state.user.id !== 'student1';
 
-    const newPrompts = [prompt, ...currentPrompts].slice(0, 10);
-    const updatedUser = { ...state.user, savedPrompts: newPrompts };
+    if (isTeacherInfo && state.user.id) {
+      // Attempt supabase sync gracefully
+      supabase.from('profiles').update({ // Changed from 'users' to 'profiles'
+        savedPrompts: [...(state.user.savedPrompts || []), prompt] // Changed from saved_prompts to savedPrompts
+      }).eq('id', state.user.id).then();
+    }
 
-    await supabase.from('profiles').update({ savedPrompts: newPrompts }).eq('id', state.user.id);
+    const updatedUser = {
+      ...state.user,
+      savedPrompts: [...(state.user.savedPrompts || []), prompt]
+    };
+    localStorage.setItem('user_session', JSON.stringify(updatedUser));
+    return { user: updatedUser, users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u) }; // Added users update
+  }),
 
-    set({
-      user: updatedUser,
-      users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
-    });
-  },
+  updateUserCustomTools: (tools: CustomToolMenu[]) => set(state => {
+    if (!state.user) return state;
+    const isTeacherInfo = state.user.id !== 'admin1' && state.user.id !== 'teacher1' && state.user.id !== 'student1';
+
+    if (isTeacherInfo && state.user.id) {
+      // We will store it in metadata or wait for DB sync, for now localstorage only
+      supabase.from('profiles').update({ customTools: tools }).eq('id', state.user.id).then(); // Changed from 'users' to 'profiles'
+    }
+
+    const updatedUser = {
+      ...state.user,
+      customTools: tools
+    };
+
+    // Also update in users list if it exists
+    const updatedUsers = state.users.map(u =>
+      u.id === state.user!.id ? { ...u, customTools: tools } : u
+    );
+
+    localStorage.setItem('user_session', JSON.stringify(updatedUser));
+    return { user: updatedUser, users: updatedUsers };
+  }),
 
   // Academic Years
   academicYears: [],
