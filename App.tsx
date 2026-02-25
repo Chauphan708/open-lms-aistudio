@@ -38,6 +38,9 @@ import { MatchResult } from './pages/arena/MatchResult';
 import { Leaderboard } from './pages/arena/Leaderboard';
 import { ArenaAdmin } from './pages/arena/ArenaAdmin';
 
+// Tools
+import { CountdownTimer } from './pages/tools/CountdownTimer';
+
 import { useStore } from './store';
 import { UserRole } from './types';
 import { Loader2, LogIn, Key, Mail, Eye, EyeOff } from 'lucide-react';
@@ -313,6 +316,12 @@ function App() {
         <Route path="/settings" element={
           <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
             <Settings />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/tools/timer" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <CountdownTimer />
           </ProtectedRoute>
         } />
 

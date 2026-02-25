@@ -24,7 +24,9 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Wrench,
+  Clock
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
@@ -38,6 +40,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // State to track expanded custom tools
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
+
+  // State for built-in nested menus
+  const [isStudyToolsExpanded, setIsStudyToolsExpanded] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -164,6 +169,37 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </Link>
               );
             })}
+
+            {/* CÔNG CỤ HỌC TẬP (LEVEL 1 & 2) */}
+            {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && (
+              <div className="mb-2">
+                <button
+                  onClick={() => setIsStudyToolsExpanded(!isStudyToolsExpanded)}
+                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden ${location.pathname.startsWith('/tools/') ? 'text-indigo-700 bg-indigo-50 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Wrench className={`h-5 w-5 ${location.pathname.startsWith('/tools/') ? 'text-indigo-600' : 'text-gray-400 group-hover:scale-110 transition-transform'}`} />
+                    <span className="relative z-10">Công cụ học tập</span>
+                  </div>
+                  {isStudyToolsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </button>
+
+                {isStudyToolsExpanded && (
+                  <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-6 mt-1">
+                    <Link
+                      to="/tools/timer"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive('/tools/timer') ? 'text-indigo-600 font-bold bg-indigo-50' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
+                        }`}
+                    >
+                      <Clock className="h-4 w-4" />
+                      <span>Đồng hồ đếm ngược</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* CUSTOM TOOLS RENDERER (TEACHER AND ADMIN) */}
             {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && user.customTools && user.customTools.length > 0 && (
