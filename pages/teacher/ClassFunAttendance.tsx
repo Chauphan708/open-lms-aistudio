@@ -155,7 +155,16 @@ export const ClassFunAttendance: React.FC = () => {
                     </h1>
                     <p className="text-gray-500 mt-1">Nhấn vào trạng thái để chuyển đổi</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                    <button onClick={handleSave} disabled={saving}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all active:scale-95 disabled:opacity-50">
+                        {saving ? (
+                            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Save className="h-4 w-4" />
+                        )}
+                        {saving ? 'Đang lưu...' : 'Lưu'}
+                    </button>
                     {myClasses.length > 1 && (
                         <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}
                             className="border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">

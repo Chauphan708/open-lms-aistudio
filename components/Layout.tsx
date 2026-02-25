@@ -70,9 +70,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     // ADMIN & TEACHER
     { label: 'QL Học Sinh', path: '/manage/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER'] },
 
+    { label: '📋 Điểm Danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
     { label: 'Thi Đua Lớp', path: '/teacher/class-fun', icon: Trophy, roles: ['TEACHER'] },
     { label: '⚡ Ghi Nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
-    { label: '📋 Điểm Danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
     { label: '⚠️ Cảnh Báo Hành Vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
     { label: 'Tạo Đề Thi', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
     { label: 'Chấm Bài AI', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
