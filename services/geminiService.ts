@@ -353,22 +353,21 @@ ${logSummary}
 };
 
 /**
- * Analyzes handwritten or typed student material from an image (base64) using Gemini Pro Vision.
+ * Analyzes handwritten or typed student material from multiple images (base64) using Gemini Pro Vision.
  */
 export const analyzeStudentMaterial = async (
-  base64Image: string,
-  mimeType: string,
+  images: { data: string, mimeType: string }[],
   customPrompt: string = ""
 ): Promise<any> => {
   const ai = getAiClient();
   const modelId = "gemini-1.5-pro"; // Use pro for better vision/ocr reasoning if available, or flash
 
   const prompt = `
-    Đóng vai một Giáo viên chấm bài xuất sắc. Dưới đây là hình ảnh chụp bài làm của học sinh.
+    Đóng vai một Giáo viên chấm bài xuất sắc. Dưới đây là hình ảnh chụp các trang bài làm của học sinh.
     
     YÊU CẦU:
-    1. Đọc và nhận dạng chữ viết trong ảnh một cách chính xác nhất có thể.
-    2. Điểm số (thang điểm 100): Tự động cấp một đề xuất điểm số dựa trên độ hoàn thiện và độ chính xác của bài làm.
+    1. Đọc và nhận dạng chữ viết trong TẤT CẢ các ảnh một cách chính xác nhất có thể (các ảnh có thể là nhiều trang của cùng 1 bài bài làm).
+    2. Điểm số (thang điểm 100): Tự động cấp một đề xuất điểm số dựa trên độ hoàn thiện và độ chính xác của toàn bộ bài làm.
     3. Trình bày dưới dạng JSON thuần túy (KHÔNG CÓ markdown \`\`\`json\`\`\`).
     
     ${customPrompt ? `\nCHỈ ĐẠO CÁ NHÂN TỪ GIÁO VIÊN: "${customPrompt}"\n(Hãy đặc biệt tuân thủ chỉ đạo này khi chấm bài)\n` : ''}
@@ -385,15 +384,17 @@ export const analyzeStudentMaterial = async (
   `;
 
   try {
+    const imageParts = images.map(img => ({
+      inlineData: {
+        data: img.data,
+        mimeType: img.mimeType
+      }
+    }));
+
     const response = await ai.models.generateContent({
       model: modelId,
       contents: [
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType
-          }
-        },
+        ...imageParts,
         prompt
       ]
     });

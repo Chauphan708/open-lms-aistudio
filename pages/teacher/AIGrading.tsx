@@ -27,8 +27,8 @@ export const AIGrading: React.FC = () => {
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('Bài Tập Về Nhà');
     const [customPrompt, setCustomPrompt] = useState('Hãy tìm những lỗi tính toán nhỏ nhất và dùng lời nhận xét khích lệ.');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
     // AI Processing state
     const [isScanning, setIsScanning] = useState(false);
@@ -47,32 +47,42 @@ export const AIGrading: React.FC = () => {
 
     // Handle File Selection and Compression
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
+        if (e.target.files && e.target.files.length > 0) {
+            setIsLoading(true);
+            const newFiles: File[] = [];
+            const newUrls: string[] = [];
 
-            // Only compress if it's an image
-            if (file.type.startsWith('image/')) {
-                setIsLoading(true);
-                try {
-                    const options = {
-                        maxSizeMB: 0.8, // Giảm dung lượng xuống dưới 800KB để tiết kiệm
-                        maxWidthOrHeight: 1920,
-                        useWebWorker: true
-                    };
-                    const compressedFile = await imageCompression(file, options);
-                    setSelectedFile(compressedFile);
-                    setPreviewUrl(URL.createObjectURL(compressedFile));
-                } catch (error) {
-                    console.error('Lỗi nén ảnh:', error);
-                    toast.error("Không thể xử lý hình ảnh này.");
-                } finally {
-                    setIsLoading(false);
+            try {
+                for (let i = 0; i < e.target.files.length; i++) {
+                    const file = e.target.files[i];
+                    if (file.type.startsWith('image/')) {
+                        const options = {
+                            maxSizeMB: 0.8,
+                            maxWidthOrHeight: 1920,
+                            useWebWorker: true
+                        };
+                        const compressedFile = await imageCompression(file, options);
+                        newFiles.push(compressedFile);
+                        newUrls.push(URL.createObjectURL(compressedFile));
+                    } else {
+                        newFiles.push(file);
+                        newUrls.push('');
+                    }
                 }
-            } else {
-                setSelectedFile(file); // PDFs or others
-                setPreviewUrl(null);
+                setSelectedFiles(prev => [...prev, ...newFiles]);
+                setPreviewUrls(prev => [...prev, ...newUrls]);
+            } catch (error) {
+                console.error('Lỗi nén ảnh:', error);
+                toast.error("Không thể xử lý hình ảnh.");
+            } finally {
+                setIsLoading(false);
             }
         }
+    };
+
+    const handleRemoveFile = (index: number) => {
+        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+        setPreviewUrls(prev => prev.filter((_, i) => i !== index));
     };
 
     const convertFileToBase64 = (file: File): Promise<string> => {
@@ -90,15 +100,20 @@ export const AIGrading: React.FC = () => {
     };
 
     const handleScanWithAI = async () => {
-        if (!selectedFile) return toast.error("Vui lòng tải lên một ảnh bài làm trước khi quét.");
-        if (!selectedFile.type.startsWith('image/')) return toast.error("Hiện tại AI chỉ hỗ trợ quét tệp Hình ảnh (JPG, PNG).");
+        if (selectedFiles.length === 0) return toast.error("Vui lòng tải lên ảnh bài làm trước khi quét.");
+
+        const imageFiles = selectedFiles.filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return toast.error("Hiện tại AI chỉ hỗ trợ quét tệp Hình ảnh (JPG, PNG).");
 
         setIsScanning(true);
         try {
-            toast.loading("AI đang đọc tự luận...", { id: 'ai_scan' });
+            toast.loading("AI đang phân tích các trang bài làm...", { id: 'ai_scan' });
 
-            const base64 = await convertFileToBase64(selectedFile);
-            const result = await analyzeStudentMaterial(base64, selectedFile.type, customPrompt);
+            const base64Images = await Promise.all(imageFiles.map(convertFileToBase64));
+            const result = await analyzeStudentMaterial(
+                base64Images.map((b64, idx) => ({ data: b64, mimeType: imageFiles[idx].type })),
+                customPrompt
+            );
 
             setAiResult(result);
             setScore(result.suggested_score || 0);
@@ -114,20 +129,23 @@ export const AIGrading: React.FC = () => {
     const handleSubmitAndSave = async () => {
         if (!selectedClassId || !selectedStudentId) return toast.error("Vui lòng chọn Lớp và Học Sinh.");
         if (!title.trim()) return toast.error("Vui lòng nhập Tiêu đề bài thu.");
-        if (!selectedFile) return toast.error("Vui lòng tải ảnh lên.");
+        if (selectedFiles.length === 0) return toast.error("Vui lòng tải ảnh lên.");
         if (!aiResult) return toast.error("Vui lòng cho AI quét bài trước khi lưu.");
 
         setIsLoading(true);
         toast.loading("Đang đẩy file lên External Storage...", { id: 'save_db' });
 
         try {
-            // 1. Upload file to External Storage (Dual-Database architecture)
-            const fileExt = selectedFile.name.split('.').pop();
-            const fileName = `submission_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            // 1. Upload multiple files to External Storage
+            const publicUrls: string[] = [];
+            for (const file of selectedFiles) {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `submission_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const publicUrl = await uploadToExternalStorage(file, fileName);
+                if (publicUrl) publicUrls.push(publicUrl);
+            }
 
-            const publicUrl = await uploadToExternalStorage(selectedFile, fileName);
-
-            if (!publicUrl) throw new Error("Tải file lên Storage Phụ thất bại.");
+            if (publicUrls.length === 0) throw new Error("Tải file lên Storage Phụ thất bại.");
 
             // 2. Insert into Main Database (ai_submissions)
             const { data: submissionData, error: subError } = await supabase
@@ -138,8 +156,8 @@ export const AIGrading: React.FC = () => {
                     teacher_id: user?.id,
                     title,
                     category,
-                    external_file_url: publicUrl,
-                    file_type: selectedFile.type.startsWith('image/') ? 'image' : 'pdf',
+                    external_file_url: JSON.stringify(publicUrls),
+                    file_type: selectedFiles[0].type.startsWith('image/') ? 'image' : 'pdf',
                     status: 'graded'
                 })
                 .select()
@@ -167,8 +185,8 @@ export const AIGrading: React.FC = () => {
             toast.success("Lưu & Gửi kết quả thành công!", { id: 'save_db' });
 
             // Reset form
-            setSelectedFile(null);
-            setPreviewUrl(null);
+            setSelectedFiles([]);
+            setPreviewUrls([]);
             setAiResult(null);
             setTitle('');
         } catch (error: any) {
@@ -265,28 +283,42 @@ export const AIGrading: React.FC = () => {
 
                         <div className="mt-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Tải Ảnh / PDF Bài Làm</label>
-                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition cursor-pointer relative">
+                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:bg-gray-50 transition relative">
                                 <input
                                     type="file"
+                                    multiple
                                     accept="image/*, application/pdf"
                                     onChange={handleFileChange}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
-                                {previewUrl ? (
-                                    <div className="flex flex-col items-center">
-                                        <img src={previewUrl} alt="Preview" className="h-40 object-contain rounded-lg shadow-sm mb-3" />
-                                        <p className="text-sm font-semibold text-emerald-600">Đã nén ảnh thành công</p>
-                                    </div>
-                                ) : selectedFile ? (
-                                    <div className="flex flex-col items-center">
-                                        <FileText className="h-12 w-12 text-indigo-400 mb-2" />
-                                        <p className="text-sm font-medium text-gray-700">{selectedFile.name}</p>
+                                {selectedFiles.length > 0 ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-20 pointer-events-none">
+                                        {selectedFiles.map((file, idx) => (
+                                            <div key={idx} className="relative group pointer-events-auto">
+                                                {previewUrls[idx] ? (
+                                                    <img src={previewUrls[idx]} alt="Preview" className="h-28 w-full object-cover rounded-lg shadow-sm border border-gray-200" />
+                                                ) : (
+                                                    <div className="h-28 w-full flex items-center justify-center bg-gray-100 rounded-lg shadow-sm border border-gray-200">
+                                                        <FileText className="h-8 w-8 text-indigo-400" />
+                                                    </div>
+                                                )}
+                                                <button onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }} className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition shadow-md">
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                                <div className="text-xs text-gray-500 font-medium text-center mt-1 truncate px-1">Trang {idx + 1}</div>
+                                            </div>
+                                        ))}
+                                        {/* Add more button placeholder */}
+                                        <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-gray-400 pointer-events-none">
+                                            <Upload className="h-6 w-6 mb-1" />
+                                            <span className="text-xs font-semibold">Thêm mặt sau</span>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center">
+                                    <div className="flex flex-col items-center justify-center pointer-events-none py-4 text-center">
                                         <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                                        <p className="text-sm font-medium text-gray-700">Nhấp hoặc kéo thả File vào đây</p>
-                                        <p className="text-xs text-gray-500 mt-1">Hỗ trợ JPG, PNG (Tự động nén không giới hạn)</p>
+                                        <p className="text-sm font-medium text-gray-700">Nhấp hoặc quét chọn nhiều File cùng lúc</p>
+                                        <p className="text-xs text-gray-500 mt-1">Gộp mặt trước/mặt sau làm 1 bài AI chấm</p>
                                     </div>
                                 )}
                             </div>
@@ -294,7 +326,7 @@ export const AIGrading: React.FC = () => {
 
                         <button
                             onClick={handleScanWithAI}
-                            disabled={!selectedFile || isScanning}
+                            disabled={selectedFiles.length === 0 || isScanning}
                             className="w-full mt-4 flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isScanning ? (
