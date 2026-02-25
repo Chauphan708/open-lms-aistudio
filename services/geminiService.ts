@@ -351,3 +351,62 @@ ${logSummary}
     return "Lỗi khi kết nối với AI Tư vấn.";
   }
 };
+
+/**
+ * Analyzes handwritten or typed student material from an image (base64) using Gemini Pro Vision.
+ */
+export const analyzeStudentMaterial = async (
+  base64Image: string,
+  mimeType: string,
+  customPrompt: string = ""
+): Promise<any> => {
+  const ai = getAiClient();
+  const modelId = "gemini-1.5-pro"; // Use pro for better vision/ocr reasoning if available, or flash
+
+  const prompt = `
+    Đóng vai một Giáo viên chấm bài xuất sắc. Dưới đây là hình ảnh chụp bài làm của học sinh.
+    
+    YÊU CẦU:
+    1. Đọc và nhận dạng chữ viết trong ảnh một cách chính xác nhất có thể.
+    2. Điểm số (thang điểm 100): Tự động cấp một đề xuất điểm số dựa trên độ hoàn thiện và độ chính xác của bài làm.
+    3. Trình bày dưới dạng JSON thuần túy (KHÔNG CÓ markdown \`\`\`json\`\`\`).
+    
+    ${customPrompt ? `\nCHỈ ĐẠO CÁ NHÂN TỪ GIÁO VIÊN: "${customPrompt}"\n(Hãy đặc biệt tuân thủ chỉ đạo này khi chấm bài)\n` : ''}
+    
+    CẤU TRÚC JSON YÊU CẦU:
+    {
+      "advantages": "Những điểm tốt, làm đúng phân tích từ bài làm (VIẾT DƯỚI DẠNG ĐOẠN VĂN THEO DẠNG MARKDOWN)",
+      "limitations": "Những điểm sai, thiếu sót, lỗi trình bày (VIẾT DƯỚI DẠNG ĐOẠN VĂN THEO DẠNG MARKDOWN)",
+      "improvements": "Lời khuyên cải thiện cụ thể để học sinh tốt hơn (VIẾT DƯỚI DẠNG ĐOẠN VĂN THEO DẠNG MARKDOWN)",
+      "suggested_score": <một con số nguyên từ 0 đến 100>
+    }
+    
+    Lưu ý: Nếu hình ảnh không phải là một bài làm có thể chấm được, hãy trả về JSON nhưng trong các mục text hãy báo là "Không thể nhận dạng chữ hoặc nội dung không phù hợp", và điểm 0.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: [
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType
+          }
+        },
+        prompt
+      ]
+    });
+
+    const cleanedText = cleanJsonString(response.text || "{}");
+    try {
+      return JSON.parse(cleanedText);
+    } catch (e) {
+      console.error("Failed to parse AI Grading output:", cleanedText);
+      throw new Error("AI returned malformed JSON");
+    }
+  } catch (error) {
+    console.error("Gemini Vision Grading Error:", error);
+    throw new Error("Lỗi khi phân tích hình ảnh qua AI.");
+  }
+};

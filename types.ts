@@ -400,3 +400,8 @@ export interface AppState {
   updateMatchHp: (matchId: string, player1Hp: number, player2Hp: number) => Promise<void>;
   fetchLeaderboard: () => Promise<ArenaProfile[]>;
 }
+
+// ============================================
+// AI GRADING & STORAGE EXTENSION
+// ============================================
+export * from './types_ai_grading';

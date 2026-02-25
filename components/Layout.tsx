@@ -20,7 +20,8 @@ import {
   Globe,
   Trophy,
   Swords,
-  Brain
+  Brain,
+  Bot
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole } from '../types';
@@ -74,6 +75,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: '📋 Điểm Danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
     { label: '⚠️ Cảnh Báo Hành Vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
     { label: 'Tạo Đề Thi', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
+    { label: 'Chấm Bài AI', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
 
     // STUDENT ONLY
     { label: 'Lịch sử làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
