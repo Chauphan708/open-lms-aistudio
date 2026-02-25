@@ -31,6 +31,10 @@ const getAiClient = () => {
     console.error("CRITICAL: Missing API KEY. Please check .env file or Vercel Environment Variables.");
     throw new Error("API Key is missing or invalid.");
   }
+
+  // DEBUGGING: Log masked key to see if it's the same
+  console.log(`[DEBUG] getAiClient triggered. Found key: ${apiKey.substring(0, 5)}...${apiKey.slice(-5)}`);
+
   return new GoogleGenAI({ apiKey });
 };
 
@@ -393,10 +397,13 @@ export const analyzeStudentMaterial = async (
 
     const response = await ai.models.generateContent({
       model: modelId,
-      contents: [
-        ...imageParts,
-        prompt
-      ]
+      contents: [{
+        role: "user",
+        parts: [
+          ...imageParts,
+          { text: prompt }
+        ]
+      }]
     });
 
     const cleanedText = cleanJsonString(response.text || "{}");
