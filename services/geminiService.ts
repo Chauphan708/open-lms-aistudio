@@ -59,7 +59,7 @@ const QUESTION_SCHEMA: Schema = {
  */
 export const parseQuestionsFromText = async (rawText: string): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-1.5-flash";
 
   const prompt = `
     You are an AI exam parser for an LMS system. 
@@ -122,7 +122,7 @@ export const generateQuestionsByTopic = async (
   customPrompt: string
 ): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-1.5-flash";
 
   // Mapping readable type to system type string for prompt clarity
   const typeDescription = {
@@ -199,7 +199,7 @@ export const analyzeStudentAttempt = async (
   score: number
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-1.5-flash";
 
   // Filter wrong answers to save tokens and focus AI
   const wrongAnswers = questions.filter(q => {
@@ -259,7 +259,7 @@ export const analyzeClassPerformance = async (
   customInstructions?: string
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-1.5-flash";
 
   if (attempts.length === 0) return "Chưa có dữ liệu bài làm để phân tích.";
 
@@ -321,7 +321,7 @@ export const generateBehaviorAdvice = async (
   customPrompt?: string
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-1.5-flash";
 
   const prompt = `
     Đóng vai một Chuyên gia Tâm lý Học đường và Cố vấn Hành vi.
@@ -360,7 +360,7 @@ export const analyzeStudentMaterial = async (
   customPrompt: string = ""
 ): Promise<any> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-pro"; // Use pro for better vision/ocr reasoning if available, or flash
+  const modelId = "gemini-1.5-flash";
 
   const prompt = `
     Đóng vai một Giáo viên chấm bài xuất sắc. Dưới đây là hình ảnh chụp các trang bài làm của học sinh.

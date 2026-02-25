@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@google/genai": "^1.42.0",
     "@supabase/supabase-js": "^2.39.7",
     "browser-image-compression": "^2.0.2",
     "docx": "^9.5.3",
