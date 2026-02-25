@@ -38,13 +38,15 @@ export const CountdownTimer: React.FC = () => {
 
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Audio Maps
     const sounds = [
         { id: 'none', name: 'Im lặng', url: '' },
         { id: 'alarm1', name: 'Đồng hồ báo thức 1', url: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' },
         { id: 'bell1', name: 'Chuông kêu', url: 'https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3' },
-        { id: 'digital', name: 'Beep điện tử', url: 'https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3' }
+        { id: 'digital', name: 'Beep điện tử', url: 'https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3' },
+        { id: 'bomb', name: 'Tiếng bom nổ', url: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3' }
     ];
 
     // Presets
@@ -82,12 +84,22 @@ export const CountdownTimer: React.FC = () => {
     };
 
     const playSound = (soundId: string) => {
+        if (audioTimeoutRef.current) clearTimeout(audioTimeoutRef.current);
         if (soundId === 'none') return;
         const soundObj = sounds.find(s => s.id === soundId);
         if (soundObj && soundObj.url) {
             if (audioRef.current) {
                 audioRef.current.src = soundObj.url;
+                audioRef.current.loop = true;
                 audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+
+                audioTimeoutRef.current = setTimeout(() => {
+                    if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current.currentTime = 0;
+                        audioRef.current.loop = false;
+                    }
+                }, 10000); // Stop after 10 seconds
             }
         }
     };
@@ -99,7 +111,9 @@ export const CountdownTimer: React.FC = () => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
+            audioRef.current.loop = false;
         }
+        if (audioTimeoutRef.current) clearTimeout(audioTimeoutRef.current);
     };
 
     const handlePauseResume = () => {
@@ -162,12 +176,12 @@ export const CountdownTimer: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#0f1115] text-white flex flex-col font-sans">
+        <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans">
             <audio ref={audioRef} />
 
             {/* Header */}
             {!isRunning && (
-                <header className="p-6 text-center border-b border-gray-800">
+                <header className="p-6 text-center border-b border-gray-200 bg-white">
                     <h1 className="text-3xl font-bold tracking-wide">Đồng hồ đếm ngược</h1>
                 </header>
             )}
@@ -178,11 +192,11 @@ export const CountdownTimer: React.FC = () => {
                 {/* RUNNING VIEW */}
                 {isRunning ? (
                     <div className="w-full max-w-4xl flex flex-col items-center animate-fade-in">
-                        <div className="mb-8 text-2xl md:text-4xl text-gray-400 font-medium tracking-wider">
+                        <div className="mb-8 text-2xl md:text-4xl text-gray-600 font-medium tracking-wider">
                             {currentLabel}
                         </div>
 
-                        <div className={`text-[120px] md:text-[200px] font-black leading-none tabular-nums tracking-tighter ${timeRemaining <= 10 && timeRemaining > 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                        <div className={`text-[120px] md:text-[200px] font-black leading-none tabular-nums tracking-tighter ${timeRemaining <= 10 && timeRemaining > 0 ? 'text-red-500 animate-pulse' : 'text-gray-900'}`}>
                             {formatTime(timeRemaining)}
                         </div>
 
@@ -195,20 +209,20 @@ export const CountdownTimer: React.FC = () => {
                         <div className="mt-16 flex items-center gap-6">
                             <button
                                 onClick={handleStop}
-                                className="p-4 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 transition"
+                                className="p-4 rounded-full bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 transition shadow-sm"
                                 title="Hủy"
                             >
                                 <Square className="h-8 w-8" />
                             </button>
                             <button
                                 onClick={handlePauseResume}
-                                className={`p-6 rounded-full transition shadow-lg shadow-black/50 ${isPaused ? 'bg-blue-500 hover:bg-blue-400' : 'bg-orange-500 hover:bg-orange-400'}`}
+                                className={`p-6 rounded-full transition shadow-lg shadow-black/10 ${isPaused ? 'bg-blue-500 hover:bg-blue-400 text-white' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}
                             >
-                                {isPaused ? <Play className="h-10 w-10 text-white fill-current" /> : <Pause className="h-10 w-10 text-white fill-current" />}
+                                {isPaused ? <Play className="h-10 w-10 fill-current" /> : <Pause className="h-10 w-10 fill-current" />}
                             </button>
                             <button
                                 onClick={() => setTimeRemaining(prev => prev + 60)}
-                                className="p-4 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 transition font-bold text-xl"
+                                className="p-4 rounded-full bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 transition shadow-sm font-bold text-xl"
                                 title="Cộng thêm 1 phút"
                             >
                                 +1m
@@ -217,47 +231,47 @@ export const CountdownTimer: React.FC = () => {
                     </div>
                 ) : (
                     /* SETUP VIEW */
-                    <div className="w-full max-w-3xl animate-fade-in">
+                    <div className="w-full max-w-4xl animate-fade-in">
 
                         <div className="flex justify-between items-center mb-8">
                             <h2 className="text-2xl font-bold">Đặt một đồng hồ hẹn giờ</h2>
                             <button
                                 onClick={() => setMode(mode === 'NORMAL' ? 'STUDY' : 'NORMAL')}
-                                className={`px-4 py-2 rounded-full text-sm font-bold transition border ${mode === 'STUDY' ? 'bg-[#29b6f6] text-black border-[#29b6f6]' : 'border-[#29b6f6] text-[#29b6f6] hover:bg-[#29b6f6]/10'}`}
+                                className={`px-4 py-2 rounded-full text-sm font-bold transition border ${mode === 'STUDY' ? 'bg-[#29b6f6] text-white border-[#29b6f6]' : 'border-[#29b6f6] text-[#29b6f6] hover:bg-[#29b6f6]/10'}`}
                             >
                                 Chế độ học
                             </button>
                         </div>
 
-                        <div className="bg-[#1a1d24] rounded-2xl p-6 md:p-8 shadow-2xl border border-gray-800">
+                        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-gray-200">
 
                             {mode === 'NORMAL' && (
                                 <div className="space-y-8">
                                     {/* Time Selectors */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-gray-400 text-sm mb-2">Số giờ</label>
+                                            <label className="block text-gray-500 text-sm mb-2">Số giờ</label>
                                             <select
                                                 value={normalHours} onChange={e => setNormalHours(Number(e.target.value))}
-                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-white text-xl appearance-none focus:outline-none focus:border-blue-500"
+                                                className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 text-xl appearance-none focus:outline-none focus:border-[#29b6f6] hover:border-gray-400 transition-colors cursor-pointer"
                                             >
                                                 {Array.from({ length: 100 }).map((_, i) => <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-gray-400 text-sm mb-2">Số phút</label>
+                                            <label className="block text-gray-500 text-sm mb-2">Số phút</label>
                                             <select
                                                 value={normalMinutes} onChange={e => setNormalMinutes(Number(e.target.value))}
-                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-white text-xl appearance-none focus:outline-none focus:border-blue-500"
+                                                className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 text-xl appearance-none focus:outline-none focus:border-[#29b6f6] hover:border-gray-400 transition-colors cursor-pointer"
                                             >
                                                 {Array.from({ length: 60 }).map((_, i) => <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-gray-400 text-sm mb-2">Số giây</label>
+                                            <label className="block text-gray-500 text-sm mb-2">Số giây</label>
                                             <select
                                                 value={normalSeconds} onChange={e => setNormalSeconds(Number(e.target.value))}
-                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-white text-xl appearance-none focus:outline-none focus:border-blue-500"
+                                                className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 text-xl appearance-none focus:outline-none focus:border-[#29b6f6] hover:border-gray-400 transition-colors cursor-pointer"
                                             >
                                                 {Array.from({ length: 60 }).map((_, i) => <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>)}
                                             </select>
@@ -270,7 +284,7 @@ export const CountdownTimer: React.FC = () => {
                                             <button
                                                 key={p.label}
                                                 onClick={() => { setNormalHours(p.h); setNormalMinutes(p.m); setNormalSeconds(p.s); }}
-                                                className="flex items-center gap-2 text-[#29b6f6] hover:text-white transition group"
+                                                className="flex items-center gap-2 text-[#29b6f6] hover:text-blue-600 transition group font-medium"
                                             >
                                                 <Bell className="h-4 w-4" />
                                                 <span>{p.label}</span>
@@ -279,27 +293,27 @@ export const CountdownTimer: React.FC = () => {
                                     </div>
 
                                     {/* Settings */}
-                                    <div className="space-y-6 pt-6 border-t border-gray-800">
+                                    <div className="space-y-6 pt-6 border-t border-gray-200">
                                         <div>
                                             <div className="flex justify-between mb-2">
-                                                <label className="text-gray-300 font-bold text-lg">Âm thanh báo thức</label>
-                                                <button onClick={() => testAudio(normalSound)} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
+                                                <label className="text-gray-700 font-bold text-lg">Âm báo</label>
+                                                <button onClick={() => testAudio(normalSound)} className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1 font-medium transition-colors">
                                                     <Play className="h-3 w-3" /> Kiểm tra âm thanh
                                                 </button>
                                             </div>
                                             <select
                                                 value={normalSound} onChange={e => setNormalSound(e.target.value)}
-                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                                                className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 focus:outline-none focus:border-[#29b6f6] hover:border-gray-400 transition-colors cursor-pointer"
                                             >
                                                 {sounds.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-gray-300 font-bold text-lg mb-2">Tên đồng hồ hẹn giờ</label>
+                                            <label className="block text-gray-700 font-bold text-lg mb-2">Tên đồng hồ hẹn giờ</label>
                                             <input
                                                 value={normalLabel} onChange={e => setNormalLabel(e.target.value)}
                                                 placeholder="Đồng hồ hẹn giờ"
-                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                                                className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 focus:outline-none focus:border-[#29b6f6] hover:border-gray-400 transition-colors"
                                             />
                                         </div>
                                     </div>
@@ -309,63 +323,69 @@ export const CountdownTimer: React.FC = () => {
                             {mode === 'STUDY' && (
                                 <div className="space-y-6">
                                     {/* Headers */}
-                                    <div className="flex text-gray-500 text-sm px-2">
-                                        <div className="w-10 text-center">#</div>
-                                        <div className="flex-1">Nhãn</div>
-                                        <div className="w-48 text-center text-[10px] md:text-sm">Thời gian</div>
-                                        <div className="flex-1 text-center md:text-left">Âm thanh báo thức</div>
+                                    <div className="flex text-gray-500 text-sm font-bold border-b border-gray-200 pb-2">
+                                        <div className="w-12 text-center">#</div>
+                                        <div className="w-32 md:w-56 pl-2">Nhãn</div>
+                                        <div className="flex-1 text-center">Thời gian</div>
+                                        <div className="w-32 md:w-56 pl-2">Âm báo</div>
                                         <div className="w-10"></div>
                                     </div>
 
                                     {/* Steps List */}
                                     <div className="space-y-3">
                                         {studySteps.map((step, index) => (
-                                            <div key={step.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-4 bg-[#0f1115] p-2 md:p-3 rounded-xl border border-gray-800">
-                                                <div className="w-6 md:w-8 text-center text-gray-500 font-mono text-sm">{index + 1}</div>
-                                                <div className="flex-1 min-w-[100px]">
+                                            <div key={step.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-4 bg-gray-50 p-2 md:p-3 rounded-xl border border-gray-200">
+                                                <div className="w-6 md:w-8 text-center text-gray-500 font-mono text-sm font-bold">{index + 1}</div>
+                                                <div className="w-32 md:w-56">
                                                     <input
                                                         value={step.label} onChange={e => {
                                                             const newSteps = [...studySteps];
                                                             newSteps[index].label = e.target.value;
                                                             setStudySteps(newSteps);
                                                         }}
-                                                        className="w-full bg-transparent border border-gray-700 rounded p-2 text-white focus:border-[#29b6f6] outline-none text-sm md:text-base"
+                                                        className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-[#29b6f6] outline-none text-sm md:text-base hover:border-gray-400 transition-colors"
                                                     />
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <input type="number" min="0" max="99" value={step.hours.toString().padStart(2, '0')}
-                                                        onChange={e => { const newSteps = [...studySteps]; newSteps[index].hours = Number(e.target.value); setStudySteps(newSteps); }}
-                                                        className="w-10 md:w-12 bg-transparent border border-gray-700 text-center rounded p-1.5 focus:border-[#29b6f6] outline-none text-sm md:text-base"
-                                                    /> :
-                                                    <input type="number" min="0" max="59" value={step.minutes.toString().padStart(2, '0')}
-                                                        onChange={e => { const newSteps = [...studySteps]; newSteps[index].minutes = Number(e.target.value); setStudySteps(newSteps); }}
-                                                        className="w-10 md:w-12 bg-transparent border border-gray-700 text-center rounded p-1.5 focus:border-[#29b6f6] outline-none text-sm md:text-base"
-                                                    /> :
-                                                    <input type="number" min="0" max="59" value={step.seconds.toString().padStart(2, '0')}
-                                                        onChange={e => { const newSteps = [...studySteps]; newSteps[index].seconds = Number(e.target.value); setStudySteps(newSteps); }}
-                                                        className="w-10 md:w-12 bg-transparent border border-gray-700 text-center rounded p-1.5 focus:border-[#29b6f6] outline-none text-sm md:text-base"
-                                                    />
+                                                <div className="flex-1 flex justify-center items-center font-mono">
+                                                    <div className="flex items-center gap-2">
+                                                        <input type="number" min="0" max="99" value={step.hours.toString().padStart(2, '0')}
+                                                            onChange={e => { const newSteps = [...studySteps]; newSteps[index].hours = Number(e.target.value); setStudySteps(newSteps); }}
+                                                            className="w-12 md:w-16 bg-white border border-gray-300 text-center rounded p-1.5 focus:border-[#29b6f6] outline-none text-sm md:text-base hover:border-gray-400 transition-colors"
+                                                        />
+                                                        <span className="text-gray-400 font-bold">:</span>
+                                                        <input type="number" min="0" max="59" value={step.minutes.toString().padStart(2, '0')}
+                                                            onChange={e => { const newSteps = [...studySteps]; newSteps[index].minutes = Number(e.target.value); setStudySteps(newSteps); }}
+                                                            className="w-12 md:w-16 bg-white border border-gray-300 text-center rounded p-1.5 focus:border-[#29b6f6] outline-none text-sm md:text-base hover:border-gray-400 transition-colors"
+                                                        />
+                                                        <span className="text-gray-400 font-bold">:</span>
+                                                        <input type="number" min="0" max="59" value={step.seconds.toString().padStart(2, '0')}
+                                                            onChange={e => { const newSteps = [...studySteps]; newSteps[index].seconds = Number(e.target.value); setStudySteps(newSteps); }}
+                                                            className="w-12 md:w-16 bg-white border border-gray-300 text-center rounded p-1.5 focus:border-[#29b6f6] outline-none text-sm md:text-base hover:border-gray-400 transition-colors"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="flex-[0.8] min-w-[100px]">
+                                                <div className="w-32 md:w-56">
                                                     <select
                                                         value={step.sound} onChange={e => {
                                                             const newSteps = [...studySteps];
                                                             newSteps[index].sound = e.target.value;
                                                             setStudySteps(newSteps);
                                                         }}
-                                                        className="w-full bg-transparent border border-gray-700 rounded p-2 text-white text-sm focus:border-[#29b6f6] outline-none"
+                                                        className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 text-sm focus:border-[#29b6f6] outline-none hover:border-gray-400 transition-colors cursor-pointer"
                                                     >
-                                                        {sounds.map(s => <option key={s.id} value={s.id} className="bg-[#0f1115]">{s.name}</option>)}
+                                                        {sounds.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                                     </select>
                                                 </div>
-                                                <button
-                                                    onClick={() => {
-                                                        setStudySteps(studySteps.filter((_, i) => i !== index));
-                                                    }}
-                                                    className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
+                                                <div className="w-8 md:w-10 flex justify-center">
+                                                    <button
+                                                        onClick={() => {
+                                                            setStudySteps(studySteps.filter((_, i) => i !== index));
+                                                        }}
+                                                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -381,9 +401,9 @@ export const CountdownTimer: React.FC = () => {
                                             <Plus className="h-4 w-4" /> Thêm hẹn giờ
                                         </button>
 
-                                        <label className="flex items-center gap-3 cursor-pointer text-gray-300 hover:text-white transition">
+                                        <label className="flex items-center gap-3 cursor-pointer text-gray-600 hover:text-gray-900 transition font-medium">
                                             <span>Lặp lại</span>
-                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isRepeat ? 'border-[#29b6f6] bg-[#29b6f6]' : 'border-gray-500'}`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isRepeat ? 'border-[#29b6f6] bg-[#29b6f6]' : 'border-gray-400'}`}>
                                                 {isRepeat && <div className="w-2 h-2 rounded-full bg-white"></div>}
                                             </div>
                                             {/* hidden checkbox for accessibility/logic toggle */}
@@ -396,7 +416,7 @@ export const CountdownTimer: React.FC = () => {
                             {/* Global Start Button */}
                             <button
                                 onClick={handleStart}
-                                className="w-full mt-8 bg-[#29b6f6] hover:bg-[#4fc3f7] text-black font-bold py-4 rounded-xl text-lg transition shadow-lg shadow-[#29b6f6]/20"
+                                className="w-full mt-8 bg-[#29b6f6] hover:bg-[#4fc3f7] text-white font-bold py-4 rounded-xl text-lg transition shadow-lg shadow-[#29b6f6]/30"
                             >
                                 Bắt đầu hẹn giờ
                             </button>
