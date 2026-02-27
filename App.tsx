@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ExamCreate } from './pages/ExamCreate';
+import { ExamMatrix } from './pages/ExamMatrix';
 import { ExamList } from './pages/ExamList';
 import { ExamTake } from './pages/ExamTake';
 import { AcademicYearManage } from './pages/admin/AcademicYearManage';
@@ -209,6 +210,11 @@ function App() {
         <Route path="/create-exam" element={
           <ProtectedRoute roles={['TEACHER']}>
             <ExamCreate />
+          </ProtectedRoute>
+        } />
+        <Route path="/exam-matrix" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <ExamMatrix />
           </ProtectedRoute>
         } />
         <Route path="/teacher/classes" element={

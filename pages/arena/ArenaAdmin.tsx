@@ -20,7 +20,7 @@ const DIFFICULTIES = [
 ];
 
 export const ArenaAdmin: React.FC = () => {
-    const { arenaQuestions, fetchArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkAddArenaQuestions } = useStore();
+    const { arenaQuestions, fetchArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkAddArenaQuestions, questionBank } = useStore();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
@@ -32,11 +32,16 @@ export const ArenaAdmin: React.FC = () => {
 
     // Import state
     const [showImport, setShowImport] = useState(false);
+    const [showBankImport, setShowBankImport] = useState(false);
     const [importPreview, setImportPreview] = useState<Omit<ArenaQuestion, 'id'>[]>([]);
     const [importErrors, setImportErrors] = useState<string[]>([]);
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState<{ count: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Bank import filter
+    const [bankFilterSubject, setBankFilterSubject] = useState('');
+    const [bankSelectedIds, setBankSelectedIds] = useState<Set<string>>(new Set());
 
     // Edit form
     const [formContent, setFormContent] = useState('');
@@ -54,6 +59,59 @@ export const ArenaAdmin: React.FC = () => {
         (!filterSubject || q.subject === filterSubject) &&
         (!filterDifficulty || q.difficulty === filterDifficulty)
     );
+
+    // Ngân hàng đề: lọc MCQ có đủ 4 options
+    const bankMCQs = questionBank.filter(q =>
+        q.type === 'MCQ' && q.options && q.options.length === 4 && q.correctOptionIndex !== undefined &&
+        (!bankFilterSubject || q.subject === bankFilterSubject)
+    );
+
+    const subjectMap: Record<string, string> = {
+        'Toán': 'math', 'Khoa học': 'science', 'Công nghệ': 'technology',
+        'Tiếng Việt': 'vietnamese', 'Tiếng Anh': 'english', 'Tin học': 'technology',
+        'Lịch sử và Địa lí': 'science'
+    };
+
+    const levelToDifficulty = (level?: string) => {
+        if (level === 'NHAN_BIET') return 1;
+        if (level === 'THONG_HIEU') return 2;
+        return 3;
+    };
+
+    const handleBankImport = async () => {
+        if (bankSelectedIds.size === 0) return;
+        setImporting(true);
+        const selected = questionBank.filter(q => bankSelectedIds.has(q.id));
+        const converted: Omit<ArenaQuestion, 'id'>[] = selected.map(q => ({
+            content: q.content,
+            answers: q.options.slice(0, 4),
+            correct_index: q.correctOptionIndex ?? 0,
+            difficulty: levelToDifficulty(q.level),
+            subject: subjectMap[q.subject] || 'math',
+            topic: q.topic || 'general',
+        }));
+        const count = await bulkAddArenaQuestions(converted);
+        setImportResult({ count });
+        setImporting(false);
+        setBankSelectedIds(new Set());
+    };
+
+    const toggleBankSelect = (id: string) => {
+        setBankSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAllBank = () => {
+        if (bankSelectedIds.size === bankMCQs.length) {
+            setBankSelectedIds(new Set());
+        } else {
+            setBankSelectedIds(new Set(bankMCQs.map(q => q.id)));
+        }
+    };
 
     const openNew = () => {
         setIsNew(true);
@@ -225,6 +283,9 @@ export const ArenaAdmin: React.FC = () => {
                     </h1>
                 </div>
                 <div className="flex gap-2">
+                    <button onClick={() => { setShowBankImport(true); setImportResult(null); }} className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl font-bold text-sm hover:bg-purple-100 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" /> Import Ngân hàng đề
+                    </button>
                     <button onClick={() => setShowImport(true)} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 flex items-center gap-2">
                         <Upload className="h-4 w-4" /> Import CSV
                     </button>
@@ -432,6 +493,78 @@ export const ArenaAdmin: React.FC = () => {
                                                 {importing ? '⏳ Đang import...' : `📥 Import ${importPreview.length} câu hỏi`}
                                             </button>
                                         </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bank Import Modal */}
+            {showBankImport && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => { setShowBankImport(false); setImportResult(null); }}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-2xl">
+                            <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="h-5 w-5 text-purple-500" /> Import từ Ngân hàng đề</h3>
+                            <button onClick={() => { setShowBankImport(false); setImportResult(null); }} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {importResult ? (
+                                <div className="text-center py-8">
+                                    <CheckCircle className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Import thành công!</h3>
+                                    <p className="text-gray-500">Đã thêm <strong className="text-emerald-600">{importResult.count}</strong> câu hỏi vào Đấu Trí</p>
+                                    <button onClick={() => { setShowBankImport(false); setImportResult(null); }} className="mt-6 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold">Đóng</button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 text-sm text-purple-700">
+                                        <p>Chọn câu hỏi trắc nghiệm (MCQ) từ Ngân hàng đề để thêm vào kho Đấu Trí. Hệ thống sẽ tự chuyển đổi format.</p>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <select value={bankFilterSubject} onChange={e => setBankFilterSubject(e.target.value)} className="border rounded-lg px-3 py-1.5 text-sm">
+                                            <option value="">Tất cả môn</option>
+                                            <option value="Toán">Toán</option>
+                                            <option value="Tiếng Việt">Tiếng Việt</option>
+                                            <option value="Khoa học">Khoa học</option>
+                                            <option value="Tiếng Anh">Tiếng Anh</option>
+                                        </select>
+                                        <button onClick={selectAllBank} className="text-xs text-purple-600 font-bold hover:underline">
+                                            {bankSelectedIds.size === bankMCQs.length && bankMCQs.length > 0 ? 'Bỏ chọn tất cả' : `Chọn tất cả (${bankMCQs.length})`}
+                                        </button>
+                                        <span className="text-xs text-gray-400 ml-auto">Đã chọn: <strong className="text-purple-600">{bankSelectedIds.size}</strong></span>
+                                    </div>
+
+                                    <div className="border rounded-xl divide-y max-h-[40vh] overflow-y-auto">
+                                        {bankMCQs.length === 0 ? (
+                                            <div className="p-6 text-center text-gray-400">
+                                                <p className="font-medium">Ngân hàng đề chưa có câu hỏi MCQ phù hợp.</p>
+                                                <p className="text-xs mt-1">Hãy tạo bài tập trước rồi quay lại đây.</p>
+                                            </div>
+                                        ) : (
+                                            bankMCQs.map(q => (
+                                                <label key={q.id} className={`flex gap-3 p-3 text-sm cursor-pointer hover:bg-purple-50 transition-colors ${bankSelectedIds.has(q.id) ? 'bg-purple-50' : ''}`}>
+                                                    <input type="checkbox" checked={bankSelectedIds.has(q.id)} onChange={() => toggleBankSelect(q.id)} className="w-4 h-4 mt-0.5 text-purple-600 rounded" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex gap-1.5 mb-1 flex-wrap">
+                                                            {q.subject && <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] font-bold">{q.subject}</span>}
+                                                            {q.level && <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-bold">{q.level}</span>}
+                                                            {q.topic && <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[10px]">{q.topic}</span>}
+                                                        </div>
+                                                        <p className="text-gray-800 text-xs truncate">{q.content}</p>
+                                                    </div>
+                                                </label>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {bankSelectedIds.size > 0 && (
+                                        <button onClick={handleBankImport} disabled={importing}
+                                            className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                            {importing ? '⏳ Đang import...' : `📥 Import ${bankSelectedIds.size} câu vào Đấu Trí`}
+                                        </button>
                                     )}
                                 </>
                             )}

@@ -90,6 +90,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: '⚡ Ghi Nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
     { label: '⚠️ Cảnh Báo Hành Vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
     { label: 'Tạo Bài Tập', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
+    { label: '📝 Tạo Đề KT', path: '/exam-matrix', icon: BookOpen, roles: ['TEACHER'] },
     { label: 'Chấm Bài', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
 
     // STUDENT ONLY
