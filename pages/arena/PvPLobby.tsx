@@ -373,7 +373,7 @@ export const PvPLobby: React.FC = () => {
                                                 </span>
                                             )}
                                             {match.source === 'exam' && (
-                                                <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">📋 Ngân hàng đề</span>
+                                                <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">📋 Ngân hàng bài tập</span>
                                             )}
                                         </div>
                                     </div>
@@ -407,7 +407,7 @@ export const PvPLobby: React.FC = () => {
                                         onClick={() => setFilterSource('exam')}
                                         className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${filterSource === 'exam' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
                                     >
-                                        📋 Ngân hàng đề
+                                        📋 Ngân hàng bài tập
                                     </button>
                                     <button
                                         onClick={() => setFilterSource('arena')}
@@ -442,7 +442,7 @@ export const PvPLobby: React.FC = () => {
                             {/* Info */}
                             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-700">
                                 {filterSource === 'exam'
-                                    ? '📋 Câu hỏi trắc nghiệm sẽ được lấy từ các đề thi đã xuất bản.'
+                                    ? '📋 Câu hỏi trắc nghiệm sẽ được lấy từ các bài tập đã xuất bản.'
                                     : '🧠 Câu hỏi từ bộ riêng Arena (do GV nhập hoặc import).'}
                             </div>
                         </div>

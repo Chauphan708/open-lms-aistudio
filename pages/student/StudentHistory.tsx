@@ -54,7 +54,7 @@ export const StudentHistory: React.FC = () => {
                      <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 text-gray-700 uppercase">
                            <tr>
-                              <th className="px-6 py-4">Đề thi</th>
+                              <th className="px-6 py-4">Bài tập</th>
                               <th className="px-6 py-4">Thời gian nộp</th>
                               <th className="px-6 py-4 text-center">Điểm số</th>
                               <th className="px-6 py-4">Nhận xét</th>
@@ -69,7 +69,7 @@ export const StudentHistory: React.FC = () => {
                               return (
                                  <tr key={att.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
-                                       <div className="font-bold text-gray-900">{exam?.title || 'Đề thi đã xóa'}</div>
+                                       <div className="font-bold text-gray-900">{exam?.title || 'Bài tập đã xóa'}</div>
                                        <div className="text-xs text-gray-500">{exam?.subject || 'Tổng hợp'}</div>
                                     </td>
                                     <td className="px-6 py-4 text-gray-600">

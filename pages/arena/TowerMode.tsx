@@ -206,7 +206,7 @@ export const TowerMode: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <button onClick={() => setSourceType('exam')}
                                 className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'exam' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600'}`}>
-                                📋 Ngân hàng đề
+                                📋 Ngân hàng bài tập
                             </button>
                             <button onClick={() => setSourceType('arena')}
                                 className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'arena' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600'}`}>

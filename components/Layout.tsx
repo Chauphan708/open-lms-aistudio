@@ -89,14 +89,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: 'Thi Đua Lớp', path: '/teacher/class-fun', icon: Trophy, roles: ['TEACHER'] },
     { label: '⚡ Ghi Nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
     { label: '⚠️ Cảnh Báo Hành Vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
-    { label: 'Tạo Đề Thi', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
+    { label: 'Tạo Bài Tập', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
     { label: 'Chấm Bài', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
 
     // STUDENT ONLY
     { label: 'Lịch sử làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
 
     // SHARED
-    { label: 'Ngân hàng đề', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+    { label: 'Ngân hàng bài tập', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
 
     // RESOURCES (NEW)
     { label: 'Kho Tài Liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },

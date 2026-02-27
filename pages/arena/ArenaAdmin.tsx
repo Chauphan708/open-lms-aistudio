@@ -221,7 +221,7 @@ export const ArenaAdmin: React.FC = () => {
                         <ArrowLeft className="h-5 w-5" />
                     </button>
                     <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                        <Brain className="h-7 w-7 text-indigo-500" /> QL Ngân hàng Đề Đấu Trí
+                        <Brain className="h-7 w-7 text-indigo-500" /> QL Ngân hàng Bài Tập Đấu Trí
                     </h1>
                 </div>
                 <div className="flex gap-2">

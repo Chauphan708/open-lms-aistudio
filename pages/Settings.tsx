@@ -41,6 +41,7 @@ export const Settings: React.FC = () => {
   // Teaching Settings (Teacher only)
   const [defaultDuration, setDefaultDuration] = useState(45);
   const [autoPublish, setAutoPublish] = useState(true);
+  const [teacherSchoolName, setTeacherSchoolName] = useState('Trường Tiểu Học ...');
 
   // System Settings (Admin only)
   const [schoolName, setSchoolName] = useState('Trường Tiểu Học OpenLMS');
@@ -295,7 +296,19 @@ export const Settings: React.FC = () => {
                     onChange={e => setDefaultDuration(Number(e.target.value))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Sẽ tự động điền khi tạo đề thi mới.</p>
+                  <p className="text-xs text-gray-500 mt-1">Sẽ tự động điền khi tạo bài tập mới.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2"><School className="h-4 w-4" /> Tên trường học (dùng trong bản in)</label>
+                  <input
+                    type="text"
+                    value={teacherSchoolName}
+                    onChange={e => setTeacherSchoolName(e.target.value)}
+                    placeholder="VD: Trường Tiểu Học Nguyễn Trãi"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Tên trường sẽ hiển thị trên tiêu đề đề thi khi xuất / in ấn.</p>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">

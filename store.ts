@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, CustomToolMenu, Poll, BreakoutRoom, ArenaMatchFilters } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, CustomToolMenu, Poll, BreakoutRoom, ArenaMatchFilters, QuestionBankItem } from './types';
 import { supabase } from './services/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -22,6 +22,10 @@ export const useStore = create<AppState>((set, get) => ({
   fetchInitialData: async () => {
     set({ isDataLoading: true });
     try {
+      // 0. Fetch Question Bank
+      const { data: qBanks } = await supabase.from('question_bank').select('*');
+      if (qBanks) set({ questionBank: qBanks as QuestionBankItem[] });
+
       // 1. Fetch Users (Profiles)
       const { data: users, error: userErr } = await supabase.from('profiles').select('*');
       if (users && users.length > 0) {
@@ -419,6 +423,33 @@ export const useStore = create<AppState>((set, get) => ({
     if (!error) set((state) => ({
       exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
     }));
+  },
+
+  // Question Bank
+  questionBank: [],
+  fetchQuestionBank: async () => {
+    const { data } = await supabase.from('question_bank').select('*');
+    if (data) set({ questionBank: data as QuestionBankItem[] });
+  },
+  addQuestionToBank: async (q) => {
+    const { error } = await supabase.from('question_bank').insert(q);
+    if (error) return false;
+    set((state) => ({ questionBank: [q, ...state.questionBank] }));
+    return true;
+  },
+  updateQuestionInBank: async (q) => {
+    const { error } = await supabase.from('question_bank').update(q).eq('id', q.id);
+    if (error) return false;
+    set((state) => ({
+      questionBank: state.questionBank.map((item) => item.id === q.id ? q : item)
+    }));
+    return true;
+  },
+  deleteQuestionFromBank: async (id) => {
+    const { error } = await supabase.from('question_bank').delete().eq('id', id);
+    if (error) return false;
+    set((state) => ({ questionBank: state.questionBank.filter((q) => q.id !== id) }));
+    return true;
   },
 
   // Assignments

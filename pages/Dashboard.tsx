@@ -100,20 +100,20 @@ export const Dashboard: React.FC = () => {
       {
         id: 'badge_first',
         name: 'Khởi hành',
-        description: 'Hoàn thành bài thi đầu tiên',
+        description: 'Hoàn thành bài tập đầu tiên',
         icon: Target,
         color: 'text-blue-600 bg-blue-100',
         unlocked: myAttempts.length > 0,
-        condition: 'Hoàn thành 1 bài thi bất kỳ'
+        condition: 'Hoàn thành 1 bài tập bất kỳ'
       },
       {
         id: 'badge_hardwork',
         name: 'Ong chăm chỉ',
-        description: 'Hoàn thành 5 bài thi',
+        description: 'Hoàn thành 5 bài tập',
         icon: Briefcase,
         color: 'text-orange-600 bg-orange-100',
         unlocked: myAttempts.length >= 5,
-        condition: 'Hoàn thành tích lũy 5 bài thi'
+        condition: 'Hoàn thành tích lũy 5 bài tập'
       },
       {
         id: 'badge_perfect',
@@ -122,7 +122,7 @@ export const Dashboard: React.FC = () => {
         icon: Star,
         color: 'text-yellow-600 bg-yellow-100',
         unlocked: myAttempts.some(a => (a.score || 0) >= 10),
-        condition: 'Đạt điểm 10 trong một bài thi'
+        condition: 'Đạt điểm 10 trong một bài tập'
       },
       {
         id: 'badge_pro',
@@ -188,7 +188,7 @@ export const Dashboard: React.FC = () => {
       activities.push({
         id: `new_${exam.id}`,
         type: 'NEW_EXAM',
-        title: `Đề thi mới: "${exam.title}"`,
+        title: `Bài tập mới: "${exam.title}"`,
         time: new Date(exam.createdAt),
         user: null
       });
@@ -199,7 +199,7 @@ export const Dashboard: React.FC = () => {
       if (user?.role === 'STUDENT' && att.studentId !== user.id) return;
 
       const studentName = users.find(u => u.id === att.studentId)?.name || 'Học sinh';
-      const examTitle = exams.find(e => e.id === att.examId)?.title || 'Đề thi';
+      const examTitle = exams.find(e => e.id === att.examId)?.title || 'Bài tập';
 
       activities.push({
         id: `att_${att.id}`,
@@ -271,12 +271,12 @@ export const Dashboard: React.FC = () => {
               style={{ width: `${studentGamification?.currentLevelXP}%` }}
             ></div>
           </div>
-          <p className="text-xs text-gray-400 mt-2">Hoàn thành thêm bài thi để nhận điểm kinh nghiệm.</p>
+          <p className="text-xs text-gray-400 mt-2">Hoàn thành thêm bài tập để nhận điểm kinh nghiệm.</p>
         </div>
 
         {/* Basic Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard icon={BookOpen} label="Đề đã làm" value={studentStats?.examsTakenCount} color="bg-blue-500" />
+          <StatCard icon={BookOpen} label="Bài tập đã làm" value={studentStats?.examsTakenCount} color="bg-blue-500" />
           <StatCard icon={TrendingUp} label="Điểm trung bình" value={studentStats?.avgScore} color="bg-green-500" />
           <StatCard icon={Clock} label="Giờ học tập" value={`${studentStats?.studyHours}h`} color="bg-orange-500" />
           <StatCard icon={Heart} label="Điểm rèn luyện" value={`${behaviorScore} đ (Hạng ${behaviorRank}/${totalStudents})`} color="bg-pink-500" />
@@ -330,7 +330,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Bài tập & Đề thi</h3>
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Bài tập</h3>
               <div className="space-y-4">
                 {recentActivities.map(act => (
                   <div key={act.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors border border-transparent">
@@ -404,7 +404,7 @@ export const Dashboard: React.FC = () => {
                     <div className="bg-white p-4 rounded-lg shadow-sm">
                       <p className="font-bold text-gray-700 mb-1">Công thức tính XP</p>
                       <p className="text-3xl font-bold text-indigo-600">1 Điểm = 10 XP</p>
-                      <p className="text-xs text-gray-500 mt-2">Ví dụ: Bài thi được 8.5 điểm = Bạn nhận được 85 XP.</p>
+                      <p className="text-xs text-gray-500 mt-2">Ví dụ: Bài tập được 8.5 điểm = Bạn nhận được 85 XP.</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg shadow-sm">
                       <p className="font-bold text-gray-700 mb-1">Cấp độ (Level)</p>
@@ -557,7 +557,7 @@ export const Dashboard: React.FC = () => {
         {/* Replaced Teacher Stats with Resource Stats */}
         <StatCard icon={BookOpen} label="Tài liệu" value={filteredResources.length} color="bg-orange-500" />
         <StatCard icon={Users} label="Tổng học sinh" value={users.filter(u => u.role === 'STUDENT').length} color="bg-green-500" />
-        <StatCard icon={BookOpen} label="Tổng số đề thi" value={filteredExams.length} color="bg-blue-500" />
+        <StatCard icon={BookOpen} label="Tổng số bài tập" value={filteredExams.length} color="bg-blue-500" />
         <StatCard icon={TrendingUp} label="Lượt nộp bài" value={filteredAttempts.length} color="bg-indigo-500" />
       </div>
 

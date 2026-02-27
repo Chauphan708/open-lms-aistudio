@@ -52,9 +52,12 @@ const QUESTION_SCHEMA: Schema = {
       },
       correctOptionIndex: { type: Type.INTEGER, description: "Index of correct option (0-3) for MCQ, or -1 if not applicable" },
       solution: { type: Type.STRING, description: "Detailed step-by-step explanation including the final answer." },
-      hint: { type: Type.STRING, description: "A pedagogical hint explaining the method/formula to use WITHOUT giving the answer." }
+      hint: { type: Type.STRING, description: "A pedagogical hint explaining the method/formula to use WITHOUT giving the answer." },
+      level: { type: Type.STRING, description: "Difficulty level. Must be one of: NHAN_BIET, THONG_HIEU, VAN_DUNG" },
+      topic: { type: Type.STRING, description: "The specific knowledge topic/chapter this question belongs to, e.g. 'Phân số', 'Hình học phẳng'" },
+      questionType: { type: Type.STRING, description: "Type of question. Must be one of: MCQ, SHORT_ANSWER, MATCHING, ORDERING, DRAG_DROP" }
     },
-    required: ["content", "options", "correctOptionIndex", "solution", "hint"],
+    required: ["content", "options", "correctOptionIndex", "solution", "hint", "level", "topic", "questionType"],
   }
 };
 
@@ -72,11 +75,14 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
     
     Rules:
     1. Identify the question stem.
-    2. Identify options (A, B, C, D).
+    2. Identify options (A, B, C, D). If the question is essay/short answer with no options, set options to empty array [].
     3. Extract solution/explanation if present. If not, generate a brief one.
     4. Determine the correct answer index (0-3) IF explicitly marked. If unknown, set to -1.
     5. MATH FORMATTING: If you encounter math, use LaTeX format enclosed in single dollar signs ($) for inline math. Example: $x^2 + 5$.
     6. **HINT & SOLUTION**: Always try to extract or generate a 'hint' (method) and 'solution' (full steps).
+    7. **LEVEL (REQUIRED)**: Classify each question's difficulty as one of: NHAN_BIET (recall/recognition), THONG_HIEU (understanding/connection), VAN_DUNG (application/problem-solving).
+    8. **TOPIC (REQUIRED)**: Identify the specific knowledge topic/chapter for each question (e.g., "Phân số", "Hình học phẳng", "Từ vựng").
+    9. **questionType (REQUIRED)**: Detect the question format: MCQ (has A/B/C/D options), SHORT_ANSWER (essay/open-ended), MATCHING, ORDERING, or DRAG_DROP.
     
     Raw Text:
     """
@@ -99,13 +105,15 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
 
     return parsedData.map((item: any, index: number) => ({
       id: `gen_parse_${Date.now()}_${index}`,
-      type: 'MCQ',
+      type: (item.questionType || 'MCQ') as any,
       content: item.content,
       imageUrl: item.imageUrl,
-      options: item.options,
+      options: item.options || [],
       correctOptionIndex: item.correctOptionIndex === -1 ? undefined : item.correctOptionIndex,
       solution: item.solution,
-      hint: item.hint
+      hint: item.hint,
+      level: item.level || undefined,
+      topic: item.topic || undefined
     }));
 
   } catch (error) {
@@ -137,6 +145,14 @@ export const generateQuestionsByTopic = async (
     'SHORT_ANSWER': 'Short Answer (Tự luận ngắn). Options can be empty.'
   }[questionType] || 'Multiple Choice';
 
+  // Map difficulty string to level code
+  const levelCode = difficulty.includes('Nhận biết') ? 'NHAN_BIET'
+    : difficulty.includes('Kết nối') || difficulty.includes('Hiểu') ? 'THONG_HIEU'
+      : 'VAN_DUNG';
+
+  // Extract clean topic name (remove subject prefix)
+  const cleanTopic = topic.includes(':') ? topic.split(':').slice(1).join(':').trim() : topic;
+
   const prompt = `
     Generate ${count} exam questions for Vietnamese students.
     
@@ -162,6 +178,9 @@ export const generateQuestionsByTopic = async (
     4. **'hint' (REQUIRED)**: Provide a clear pedagogical hint. Explain the method, formula, or logic required to solve the problem WITHOUT revealing the final answer. E.g., "Áp dụng công thức tính diện tích S = a x b."
     5. **'solution' (REQUIRED)**: Provide a detailed step-by-step calculation or explanation leading to the correct result.
     6. **Math Formulas**: Always use LaTeX enclosed in SINGLE dollar signs ($...$) for inline math. Do NOT use block code. Example: "Tính diện tích hình tròn có $r=5cm$."
+    7. **'level' (REQUIRED)**: Set to exactly "${levelCode}".
+    8. **'topic' (REQUIRED)**: Set to exactly "${cleanTopic}".
+    9. **'questionType' (REQUIRED)**: Set to exactly "${questionType}".
   `;
 
   try {
@@ -179,13 +198,15 @@ export const generateQuestionsByTopic = async (
 
     return parsedData.map((item: any, index: number) => ({
       id: `gen_ai_${Date.now()}_${index}`,
-      type: questionType as any, // Cast to strictly typed QuestionType
+      type: (item.questionType || questionType) as any,
       content: item.content,
       imageUrl: item.imageUrl,
       options: item.options || [],
       correctOptionIndex: item.correctOptionIndex === -1 ? undefined : item.correctOptionIndex,
       solution: item.solution,
-      hint: item.hint
+      hint: item.hint,
+      level: item.level || levelCode,
+      topic: item.topic || cleanTopic
     }));
   } catch (error) {
     console.error("Gemini Gen Error:", error);

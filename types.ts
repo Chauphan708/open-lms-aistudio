@@ -42,6 +42,7 @@ export interface Class {
 }
 
 export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
+export type QuestionLevel = 'NHAN_BIET' | 'THONG_HIEU' | 'VAN_DUNG';
 
 export interface Question {
   id: string;
@@ -52,6 +53,13 @@ export interface Question {
   correctOptionIndex?: number; // For MCQ
   solution?: string;
   hint?: string;
+  level?: QuestionLevel;
+  topic?: string;
+}
+
+export interface QuestionBankItem extends Question {
+  subject: string;
+  grade: string;
 }
 
 export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
@@ -340,6 +348,12 @@ export interface AppState {
   exams: Exam[];
   addExam: (exam: Exam) => void;
   updateExam: (exam: Exam) => void;
+
+  questionBank: QuestionBankItem[];
+  fetchQuestionBank: () => Promise<void>;
+  addQuestionToBank: (q: QuestionBankItem) => Promise<boolean>;
+  updateQuestionInBank: (q: QuestionBankItem) => Promise<boolean>;
+  deleteQuestionFromBank: (id: string) => Promise<boolean>;
 
   assignments: Assignment[];
   addAssignment: (assign: Assignment) => void;

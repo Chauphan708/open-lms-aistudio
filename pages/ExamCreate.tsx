@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { useStore } from '../store';
 import { parseQuestionsFromText, generateQuestionsByTopic } from '../services/geminiService';
 import { Question, QuestionType, ExamDifficulty } from '../types';
-import { Wand2, Save, Trash2, Plus, AlertCircle, FilePlus, BrainCircuit, FileText, Settings, Sparkles, Users, MessageSquarePlus, Edit2, X, GraduationCap, BarChart3, Image as ImageIcon, Lightbulb } from 'lucide-react';
+import { Wand2, Save, Trash2, Plus, AlertCircle, FilePlus, BrainCircuit, FileText, Settings, Sparkles, Users, MessageSquarePlus, Edit2, X, GraduationCap, BarChart3, Image as ImageIcon, Lightbulb, Printer, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { MatrixConfig } from '../components/MatrixConfig';
+import { PrintableContent } from '../components/PrintableContent';
 
-type CreateMode = 'PARSE' | 'GENERATE';
+type CreateMode = 'PARSE' | 'GENERATE' | 'MATRIX';
+type PrintType = 'MATRIX' | 'EXAM_MCQ' | 'EXAM_ESSAY' | 'SOLUTION' | 'ALL';
 
 export const ExamCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -35,11 +38,16 @@ export const ExamCreate: React.FC = () => {
   // Edit Question State
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
+  // Print Mode
+  const [printType, setPrintType] = useState<PrintType | null>(null);
+
+  // Save to Bank checkbox
+  const [saveToBank, setSaveToBank] = useState(true);
+
   // Parse Mode State
   const [rawText, setRawText] = useState('');
 
   // Generate Mode State
-  const [aiTopic, setAiTopic] = useState('');
   const [aiQuestionType, setAiQuestionType] = useState<QuestionType>('MCQ');
   const [aiCount, setAiCount] = useState(5);
   const [aiCustomPrompt, setAiCustomPrompt] = useState('');
@@ -85,12 +93,15 @@ export const ExamCreate: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!aiTopic.trim()) return;
+    if (!topic.trim()) {
+      setError("Vui lòng nhập Chủ đề / Nội dung kiến thức ở phần Cấu hình chung.");
+      return;
+    }
     setIsProcessing(true);
     setError(null);
     try {
       // Append Subject to Topic for better context
-      const fullTopic = `${subject}: ${aiTopic}`;
+      const fullTopic = `${subject}: ${topic}`;
       const diffDesc = getDifficultyDescription(difficulty);
 
       const generated = await generateQuestionsByTopic(
@@ -111,7 +122,7 @@ export const ExamCreate: React.FC = () => {
 
   const handleSaveExam = () => {
     if (!title.trim() || questions.length === 0) {
-      setError("Vui lòng nhập tên đề thi và có ít nhất 1 câu hỏi.");
+      setError("Vui lòng nhập tên bài tập và có ít nhất 1 câu hỏi.");
       return;
     }
     if (!subject || !grade) {
@@ -157,6 +168,22 @@ export const ExamCreate: React.FC = () => {
     setEditingQuestion(null);
   };
 
+  const addManualQuestion = () => {
+    const newQ: Question = {
+      id: `manual_${Date.now()}`,
+      type: 'MCQ',
+      content: 'Câu hỏi mới...',
+      options: ['A', 'B', 'C', 'D'],
+      correctOptionIndex: 0,
+      solution: '',
+      hint: '',
+      level: undefined,
+      topic: topic || undefined
+    };
+    setQuestions(prev => [...prev, newQ]);
+    setEditingQuestion(newQ);
+  };
+
   const getTypeLabel = (type: QuestionType) => {
     switch (type) {
       case 'MCQ': return 'Trắc nghiệm (ABCD)';
@@ -168,13 +195,21 @@ export const ExamCreate: React.FC = () => {
     }
   };
 
+  const handlePrint = (type: PrintType) => {
+    setPrintType(type);
+    setTimeout(() => {
+      window.print();
+      // Optional: setPrintType(null) sau khi in xong nhưng đôi khi trình duyệt block JS lúc dialog in mở
+    }, 500);
+  };
+
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tạo Đề Thi Mới</h1>
-          <p className="text-gray-500">Soạn thảo, upload file hoặc nhờ AI tạo đề tự động.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Tạo Bài Tập Mới</h1>
+          <p className="text-gray-500">Soạn thảo, upload file hoặc nhờ AI tạo bài tập tự động.</p>
         </div>
         <div className="flex gap-3">
           <div className="flex bg-gray-200 p-1 rounded-lg">
@@ -188,9 +223,34 @@ export const ExamCreate: React.FC = () => {
               onClick={() => setMode('GENERATE')}
               className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${mode === 'GENERATE' ? 'bg-white shadow text-purple-700' : 'text-gray-600'}`}
             >
-              <Sparkles className="h-4 w-4" /> AI Tạo Đề
+              <Sparkles className="h-4 w-4" /> AI Tạo Bài Tập
+            </button>
+            <button
+              onClick={() => setMode('MATRIX')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${mode === 'MATRIX' ? 'bg-white shadow text-emerald-700' : 'text-gray-600'}`}
+            >
+              <BarChart3 className="h-4 w-4" /> Ma trận đề
             </button>
           </div>
+
+          {/* Nút Xuất File */}
+          {questions.length > 0 && (
+            <div className="relative group">
+              <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm">
+                <Printer className="h-4 w-4" />
+                Xuất File <ChevronDown className="h-3 w-3" />
+              </button>
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Xuất Ma trận</button>
+                <button onClick={() => handlePrint('EXAM_MCQ')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> Xuất Đề thi</button>
+                <button onClick={() => handlePrint('EXAM_ESSAY')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Edit2 className="h-4 w-4" /> Xuất Tự luận</button>
+                <button onClick={() => handlePrint('SOLUTION')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Xuất Đáp án</button>
+                <div className="h-px bg-gray-200 my-1"></div>
+                <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold flex items-center gap-2"><Printer className="h-4 w-4" /> Xuất Tất Cả</button>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleSaveExam}
             className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
@@ -219,10 +279,10 @@ export const ExamCreate: React.FC = () => {
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên đề thi</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên bài tập</label>
                 <input
                   type="text" value={title} onChange={e => setTitle(e.target.value)}
-                  placeholder="VD: Kiểm tra Toán Giữa Kì 1..."
+                  placeholder="VD: Bài tập Toán Giữa Kì 1..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
@@ -282,7 +342,7 @@ export const ExamCreate: React.FC = () => {
                   <label className={`cursor-pointer border p-3 rounded-lg flex flex-col items-center gap-2 text-sm transition-colors ${saveTarget === 'BANK' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'hover:bg-gray-50 bg-white'}`}>
                     <input type="radio" name="target" className="hidden" checked={saveTarget === 'BANK'} onChange={() => setSaveTarget('BANK')} />
                     <BrainCircuit className="h-5 w-5" />
-                    Ngân hàng đề
+                    Ngân hàng bài tập
                   </label>
                   <label className={`cursor-pointer border p-3 rounded-lg flex flex-col items-center gap-2 text-sm transition-colors ${saveTarget === 'CLASS' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'hover:bg-gray-50 bg-white'}`}>
                     <input type="radio" name="target" className="hidden" checked={saveTarget === 'CLASS'} onChange={() => setSaveTarget('CLASS')} />
@@ -305,39 +365,63 @@ export const ExamCreate: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Checkbox Lưu vào Ngân Hàng */}
+              <div className="pt-2 border-t mt-2">
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                  <input type="checkbox" checked={saveToBank} onChange={e => setSaveToBank(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                  <span className="text-sm text-gray-700">Đồng thời lưu các câu hỏi vào <strong>Ngân hàng câu hỏi</strong></span>
+                </label>
+              </div>
             </div>
           </div>
 
           {/* 2. Content Input (Parse or Generate) */}
           <div className="flex-1 bg-white p-5 rounded-xl border shadow-sm flex flex-col">
-            {mode === 'PARSE' ? (
+            {mode === 'PARSE' && (
               <>
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                    <FileText className="h-4 w-4" /> Nội dung đề (Copy/Paste)
+                    <FileText className="h-4 w-4" /> Nội dung bài tập (Copy/Paste)
                   </h3>
-                  <button
-                    onClick={handleParse}
-                    disabled={isProcessing || !rawText}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all
-                            ${isProcessing || !rawText ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-md'}
-                            `}
-                  >
-                    {isProcessing ? 'Đang xử lý...' : <><Wand2 className="h-3 w-3" /> Tách câu hỏi</>}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleParse}
+                      disabled={isProcessing || !rawText}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all
+                              ${isProcessing || !rawText ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-md'}
+                              `}
+                    >
+                      {isProcessing ? 'Đang xử lý...' : <><Wand2 className="h-3 w-3" /> Tách câu hỏi</>}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Hướng dẫn định dạng */}
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2 text-xs text-blue-700 space-y-1">
+                  <p className="font-bold">📋 Hướng dẫn format nhập liệu:</p>
+                  <p>• Mỗi câu bắt đầu bằng: <code className="bg-blue-100 px-1 rounded">Câu 1:</code> hoặc <code className="bg-blue-100 px-1 rounded">Bài 1:</code></p>
+                  <p>• Đáp án: <code className="bg-blue-100 px-1 rounded">A.</code> <code className="bg-blue-100 px-1 rounded">B.</code> <code className="bg-blue-100 px-1 rounded">C.</code> <code className="bg-blue-100 px-1 rounded">D.</code> (mỗi đáp án 1 dòng)</p>
+                  <p>• Đáp án đúng: <code className="bg-blue-100 px-1 rounded">Đáp án: B</code></p>
+                  <p>• Lời giải: <code className="bg-blue-100 px-1 rounded">Giải thích:</code> hoặc <code className="bg-blue-100 px-1 rounded">Hướng dẫn:</code></p>
+                  <p className="text-blue-500 italic">💡 AI sẽ tự động nhận dạng cả khi format không chuẩn.</p>
+                </div>
+
                 <textarea
                   value={rawText}
                   onChange={e => setRawText(e.target.value)}
-                  placeholder={`Dán nội dung từ Word/PDF vào đây...\n\nVí dụ:\nCâu 1: 1+1=?\nA. 1\nB. 2\nC. 3\nD. 4`}
+                  placeholder={`Dán nội dung từ Word/PDF vào đây...\n\nVí dụ:\nCâu 1: 1+1=?\nA. 1\nB. 2\nC. 3\nD. 4\nĐáp án: B`}
                   className="flex-1 w-full border border-gray-300 rounded-lg p-3 font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-white text-gray-900"
+                  style={{ minHeight: '500px' }}
                 />
               </>
-            ) : (
+            )}
+
+            {mode === 'GENERATE' && (
               <>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-600" /> AI Tạo đề thi (Thông minh)
+                    <Sparkles className="h-4 w-4 text-purple-600" /> AI Tạo bài tập (Thông minh)
                   </h3>
                 </div>
 
@@ -355,15 +439,6 @@ export const ExamCreate: React.FC = () => {
                 </div>
 
                 <div className="space-y-4 flex-1 overflow-y-auto pr-1">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề / Kiến thức trọng tâm</label>
-                    <input
-                      value={aiTopic} onChange={e => setAiTopic(e.target.value)}
-                      placeholder="VD: Phép cộng trong phạm vi 100..."
-                      className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white text-gray-900"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
@@ -388,6 +463,31 @@ export const ExamCreate: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Prompt Templates - Huấn luyện AI */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                      <GraduationCap className="h-3 w-3" /> Mẫu chỉ dẫn AI (Prompt sẵn)
+                    </label>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {[
+                        { label: '🧒 Thân thiện HS', prompt: 'Dùng ngôn ngữ vui tươi, thân thiện, phù hợp với học sinh tiểu học. Sử dụng các tình huống gần gũi trong cuộc sống hàng ngày.' },
+                        { label: '🎯 Bẫy sai phổ biến', prompt: 'Tập trung vào các lỗi sai thường gặp của học sinh. Đáp án sai (distractors) phải là những lỗi tính toán mà HS hay mắc phải.' },
+                        { label: '📖 Theo SGK', prompt: 'Bám sát nội dung sách giáo khoa hiện hành. Dùng ví dụ và thuật ngữ giống SGK.' },
+                        { label: '🌟 Thực tiễn', prompt: 'Tạo câu hỏi gắn với tình huống thực tế: đi chợ, đo đạc sân trường, chia bánh... để HS thấy toán học hữu ích.' },
+                        { label: '🔢 Tính nhẩm', prompt: 'Tạo các bài tập rèn kỹ năng tính nhẩm nhanh, không cần nháp. Số liệu đơn giản, ưu tiên phép tính tròn chục.' },
+                      ].map((tpl, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setAiCustomPrompt(prev => prev ? `${prev}\n${tpl.prompt}` : tpl.prompt)}
+                          className="px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-full hover:bg-purple-100 transition-colors"
+                          title={tpl.prompt}
+                        >
+                          {tpl.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                       <MessageSquarePlus className="h-3 w-3" /> Yêu cầu khác (Cá nhân hóa)
@@ -395,21 +495,29 @@ export const ExamCreate: React.FC = () => {
                     <textarea
                       value={aiCustomPrompt} onChange={e => setAiCustomPrompt(e.target.value)}
                       placeholder="VD: Hãy dùng tên các nhân vật trong truyện Doraemon. Tập trung vào các lỗi sai thường gặp..."
-                      className="w-full h-20 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none bg-white text-gray-900"
+                      className="w-full h-24 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none bg-white text-gray-900"
                     />
                   </div>
 
                   <button
                     onClick={handleGenerate}
-                    disabled={isProcessing || !aiTopic}
+                    disabled={isProcessing || !topic.trim()}
                     className={`w-full py-3 rounded-lg text-sm font-bold text-white transition-all flex items-center justify-center gap-2
                             ${isProcessing ? 'bg-gray-400' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-lg'}
                             `}
                   >
-                    {isProcessing ? 'AI đang viết đề...' : <><Sparkles className="h-4 w-4" /> Tạo câu hỏi ngay</>}
+                    {isProcessing ? 'AI đang viết bài tập...' : <><Sparkles className="h-4 w-4" /> Tạo câu hỏi ngay</>}
                   </button>
                 </div>
               </>
+            )}
+
+            {mode === 'MATRIX' && (
+              <MatrixConfig
+                onGenerate={(qs) => setQuestions(prev => [...prev, ...qs])}
+                subject={subject}
+                grade={grade}
+              />
             )}
           </div>
         </div>
@@ -418,7 +526,7 @@ export const ExamCreate: React.FC = () => {
         <div className="lg:col-span-7 bg-white rounded-xl border shadow-sm flex flex-col h-full overflow-hidden">
           <div className="p-4 border-b bg-white flex justify-between items-center rounded-t-xl">
             <h3 className="font-bold text-gray-700">Xem trước ({questions.length} câu)</h3>
-            <button className="text-xs text-indigo-600 font-medium hover:underline flex items-center gap-1">
+            <button onClick={addManualQuestion} className="text-xs text-indigo-600 font-medium hover:underline flex items-center gap-1">
               <Plus className="h-3 w-3" /> Thêm thủ công
             </button>
           </div>
@@ -616,6 +724,20 @@ export const ExamCreate: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Vùng in ẩn, chỉ xuất hiện trên giấy */}
+      {printType && (
+        <PrintableContent
+          type={printType}
+          questions={questions}
+          title={title}
+          subject={subject}
+          grade={grade}
+          duration={duration}
+          schoolName={undefined}
+          academicYear={undefined}
+        />
       )}
     </div>
   );
