@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { supabase } from '../../services/supabaseClient';
 import { externalSupabase, uploadToExternalStorage, deleteFromExternalStorage } from '../../services/externalStorageClient';
-import { analyzeStudentMaterial } from '../../services/geminiService';
+import { analyzeStudentMaterial, analyzeStudentText } from '../../services/geminiService';
 import { AISubmission, AIGradingReview, Class, User } from '../../types';
 import imageCompression from 'browser-image-compression';
 import {
     Upload, Search, FileImage, FileText, Bot, Check, X,
-    Save, Filter, Star, Eye, Download, Trash2, Zap, AlertCircle
+    Save, Filter, Star, Eye, Download, Trash2, Zap, AlertCircle, Type, BookOpen
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -36,6 +36,12 @@ export const AIGrading: React.FC = () => {
     const [aiResult, setAiResult] = useState<any>(null);
     const [score, setScore] = useState<number>(0);
     const [isScoreOptional, setIsScoreOptional] = useState(false);
+
+    // Input mode: IMAGE or TEXT
+    const [inputMode, setInputMode] = useState<'IMAGE' | 'TEXT'>('IMAGE');
+    const [studentText, setStudentText] = useState('');
+    const [referenceExam, setReferenceExam] = useState('');
+    const [rubric, setRubric] = useState('');
 
     // My Classes
     const myClasses = classes.filter(c => c.teacherId === user?.id);
@@ -101,29 +107,43 @@ export const AIGrading: React.FC = () => {
     };
 
     const handleScanWithAI = async () => {
-        if (selectedFiles.length === 0) return toast.error("Vui lòng tải lên ảnh bài làm trước khi quét.");
+        if (inputMode === 'IMAGE') {
+            if (selectedFiles.length === 0) return toast.error("Vui lòng tải lên ảnh bài làm trước khi quét.");
+            const imageFiles = selectedFiles.filter(f => f.type.startsWith('image/'));
+            if (imageFiles.length === 0) return toast.error("Hiện tại AI chỉ hỗ trợ quét tệp Hình ảnh (JPG, PNG).");
 
-        const imageFiles = selectedFiles.filter(f => f.type.startsWith('image/'));
-        if (imageFiles.length === 0) return toast.error("Hiện tại AI chỉ hỗ trợ quét tệp Hình ảnh (JPG, PNG).");
-
-        setIsScanning(true);
-        try {
-            toast.loading("AI đang phân tích các trang bài làm...", { id: 'ai_scan' });
-
-            const base64Images = await Promise.all(imageFiles.map(convertFileToBase64));
-            const result = await analyzeStudentMaterial(
-                base64Images.map((b64, idx) => ({ data: b64, mimeType: imageFiles[idx].type })),
-                customPrompt
-            );
-
-            setAiResult(result);
-            setScore(result.suggested_score || 0);
-
-            toast.success("Quét AI thành công!", { id: 'ai_scan' });
-        } catch (error: any) {
-            toast.error(error.message || "Quét thất bại.", { id: 'ai_scan' });
-        } finally {
-            setIsScanning(false);
+            setIsScanning(true);
+            try {
+                toast.loading("AI đang phân tích các trang bài làm...", { id: 'ai_scan' });
+                const base64Images = await Promise.all(imageFiles.map(convertFileToBase64));
+                const fullPrompt = [customPrompt, rubric ? `\nTIÊU CHÍ ĐÁNH GIÁ: ${rubric}` : '', referenceExam ? `\nĐỀ BÀI GỐC: ${referenceExam}` : ''].filter(Boolean).join('\n');
+                const result = await analyzeStudentMaterial(
+                    base64Images.map((b64, idx) => ({ data: b64, mimeType: imageFiles[idx].type })),
+                    fullPrompt
+                );
+                setAiResult(result);
+                setScore(result.suggested_score || 0);
+                toast.success("Quét AI thành công!", { id: 'ai_scan' });
+            } catch (error: any) {
+                toast.error(error.message || "Quét thất bại.", { id: 'ai_scan' });
+            } finally {
+                setIsScanning(false);
+            }
+        } else {
+            // TEXT mode
+            if (!studentText.trim()) return toast.error("Vui lòng nhập nội dung bài làm.");
+            setIsScanning(true);
+            try {
+                toast.loading("AI đang phân tích bài làm dạng text...", { id: 'ai_scan' });
+                const result = await analyzeStudentText(studentText, referenceExam, customPrompt, rubric);
+                setAiResult(result);
+                setScore(result.suggested_score || 0);
+                toast.success("Chấm AI thành công!", { id: 'ai_scan' });
+            } catch (error: any) {
+                toast.error(error.message || "Quét thất bại.", { id: 'ai_scan' });
+            } finally {
+                setIsScanning(false);
+            }
         }
     };
 
@@ -283,7 +303,7 @@ export const AIGrading: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Lời nhắc AI (Custom Prompt Cho Học Sinh Này)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Lời nhắc AI (Custom Prompt)</label>
                             <textarea
                                 value={customPrompt}
                                 onChange={e => setCustomPrompt(e.target.value)}
@@ -293,52 +313,105 @@ export const AIGrading: React.FC = () => {
                             />
                         </div>
 
-                        <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Tải Ảnh / PDF Bài Làm</label>
-                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:bg-gray-50 transition relative">
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*, application/pdf"
-                                    onChange={handleFileChange}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                />
-                                {selectedFiles.length > 0 ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-20 pointer-events-none">
-                                        {selectedFiles.map((file, idx) => (
-                                            <div key={idx} className="relative group pointer-events-auto">
-                                                {previewUrls[idx] ? (
-                                                    <img src={previewUrls[idx]} alt="Preview" className="h-28 w-full object-cover rounded-lg shadow-sm border border-gray-200" />
-                                                ) : (
-                                                    <div className="h-28 w-full flex items-center justify-center bg-gray-100 rounded-lg shadow-sm border border-gray-200">
-                                                        <FileText className="h-8 w-8 text-indigo-400" />
-                                                    </div>
-                                                )}
-                                                <button onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }} className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition shadow-md">
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                                <div className="text-xs text-gray-500 font-medium text-center mt-1 truncate px-1">Trang {idx + 1}</div>
-                                            </div>
-                                        ))}
-                                        {/* Add more button placeholder */}
-                                        <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-gray-400 pointer-events-none">
-                                            <Upload className="h-6 w-6 mb-1" />
-                                            <span className="text-xs font-semibold">Thêm mặt sau</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center pointer-events-none py-4 text-center">
-                                        <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                                        <p className="text-sm font-medium text-gray-700">Nhấp hoặc quét chọn nhiều File cùng lúc</p>
-                                        <p className="text-xs text-gray-500 mt-1">Gộp mặt trước/mặt sau làm 1 bài AI chấm</p>
-                                    </div>
-                                )}
-                            </div>
+                        {/* Đề bài gốc */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                                <BookOpen className="h-4 w-4 text-blue-500" /> Đề bài gốc / Đáp án chuẩn (Tùy chọn)
+                            </label>
+                            <textarea
+                                value={referenceExam}
+                                onChange={e => setReferenceExam(e.target.value)}
+                                rows={3}
+                                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"
+                                placeholder="Dán đề bài và/hoặc đáp án chuẩn ở đây. AI sẽ so sánh bài HS với nội dung này để chấm chính xác hơn."
+                            />
                         </div>
+
+                        {/* Custom Rubric */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Tiêu chí Rubric (Tùy chọn)</label>
+                            <textarea
+                                value={rubric}
+                                onChange={e => setRubric(e.target.value)}
+                                rows={2}
+                                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 text-sm"
+                                placeholder="VD: Trình bày 20đ, Nội dung 60đ, Sáng tạo 20đ"
+                            />
+                        </div>
+
+                        {/* Tab chuyển đổi Ảnh / Text */}
+                        <div className="flex gap-2 mb-2">
+                            <button onClick={() => setInputMode('IMAGE')}
+                                className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${inputMode === 'IMAGE' ? 'bg-indigo-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                <FileImage className="h-4 w-4" /> Ảnh bài làm
+                            </button>
+                            <button onClick={() => setInputMode('TEXT')}
+                                className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${inputMode === 'TEXT' ? 'bg-purple-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                <Type className="h-4 w-4" /> Nhập bài dạng Text
+                            </button>
+                        </div>
+
+                        {inputMode === 'IMAGE' ? (
+                            <div className="mt-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Tải Ảnh / PDF Bài Làm</label>
+                                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:bg-gray-50 transition relative">
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*, application/pdf"
+                                        onChange={handleFileChange}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    {selectedFiles.length > 0 ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-20 pointer-events-none">
+                                            {selectedFiles.map((file, idx) => (
+                                                <div key={idx} className="relative group pointer-events-auto">
+                                                    {previewUrls[idx] ? (
+                                                        <img src={previewUrls[idx]} alt="Preview" className="h-28 w-full object-cover rounded-lg shadow-sm border border-gray-200" />
+                                                    ) : (
+                                                        <div className="h-28 w-full flex items-center justify-center bg-gray-100 rounded-lg shadow-sm border border-gray-200">
+                                                            <FileText className="h-8 w-8 text-indigo-400" />
+                                                        </div>
+                                                    )}
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }} className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition shadow-md">
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                    <div className="text-xs text-gray-500 font-medium text-center mt-1 truncate px-1">Trang {idx + 1}</div>
+                                                </div>
+                                            ))}
+                                            <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-gray-400 pointer-events-none">
+                                                <Upload className="h-6 w-6 mb-1" />
+                                                <span className="text-xs font-semibold">Thêm mặt sau</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center pointer-events-none py-4 text-center">
+                                            <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                                            <p className="text-sm font-medium text-gray-700">Nhấp hoặc quét chọn nhiều File cùng lúc</p>
+                                            <p className="text-xs text-gray-500 mt-1">Gộp mặt trước/mặt sau làm 1 bài AI chấm</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mt-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                                    <Type className="h-4 w-4 text-purple-500" /> Nội dung bài làm của HS (dạng text)
+                                </label>
+                                <textarea
+                                    value={studentText}
+                                    onChange={e => setStudentText(e.target.value)}
+                                    rows={10}
+                                    className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm font-mono"
+                                    placeholder={"Dán hoặc gõ nội dung bài làm của học sinh vào đây...\n\nVD:\nCâu 1: 3+5=8 (đúng)\nCâu 2: 7x3=22 (sai, đáp án đúng 21)\nCâu 3: Viết đoạn văn..."}
+                                    style={{ minHeight: '200px' }}
+                                />
+                            </div>
+                        )}
 
                         <button
                             onClick={handleScanWithAI}
-                            disabled={selectedFiles.length === 0 || isScanning}
+                            disabled={(inputMode === 'IMAGE' ? selectedFiles.length === 0 : !studentText.trim()) || isScanning}
                             className="w-full mt-4 flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isScanning ? (

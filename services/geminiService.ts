@@ -439,3 +439,63 @@ export const analyzeStudentMaterial = async (
     throw new Error("Lỗi khi phân tích hình ảnh qua AI.");
   }
 };
+
+/**
+ * Analyzes student work from TEXT input (typed/pasted by teacher).
+ * Supports reference exam (đề bài gốc) and custom rubric.
+ */
+export const analyzeStudentText = async (
+  studentText: string,
+  referenceExam: string = "",
+  customPrompt: string = "",
+  rubric: string = ""
+): Promise<any> => {
+  const ai = getAiClient();
+  const modelId = "gemini-1.5-flash";
+
+  const prompt = `
+    Đóng vai một Giáo viên chấm bài xuất sắc.
+    
+    ${referenceExam ? `ĐỀ BÀI GỐC (Đáp án chuẩn):\n"""\n${referenceExam}\n"""\n` : ''}
+    
+    BÀI LÀM CỦA HỌC SINH:
+    """
+    ${studentText}
+    """
+    
+    ${rubric ? `TIÊU CHÍ ĐÁNH GIÁ (RUBRIC):\n${rubric}\n` : ''}
+    ${customPrompt ? `CHỈ ĐẠO CÁ NHÂN TỪ GIÁO VIÊN: "${customPrompt}"\n(Hãy đặc biệt tuân thủ chỉ đạo này khi chấm bài)\n` : ''}
+    
+    YÊU CẦU:
+    1. So sánh bài làm của học sinh với đề bài gốc (nếu có) để đánh giá chính xác.
+    2. Nếu không có đề gốc, đánh giá dựa trên nội dung bài làm.
+    3. Điểm số (thang điểm 100): Tự động cấp một đề xuất điểm số.
+    4. Trình bày dưới dạng JSON thuần túy (KHÔNG CÓ markdown \`\`\`json\`\`\`).
+    
+    CẤU TRÚC JSON YÊU CẦU:
+    {
+      "advantages": "Những điểm tốt, làm đúng (VIẾT DƯỚI DẠNG MARKDOWN)",
+      "limitations": "Những điểm sai, thiếu sót, lỗi (VIẾT DƯỚI DẠNG MARKDOWN)",
+      "improvements": "Lời khuyên cải thiện cụ thể (VIẾT DƯỚI DẠNG MARKDOWN)",
+      "suggested_score": <một con số nguyên từ 0 đến 100>
+    }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+
+    const cleanedText = cleanJsonString(response.text || "{}");
+    try {
+      return JSON.parse(cleanedText);
+    } catch (e) {
+      console.error("Failed to parse AI Text Grading output:", cleanedText);
+      throw new Error("AI returned malformed JSON");
+    }
+  } catch (error) {
+    console.error("Gemini Text Grading Error:", error);
+    throw new Error("Lỗi khi phân tích bài làm qua AI.");
+  }
+};

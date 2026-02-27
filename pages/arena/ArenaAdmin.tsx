@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { ArenaQuestion } from '../../types';
-import { Brain, Plus, Pencil, Trash2, Save, X, BookOpen, Filter, ArrowLeft, Upload, Download, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { generateQuestionsByTopic } from '../../services/geminiService';
+import { Brain, Plus, Pencil, Trash2, Save, X, BookOpen, Filter, ArrowLeft, Upload, Download, FileText, CheckCircle, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 
 const SUBJECTS = [
     { value: 'math', label: '📐 Toán' },
@@ -42,6 +43,14 @@ export const ArenaAdmin: React.FC = () => {
     // Bank import filter
     const [bankFilterSubject, setBankFilterSubject] = useState('');
     const [bankSelectedIds, setBankSelectedIds] = useState<Set<string>>(new Set());
+
+    // AI Generate
+    const [showAiGen, setShowAiGen] = useState(false);
+    const [aiGenSubject, setAiGenSubject] = useState('math');
+    const [aiGenTopic, setAiGenTopic] = useState('');
+    const [aiGenCount, setAiGenCount] = useState(5);
+    const [aiGenDifficulty, setAiGenDifficulty] = useState(1);
+    const [aiGenerating, setAiGenerating] = useState(false);
 
     // Edit form
     const [formContent, setFormContent] = useState('');
@@ -110,6 +119,37 @@ export const ArenaAdmin: React.FC = () => {
             setBankSelectedIds(new Set());
         } else {
             setBankSelectedIds(new Set(bankMCQs.map(q => q.id)));
+        }
+    };
+
+    // AI Generate handler
+    const handleAiGenerate = async () => {
+        if (!aiGenTopic.trim()) return;
+        setAiGenerating(true);
+        try {
+            const subjectLabel = SUBJECTS.find(s => s.value === aiGenSubject)?.label || 'Toán';
+            const diffLabel = aiGenDifficulty === 1 ? 'Mức 1 (Nhận biết)' : aiGenDifficulty === 2 ? 'Mức 2 (Thông hiểu)' : 'Mức 3 (Vận dụng)';
+            const questions = await generateQuestionsByTopic(
+                `${subjectLabel}: ${aiGenTopic}`,
+                '5', 'MCQ', diffLabel, aiGenCount,
+                'Tạo câu hỏi cho trò chơi Đấu Trí, ngắn gọn, rõ ràng, hấp dẫn.'
+            );
+            // Convert Question -> ArenaQuestion
+            const converted: Omit<ArenaQuestion, 'id'>[] = questions.map(q => ({
+                content: q.content,
+                answers: q.options.slice(0, 4),
+                correct_index: q.correctOptionIndex ?? 0,
+                difficulty: aiGenDifficulty,
+                subject: aiGenSubject,
+                topic: aiGenTopic.trim(),
+            }));
+            const count = await bulkAddArenaQuestions(converted);
+            setImportResult({ count });
+            setShowAiGen(false);
+        } catch (e: any) {
+            alert('Lỗi AI: ' + (e.message || 'Không thể tạo câu hỏi.'));
+        } finally {
+            setAiGenerating(false);
         }
     };
 
@@ -282,9 +322,12 @@ export const ArenaAdmin: React.FC = () => {
                         <Brain className="h-7 w-7 text-indigo-500" /> QL Ngân hàng Bài Tập Đấu Trí
                     </h1>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setShowAiGen(true)} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold text-sm hover:shadow-lg flex items-center gap-2 transition-all">
+                        <Sparkles className="h-4 w-4" /> AI Tạo
+                    </button>
                     <button onClick={() => { setShowBankImport(true); setImportResult(null); }} className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl font-bold text-sm hover:bg-purple-100 flex items-center gap-2">
-                        <BookOpen className="h-4 w-4" /> Import Ngân hàng đề
+                        <BookOpen className="h-4 w-4" /> Import Ngân hàng
                     </button>
                     <button onClick={() => setShowImport(true)} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 flex items-center gap-2">
                         <Upload className="h-4 w-4" /> Import CSV
@@ -568,6 +611,49 @@ export const ArenaAdmin: React.FC = () => {
                                     )}
                                 </>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Generate Modal */}
+            {showAiGen && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowAiGen(false)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b flex items-center justify-between">
+                            <h3 className="font-bold text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-500" /> AI Tạo Câu Hỏi Đấu Trí</h3>
+                            <button onClick={() => setShowAiGen(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Môn học</label>
+                                <select value={aiGenSubject} onChange={e => setAiGenSubject(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+                                    {SUBJECTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Chủ đề *</label>
+                                <input value={aiGenTopic} onChange={e => setAiGenTopic(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="VD: Phân số, Từ vựng Unit 5..." />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Số câu</label>
+                                    <input type="number" min="1" max="20" value={aiGenCount} onChange={e => setAiGenCount(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Độ khó</label>
+                                    <select value={aiGenDifficulty} onChange={e => setAiGenDifficulty(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm">
+                                        {DIFFICULTIES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-5 border-t flex gap-3">
+                            <button onClick={() => setShowAiGen(false)} className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200">Hủy</button>
+                            <button onClick={handleAiGenerate} disabled={aiGenerating || !aiGenTopic.trim()}
+                                className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+                                {aiGenerating ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang tạo...</> : <><Sparkles className="h-4 w-4" /> Tạo {aiGenCount} câu</>}
+                            </button>
                         </div>
                     </div>
                 </div>
