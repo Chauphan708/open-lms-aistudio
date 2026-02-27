@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ExamCreate } from './pages/ExamCreate';
 import { ExamMatrix } from './pages/ExamMatrix';
+import { AIStats } from './pages/AIStats';
 import { ExamList } from './pages/ExamList';
 import { ExamTake } from './pages/ExamTake';
 import { AcademicYearManage } from './pages/admin/AcademicYearManage';
@@ -215,6 +216,11 @@ function App() {
         <Route path="/exam-matrix" element={
           <ProtectedRoute roles={['TEACHER']}>
             <ExamMatrix />
+          </ProtectedRoute>
+        } />
+        <Route path="/ai-stats" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <AIStats />
           </ProtectedRoute>
         } />
         <Route path="/teacher/classes" element={

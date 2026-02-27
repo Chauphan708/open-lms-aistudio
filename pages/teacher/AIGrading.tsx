@@ -43,6 +43,19 @@ export const AIGrading: React.FC = () => {
     const [referenceExam, setReferenceExam] = useState('');
     const [rubric, setRubric] = useState('');
 
+    // Grading History (A4)
+    interface GradingRecord {
+        studentName: string; title: string; category: string; score: number;
+        advantages: string; limitations: string; improvements: string; timestamp: string;
+    }
+    const [gradingHistory, setGradingHistory] = useState<GradingRecord[]>([]);
+    const [historySearch, setHistorySearch] = useState('');
+    const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
+
+    // Batch Scan (A2)
+    const [batchScanning, setBatchScanning] = useState(false);
+    const [batchProgress, setBatchProgress] = useState(0);
+
     // My Classes
     const myClasses = classes.filter(c => c.teacherId === user?.id);
 
@@ -206,17 +219,79 @@ export const AIGrading: React.FC = () => {
 
             toast.success("Lưu & Gửi kết quả thành công!", { id: 'save_db' });
 
+            // Auto-save to grading history (A4)
+            const studentObj = classStudents.find(s => s.id === selectedStudentId);
+            setGradingHistory(prev => [{
+                studentName: studentObj?.name || 'N/A',
+                title, category, score,
+                advantages: aiResult.advantages,
+                limitations: aiResult.limitations,
+                improvements: aiResult.improvements,
+                timestamp: new Date().toISOString(),
+            }, ...prev]);
+
+            // Notification to student (D1)
+            if (selectedStudentId) {
+                const { addNotification } = useStore.getState();
+                addNotification({
+                    id: `grade_${Date.now()}`,
+                    userId: selectedStudentId,
+                    type: 'SUCCESS',
+                    title: '📝 Bài đã được chấm!',
+                    message: `GV đã chấm bài "${title}" — Điểm: ${isScoreOptional ? 'Không ghi điểm' : `${score}/100`}`,
+                    isRead: false,
+                    createdAt: new Date().toISOString(),
+                    link: '/student/history',
+                });
+            }
+
             // Reset form
             setSelectedFiles([]);
             setPreviewUrls([]);
             setAiResult(null);
             setTitle('');
+            setStudentText('');
         } catch (error: any) {
             console.error("Lỗi khi lưu bài:", error);
             toast.error("Đã xảy ra lỗi khi lưu vào Database chính.", { id: 'save_db' });
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Batch Scan: scan toàn bộ HS trong lớp (A2) - dùng text mode
+    const handleBatchScan = async () => {
+        if (classStudents.length === 0 || !studentText.trim()) {
+            toast.error("Vui lòng nhập bài mẫu/text chung ở tab 'Nhập bài dạng Text' trước khi scan cả lớp.");
+            return;
+        }
+        setBatchScanning(true);
+        setBatchProgress(0);
+        const batchTitle = title || `Chấm hàng loạt ${new Date().toLocaleString('vi-VN')}`;
+
+        for (let i = 0; i < classStudents.length; i++) {
+            setBatchProgress(i + 1);
+            try {
+                const result = await analyzeStudentText(
+                    `${studentText}\n\n(Bài của HS: ${classStudents[i].name})`,
+                    referenceExam, customPrompt, rubric
+                );
+                setGradingHistory(prev => [{
+                    studentName: classStudents[i].name,
+                    title: batchTitle,
+                    category,
+                    score: result.suggested_score || 0,
+                    advantages: result.advantages || '',
+                    limitations: result.limitations || '',
+                    improvements: result.improvements || '',
+                    timestamp: new Date().toISOString(),
+                }, ...prev]);
+            } catch (e) {
+                console.error(`Scan failed for ${classStudents[i].name}:`, e);
+            }
+        }
+        setBatchScanning(false);
+        toast.success(`Đã chấm ${classStudents.length} HS!`);
     };
 
     return (
@@ -508,82 +583,87 @@ export const AIGrading: React.FC = () => {
                 </div>
             </div>
 
-            {/* Lịch Sử Bài Nộp & Quản Lý Dung Lượng */}
+            {/* Lịch Sử Chấm Bài (A4) + Scan Hàng Loạt (A2) */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mt-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                     <h2 className="text-xl font-bold flex items-center gap-2">
-                        <Filter className="h-5 w-5 text-gray-500" /> Quản Lý Bài Nộp
+                        <Filter className="h-5 w-5 text-gray-500" /> Lịch Sử Chấm Bài ({gradingHistory.length})
                     </h2>
-
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <div className="flex gap-2 items-center">
                         <div className="relative">
-                            <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
+                            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input type="text" value={historySearch} onChange={e => setHistorySearch(e.target.value)}
                                 placeholder="Tìm Tên, Tiêu đề..."
-                                className="pl-9 pr-4 py-2 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-64 text-sm"
-                            />
+                                className="pl-9 pr-4 py-2 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-64 text-sm" />
                         </div>
-                        <select className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                            <option value="">Tất cả Môn</option>
-                            {['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'].map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-
-                        <select className="border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                            <option value="">Tất cả Chủ Đề</option>
-                            <option value="Bài tập về nhà">Bài tập về nhà</option>
-                            <option value="Bài kiểm tra">Bài kiểm tra</option>
-                            <option value="Bài ôn tập">Bài ôn tập</option>
-                        </select>
+                        <button onClick={handleBatchScan} disabled={batchScanning || classStudents.length === 0}
+                            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-sm hover:shadow-lg disabled:opacity-50 flex items-center gap-2 whitespace-nowrap">
+                            <Zap className="h-4 w-4" />
+                            {batchScanning ? `Đang chấm (${batchProgress}/${classStudents.length})...` : `⚡ Scan cả lớp (${classStudents.length} HS)`}
+                        </button>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Học sinh</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bài làm</th>
-                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Điểm AI</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quản lý Ảnh (Dung lượng)</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {/* DEMO Row (This will be mapped from actual DB state) */}
-                            <tr className="hover:bg-gray-50 transition">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">NV</div>
-                                        <div className="ml-3">
-                                            <p className="text-sm font-medium text-gray-900">Nguyễn Văn A</p>
-                                            <p className="text-xs text-gray-500">10A1</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-semibold text-gray-900">BTVN Hình Học</p>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        Bài Tập Về Nhà
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center">
-                                    <span className="text-lg font-black text-emerald-600">85</span><span className="text-xs text-gray-400">/100</span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end gap-2">
-                                    <button className="text-indigo-600 hover:bg-indigo-50 p-2 rounded transition" title="Xem Ảnh">
-                                        <Eye className="h-4 w-4" />
-                                    </button>
-                                    <button className="text-emerald-600 hover:bg-emerald-50 p-2 rounded transition" title="Tải Ảnh Gốc">
-                                        <Download className="h-4 w-4" />
-                                    </button>
-                                    <button className="text-red-600 hover:bg-red-50 p-2 rounded transition" title="Xóa Ảnh Gốc (Tiết kiệm dung lượng)">
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                {gradingHistory.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                        <Bot className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p className="font-medium">Chưa có bài nào được chấm.</p>
+                        <p className="text-sm mt-1">Upload ảnh hoặc nhập text bài HS rồi bấm "Quét AI" để bắt đầu.</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Học sinh</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bài làm</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Điểm</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thời gian</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {gradingHistory.filter(h =>
+                                    !historySearch || h.studentName.toLowerCase().includes(historySearch.toLowerCase()) || h.title.toLowerCase().includes(historySearch.toLowerCase())
+                                ).map((h, i) => (
+                                    <tr key={i} className="hover:bg-gray-50 transition">
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                                                    {h.studentName.split(' ').map(w => w[0]).join('').slice(-2)}
+                                                </div>
+                                                <span className="text-sm font-medium">{h.studentName}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <p className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">{h.title}</p>
+                                            <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{h.category}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className="text-lg font-black text-emerald-600">{h.score}</span>
+                                            <span className="text-xs text-gray-400">/100</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-xs text-gray-500">{new Date(h.timestamp).toLocaleString('vi-VN')}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <button onClick={() => { setExpandedHistory(expandedHistory === i ? null : i); }}
+                                                className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded transition">
+                                                <Eye className="h-4 w-4" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {/* Expanded detail */}
+                        {expandedHistory !== null && gradingHistory[expandedHistory] && (
+                            <div className="mt-3 p-4 bg-gray-50 rounded-xl border space-y-2 text-sm">
+                                <div><strong className="text-green-700">✅ Ưu điểm:</strong> <span className="text-gray-700">{gradingHistory[expandedHistory].advantages}</span></div>
+                                <div><strong className="text-red-600">❌ Hạn chế:</strong> <span className="text-gray-700">{gradingHistory[expandedHistory].limitations}</span></div>
+                                <div><strong className="text-amber-600">💡 Cải thiện:</strong> <span className="text-gray-700">{gradingHistory[expandedHistory].improvements}</span></div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

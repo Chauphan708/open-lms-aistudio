@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { Question, QuestionType } from '../types';
 import { MatrixConfig } from '../components/MatrixConfig';
 import { PrintableContent } from '../components/PrintableContent';
-import { Save, Trash2, Edit2, X, Plus, Printer, ChevronDown, BarChart3, Lightbulb, BrainCircuit, FileText, AlertCircle } from 'lucide-react';
+import { Save, Trash2, Edit2, X, Plus, Printer, ChevronDown, BarChart3, Lightbulb, BrainCircuit, FileText, AlertCircle, Shuffle, Timer, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -21,6 +21,10 @@ export const ExamMatrix: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [printType, setPrintType] = useState<PrintType | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    // C1: Exam variant
+    const [examVariant, setExamVariant] = useState('A');
+    // C3: Timer
+    const [timerEnabled, setTimerEnabled] = useState(false);
 
     const SUBJECTS = ['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'];
     const GRADES = ['1', '2', '3', '4', '5'];
@@ -68,6 +72,47 @@ export const ExamMatrix: React.FC = () => {
         alert('Đã lưu đề kiểm tra thành công!');
     };
 
+    // C1: Trộn đề - tạo bản shuffled
+    const shuffleQuestions = () => {
+        const shuffled = [...questions].sort(() => Math.random() - 0.5).map(q => {
+            if (q.type === 'MCQ' && q.options.length > 0) {
+                const correctAnswer = q.options[q.correctOptionIndex ?? 0];
+                const shuffledOpts = [...q.options].sort(() => Math.random() - 0.5);
+                return { ...q, id: `${q.id}_v${Date.now()}`, options: shuffledOpts, correctOptionIndex: shuffledOpts.indexOf(correctAnswer) };
+            }
+            return { ...q, id: `${q.id}_v${Date.now()}` };
+        });
+        setQuestions(shuffled);
+        setExamVariant(prev => prev === 'A' ? 'B' : prev === 'B' ? 'C' : 'A');
+    };
+
+    // C2: Xuất text file
+    const exportTextFile = () => {
+        let text = `ĐỀ KIỂM TRA - ${title || 'Chưa đặt tên'}\nMôn: ${subject} - Lớp ${grade} - Thời gian: ${duration} phút\nĐề: ${examVariant}\n${'='.repeat(50)}\n\n`;
+        questions.forEach((q, i) => {
+            text += `Câu ${i + 1}: ${q.content}\n`;
+            if (q.options?.length) {
+                q.options.forEach((opt, j) => { text += `  ${String.fromCharCode(65 + j)}. ${opt}\n`; });
+            }
+            text += '\n';
+        });
+        text += `\n${'='.repeat(50)}\nĐÁP ÁN\n`;
+        questions.forEach((q, i) => {
+            if (q.type === 'MCQ' && q.correctOptionIndex !== undefined) {
+                text += `Câu ${i + 1}: ${String.fromCharCode(65 + q.correctOptionIndex)}\n`;
+            } else {
+                text += `Câu ${i + 1}: ${q.solution || '(Tự luận)'}\n`;
+            }
+        });
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `De_${examVariant}_${subject}_Lop${grade}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     const getTypeLabel = (type: QuestionType) => {
         switch (type) {
             case 'MCQ': return 'TN';
@@ -88,19 +133,29 @@ export const ExamMatrix: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                     {questions.length > 0 && (
-                        <div className="relative group">
-                            <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm">
-                                <Printer className="h-4 w-4" /> Xuất File <ChevronDown className="h-3 w-3" />
+                        <>
+                            {/* C1: Trộn đề */}
+                            <button onClick={shuffleQuestions} className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-100 font-medium shadow-sm border border-amber-200">
+                                <Shuffle className="h-4 w-4" /> Trộn đề {examVariant === 'A' ? '→ B' : examVariant === 'B' ? '→ C' : '→ A'}
                             </button>
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
-                                <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Xuất Ma trận</button>
-                                <button onClick={() => handlePrint('EXAM_MCQ')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> Xuất Đề thi</button>
-                                <button onClick={() => handlePrint('EXAM_ESSAY')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Edit2 className="h-4 w-4" /> Xuất Tự luận</button>
-                                <button onClick={() => handlePrint('SOLUTION')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Xuất Đáp án</button>
-                                <div className="h-px bg-gray-200 my-1"></div>
-                                <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold flex items-center gap-2"><Printer className="h-4 w-4" /> Xuất Tất Cả</button>
+                            {/* C2: Xuất txt */}
+                            <button onClick={exportTextFile} className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-100 font-medium shadow-sm border border-emerald-200">
+                                <Download className="h-4 w-4" /> Tải .TXT
+                            </button>
+                            <div className="relative group">
+                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm">
+                                    <Printer className="h-4 w-4" /> In đề <ChevronDown className="h-3 w-3" />
+                                </button>
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                                    <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Xuất Ma trận</button>
+                                    <button onClick={() => handlePrint('EXAM_MCQ')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> Xuất Đề thi</button>
+                                    <button onClick={() => handlePrint('EXAM_ESSAY')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Edit2 className="h-4 w-4" /> Xuất Tự luận</button>
+                                    <button onClick={() => handlePrint('SOLUTION')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Xuất Đáp án</button>
+                                    <div className="h-px bg-gray-200 my-1"></div>
+                                    <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold flex items-center gap-2"><Printer className="h-4 w-4" /> Xuất Tất Cả</button>
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
                     <button onClick={handleSaveExam} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium shadow-sm">
                         <Save className="h-4 w-4" /> Lưu Đề KT
@@ -155,7 +210,14 @@ export const ExamMatrix: React.FC = () => {
                 {/* RIGHT: Preview */}
                 <div className="lg:col-span-7 bg-white rounded-xl border shadow-sm flex flex-col h-full overflow-hidden">
                     <div className="p-4 border-b bg-white flex justify-between items-center">
-                        <h3 className="font-bold text-gray-700">Đề kiểm tra ({questions.length} câu)</h3>
+                        <div className="flex items-center gap-3">
+                            <h3 className="font-bold text-gray-700">Đề {examVariant} ({questions.length} câu)</h3>
+                            {/* C3: Timer toggle */}
+                            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                                <input type="checkbox" checked={timerEnabled} onChange={e => setTimerEnabled(e.target.checked)} className="rounded text-indigo-500" />
+                                <Timer className="h-3.5 w-3.5" /> {duration} phút
+                            </label>
+                        </div>
                         {questions.length > 0 && (
                             <button onClick={() => setQuestions([])} className="text-xs text-red-500 hover:underline flex items-center gap-1">
                                 <Trash2 className="h-3 w-3" /> Xóa hết

@@ -55,6 +55,7 @@ export interface Question {
   hint?: string;
   level?: QuestionLevel;
   topic?: string;
+  isArenaEligible?: boolean;
 }
 
 export interface QuestionBankItem extends Question {

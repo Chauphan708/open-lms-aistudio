@@ -313,7 +313,7 @@ export const ArenaAdmin: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate('/arena')} className="text-gray-400 hover:text-gray-600">
                         <ArrowLeft className="h-5 w-5" />
@@ -339,6 +339,24 @@ export const ArenaAdmin: React.FC = () => {
                         <Plus className="h-4 w-4" /> Thêm câu hỏi
                     </button>
                 </div>
+            </div>
+
+            {/* B2: Thống kê nhanh */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="bg-white rounded-xl border p-3 text-center">
+                    <div className="text-2xl font-black text-indigo-600">{arenaQuestions.length}</div>
+                    <div className="text-xs text-gray-500 font-medium">Tổng câu hỏi</div>
+                </div>
+                {DIFFICULTIES.map(d => {
+                    const count = arenaQuestions.filter(q => q.difficulty === d.value).length;
+                    const colors = ['', 'text-emerald-600', 'text-amber-600', 'text-red-600'];
+                    return (
+                        <div key={d.value} className="bg-white rounded-xl border p-3 text-center">
+                            <div className={`text-2xl font-black ${colors[d.value]}`}>{count}</div>
+                            <div className="text-xs text-gray-500 font-medium">{d.label}</div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Filters */}

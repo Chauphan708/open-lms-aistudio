@@ -26,7 +26,8 @@ import {
   ChevronRight,
   ExternalLink,
   Wrench,
-  Clock
+  Clock,
+  BarChart3
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
@@ -111,6 +112,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: '🧠 QL Đấu Trí', path: '/arena/admin', icon: Brain, roles: ['TEACHER', 'ADMIN'] },
 
     // SETTINGS
+    { label: '📊 Thống kê & Backup', path: '/ai-stats', icon: BarChart3, roles: ['TEACHER'] },
     { label: 'Cài đặt', path: '/settings', icon: Settings, roles: ['ADMIN', 'TEACHER'] },
   ];
 
