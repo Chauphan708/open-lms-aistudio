@@ -113,8 +113,18 @@ export const ExamCreate: React.FC = () => {
         aiCustomPrompt
       );
       setQuestions(prev => [...prev, ...generated]);
-    } catch (err) {
-      setError("AI không thể tạo câu hỏi lúc này. Vui lòng thử lại.");
+    } catch (err: any) {
+      const detail = err?.message || '';
+      if (detail.includes('API Key') || detail.includes('API_KEY')) {
+        setError("Lỗi API Key: Vui lòng kiểm tra cài đặt API Key trong Cài đặt.");
+      } else if (detail.includes('quota') || detail.includes('429')) {
+        setError("AI đang quá tải (hết quota). Vui lòng thử lại sau vài phút.");
+      } else if (detail.includes('network') || detail.includes('fetch')) {
+        setError("Lỗi mạng: Không thể kết nối đến AI. Kiểm tra kết nối internet.");
+      } else {
+        setError(`AI không thể tạo câu hỏi: ${detail || 'Lỗi không xác định. Vui lòng thử lại.'}`);
+      }
+      console.error("[ExamCreate] handleGenerate error:", err);
     } finally {
       setIsProcessing(false);
     }

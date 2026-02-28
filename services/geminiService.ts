@@ -124,6 +124,7 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
 
 /**
  * Generates new questions based on sophisticated criteria.
+ * Includes retry logic and type-specific prompt engineering.
  */
 export const generateQuestionsByTopic = async (
   topic: string,
@@ -134,16 +135,7 @@ export const generateQuestionsByTopic = async (
   customPrompt: string
 ): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
-
-  // Mapping readable type to system type string for prompt clarity
-  const typeDescription = {
-    'MCQ': 'Multiple Choice (4 options: A, B, C, D)',
-    'MATCHING': 'Matching columns (Nối cột). Provide pairs in options.',
-    'ORDERING': 'Ordering/Sorting (Sắp xếp). Provide shuffled items in options.',
-    'DRAG_DROP': 'Fill in the blank / Drag & Drop.',
-    'SHORT_ANSWER': 'Short Answer (Tự luận ngắn). Options can be empty.'
-  }[questionType] || 'Multiple Choice';
+  const modelId = "gemini-2.0-flash";
 
   // Map difficulty string to level code
   const levelCode = difficulty.includes('Nhận biết') ? 'NHAN_BIET'
@@ -153,37 +145,135 @@ export const generateQuestionsByTopic = async (
   // Extract clean topic name (remove subject prefix)
   const cleanTopic = topic.includes(':') ? topic.split(':').slice(1).join(':').trim() : topic;
 
-  const prompt = `
-    Generate ${count} exam questions for Vietnamese students.
+  // Build type-specific instructions with concrete JSON examples
+  const getTypeSpecificInstructions = (type: string): string => {
+    switch (type) {
+      case 'MATCHING':
+        return `
+    QUESTION TYPE: MATCHING (Nối cột / Ghép đôi)
+    - 'content': Describe the matching task clearly. E.g., "Nối mỗi phép tính ở cột A với kết quả đúng ở cột B."
+    - 'options': An array of strings, each string is a PAIR formatted as "Left item ||| Right item". 
+      The CORRECT pairs should be listed. E.g., ["3 + 2 ||| 5", "10 - 4 ||| 6", "2 x 3 ||| 6", "8 : 2 ||| 4"]
+    - 'correctOptionIndex': MUST be -1 (not applicable for matching).
+    - 'solution': List all correct pairings clearly. E.g., "3 + 2 → 5; 10 - 4 → 6; 2 x 3 → 6; 8 : 2 → 4"
     
-    CRITERIA:
-    - Topic: "${topic}"
-    - Target Audience: Grade ${classLevel} (Lớp ${classLevel})
-    - Difficulty Level (Circular 27/Thông tư 27): ${difficulty}
-      (Level 1: Nhận biết/Reminder; Level 2: Hiểu/Connection; Level 3: Vận dụng/Application)
-    - Question Type: ${typeDescription}
-    - Additional Instructions: ${customPrompt || "None"}
-    - Language: Vietnamese.
+    EXAMPLE JSON for ONE matching question:
+    {
+      "content": "Nối mỗi phép tính ở cột A với kết quả đúng ở cột B.",
+      "options": ["3 + 2 ||| 5", "10 - 4 ||| 6", "2 x 3 ||| 6", "8 : 2 ||| 4"],
+      "correctOptionIndex": -1,
+      "solution": "3 + 2 = 5; 10 - 4 = 6; 2 × 3 = 6; 8 : 2 = 4",
+      "hint": "Thực hiện từng phép tính rồi nối với kết quả tương ứng.",
+      "level": "${levelCode}",
+      "topic": "${cleanTopic}",
+      "questionType": "MATCHING"
+    }`;
+      case 'ORDERING':
+        return `
+    QUESTION TYPE: ORDERING (Sắp xếp theo thứ tự)
+    - 'content': Describe the ordering task. E.g., "Sắp xếp các phân số sau theo thứ tự tăng dần."
+    - 'options': An array of items IN SHUFFLED/RANDOM ORDER that the student needs to reorder. E.g., ["1/2", "1/4", "3/4", "1/3"]
+    - 'correctOptionIndex': MUST be -1 (not applicable for ordering).
+    - 'solution': Show the correct order. E.g., "Thứ tự đúng: 1/4 < 1/3 < 1/2 < 3/4"
+    
+    EXAMPLE JSON for ONE ordering question:
+    {
+      "content": "Sắp xếp các phân số sau theo thứ tự từ bé đến lớn.",
+      "options": ["1/2", "1/4", "3/4", "1/3"],
+      "correctOptionIndex": -1,
+      "solution": "Thứ tự đúng: 1/4; 1/3; 1/2; 3/4",
+      "hint": "Quy đồng mẫu số rồi so sánh tử số.",
+      "level": "${levelCode}",
+      "topic": "${cleanTopic}",
+      "questionType": "ORDERING"
+    }`;
+      case 'DRAG_DROP':
+        return `
+    QUESTION TYPE: DRAG_DROP (Điền khuyết / Kéo thả)
+    - 'content': A sentence or paragraph with blanks marked as "___". E.g., "Kết quả của 5 + ___ = 12 là ___."
+    - 'options': An array of words/values that fill the blanks (include some distractors too). E.g., ["7", "12", "5", "8"]
+    - 'correctOptionIndex': MUST be -1 (not applicable for drag-drop).
+    - 'solution': Show the filled sentence with correct answers. E.g., "5 + 7 = 12. Đáp án điền vào chỗ trống là 7."
+    
+    EXAMPLE JSON for ONE drag-drop question:
+    {
+      "content": "Điền số thích hợp vào chỗ trống: 15 + ___ = 23",
+      "options": ["8", "7", "9", "6"],
+      "correctOptionIndex": -1,
+      "solution": "15 + 8 = 23. Số cần điền là 8.",
+      "hint": "Lấy tổng trừ đi số hạng đã biết.",
+      "level": "${levelCode}",
+      "topic": "${cleanTopic}",
+      "questionType": "DRAG_DROP"
+    }`;
+      case 'SHORT_ANSWER':
+        return `
+    QUESTION TYPE: SHORT_ANSWER (Tự luận ngắn)
+    - 'content': The question text.
+    - 'options': MUST be an empty array [].
+    - 'correctOptionIndex': MUST be -1.
+    - 'solution': The full detailed answer.
+    
+    EXAMPLE JSON for ONE short answer question:
+    {
+      "content": "Tính chu vi hình chữ nhật có chiều dài 8cm và chiều rộng 5cm.",
+      "options": [],
+      "correctOptionIndex": -1,
+      "solution": "Chu vi = (8 + 5) × 2 = 26 (cm)",
+      "hint": "Áp dụng công thức P = (a + b) × 2",
+      "level": "${levelCode}",
+      "topic": "${cleanTopic}",
+      "questionType": "SHORT_ANSWER"
+    }`;
+      default: // MCQ
+        return `
+    QUESTION TYPE: MCQ (Trắc nghiệm 4 lựa chọn A, B, C, D)
+    - 'content': The question text.
+    - 'options': Exactly 4 answer choices.
+    - 'correctOptionIndex': The index (0-3) of the correct answer.
+    
+    EXAMPLE JSON for ONE MCQ question:
+    {
+      "content": "Kết quả của phép tính 25 + 17 = ?",
+      "options": ["32", "42", "52", "43"],
+      "correctOptionIndex": 1,
+      "solution": "25 + 17 = 42",
+      "hint": "Cộng hàng đơn vị trước: 5 + 7 = 12, viết 2 nhớ 1.",
+      "level": "${levelCode}",
+      "topic": "${cleanTopic}",
+      "questionType": "MCQ"
+    }`;
+    }
+  };
 
-    FORMATTING RULES:
-    1. 'content': The question text.
-    2. 'options': 
-       - For MCQ: 4 choices.
-       - For Matching: List strings like "Item A - Match B".
-       - For Ordering: List items to be ordered.
-       - For Short Answer: Leave empty [].
-    3. 'correctOptionIndex': 
-       - For MCQ: 0-3. 
-       - For others: -1.
-    4. **'hint' (REQUIRED)**: Provide a clear pedagogical hint. Explain the method, formula, or logic required to solve the problem WITHOUT revealing the final answer. E.g., "Áp dụng công thức tính diện tích S = a x b."
-    5. **'solution' (REQUIRED)**: Provide a detailed step-by-step calculation or explanation leading to the correct result.
-    6. **Math Formulas**: Always use LaTeX enclosed in SINGLE dollar signs ($...$) for inline math. Do NOT use block code. Example: "Tính diện tích hình tròn có $r=5cm$."
-    7. **'level' (REQUIRED)**: Set to exactly "${levelCode}".
-    8. **'topic' (REQUIRED)**: Set to exactly "${cleanTopic}".
-    9. **'questionType' (REQUIRED)**: Set to exactly "${questionType}".
+  const typeInstructions = getTypeSpecificInstructions(questionType);
+
+  const prompt = `
+    Bạn là AI tạo đề kiểm tra cho học sinh Việt Nam. Hãy tạo CHÍNH XÁC ${count} câu hỏi.
+
+    THÔNG TIN:
+    - Chủ đề: "${topic}"
+    - Đối tượng: Học sinh Lớp ${classLevel}
+    - Mức độ (Thông tư 27): ${difficulty}
+    - Ngôn ngữ: Tiếng Việt
+    ${customPrompt ? `- Yêu cầu thêm từ giáo viên: ${customPrompt}` : ''}
+
+    ${typeInstructions}
+
+    QUY TẮC CHUNG:
+    1. 'hint' (BẮT BUỘC): Gợi ý phương pháp giải, KHÔNG tiết lộ đáp án.
+    2. 'solution' (BẮT BUỘC): Lời giải chi tiết từng bước.
+    3. Công thức toán: Dùng LaTeX trong dấu $ đơn. VD: $x^2 + 5$.
+    4. 'level' (BẮT BUỘC): Đặt đúng giá trị "${levelCode}".
+    5. 'topic' (BẮT BUỘC): Đặt đúng giá trị "${cleanTopic}".
+    6. 'questionType' (BẮT BUỘC): Đặt đúng giá trị "${questionType}".
+
+    Trả về một JSON array gồm ${count} objects. Mỗi object có đầy đủ các field: content, options, correctOptionIndex, solution, hint, level, topic, questionType.
   `;
 
+  // Attempt 1: With structured schema
   try {
+    console.log(`[AI Gen] Generating ${count} ${questionType} questions for "${topic}"...`);
     const response = await ai.models.generateContent({
       model: modelId,
       contents: prompt,
@@ -195,6 +285,7 @@ export const generateQuestionsByTopic = async (
 
     const cleanedText = cleanJsonString(response.text || "[]");
     const parsedData = JSON.parse(cleanedText);
+    console.log(`[AI Gen] Success with schema! Got ${parsedData.length} questions.`);
 
     return parsedData.map((item: any, index: number) => ({
       id: `gen_ai_${Date.now()}_${index}`,
@@ -208,9 +299,40 @@ export const generateQuestionsByTopic = async (
       level: item.level || levelCode,
       topic: item.topic || cleanTopic
     }));
-  } catch (error) {
-    console.error("Gemini Gen Error:", error);
-    throw new Error("Failed to generate questions.");
+  } catch (firstError: any) {
+    console.warn("[AI Gen] Schema-based attempt failed, trying fallback without schema...", firstError?.message || firstError);
+
+    // Attempt 2: Fallback WITHOUT responseSchema (more flexible, works for complex types)
+    try {
+      const response = await ai.models.generateContent({
+        model: modelId,
+        contents: prompt + "\n\nIMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation, just the JSON array.",
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const cleanedText = cleanJsonString(response.text || "[]");
+      const parsedData = JSON.parse(cleanedText);
+      console.log(`[AI Gen] Fallback success! Got ${parsedData.length} questions.`);
+
+      return parsedData.map((item: any, index: number) => ({
+        id: `gen_ai_${Date.now()}_${index}`,
+        type: (item.questionType || questionType) as any,
+        content: item.content || '',
+        imageUrl: item.imageUrl,
+        options: Array.isArray(item.options) ? item.options : [],
+        correctOptionIndex: item.correctOptionIndex === -1 || item.correctOptionIndex === undefined ? undefined : item.correctOptionIndex,
+        solution: item.solution || '',
+        hint: item.hint || '',
+        level: item.level || levelCode,
+        topic: item.topic || cleanTopic
+      }));
+    } catch (secondError: any) {
+      const errMsg = secondError?.message || secondError?.toString() || 'Unknown error';
+      console.error("[AI Gen] Both attempts failed:", errMsg);
+      throw new Error(errMsg);
+    }
   }
 };
 
