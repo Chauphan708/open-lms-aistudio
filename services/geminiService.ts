@@ -61,6 +61,9 @@ const QUESTION_SCHEMA: Schema = {
   }
 };
 
+// Model fallback list: try newer model first, fallback to older if quota exceeded
+const AI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"];
+
 /**
  * Parses raw text content (from Word/PDF copy-paste) into structured Question objects.
  */
@@ -135,7 +138,6 @@ export const generateQuestionsByTopic = async (
   customPrompt: string
 ): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-2.0-flash";
 
   // Map difficulty string to level code
   const levelCode = difficulty.includes('Nhận biết') ? 'NHAN_BIET'
@@ -271,69 +273,82 @@ export const generateQuestionsByTopic = async (
     Trả về một JSON array gồm ${count} objects. Mỗi object có đầy đủ các field: content, options, correctOptionIndex, solution, hint, level, topic, questionType.
   `;
 
-  // Attempt 1: With structured schema
-  try {
-    console.log(`[AI Gen] Generating ${count} ${questionType} questions for "${topic}"...`);
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: QUESTION_SCHEMA
-      }
-    });
-
-    const cleanedText = cleanJsonString(response.text || "[]");
+  // Helper to parse response into Question array
+  const parseResponse = (text: string): Question[] => {
+    const cleanedText = cleanJsonString(text || "[]");
     const parsedData = JSON.parse(cleanedText);
-    console.log(`[AI Gen] Success with schema! Got ${parsedData.length} questions.`);
-
     return parsedData.map((item: any, index: number) => ({
       id: `gen_ai_${Date.now()}_${index}`,
       type: (item.questionType || questionType) as any,
-      content: item.content,
+      content: item.content || '',
       imageUrl: item.imageUrl,
-      options: item.options || [],
-      correctOptionIndex: item.correctOptionIndex === -1 ? undefined : item.correctOptionIndex,
-      solution: item.solution,
-      hint: item.hint,
+      options: Array.isArray(item.options) ? item.options : [],
+      correctOptionIndex: item.correctOptionIndex === -1 || item.correctOptionIndex === undefined ? undefined : item.correctOptionIndex,
+      solution: item.solution || '',
+      hint: item.hint || '',
       level: item.level || levelCode,
       topic: item.topic || cleanTopic
     }));
-  } catch (firstError: any) {
-    console.warn("[AI Gen] Schema-based attempt failed, trying fallback without schema...", firstError?.message || firstError);
+  };
 
-    // Attempt 2: Fallback WITHOUT responseSchema (more flexible, works for complex types)
+  let lastError: any = null;
+
+  // Try each model in the fallback list
+  for (const modelId of AI_MODELS) {
+    // Attempt 1: With structured schema
     try {
+      console.log(`[AI Gen] Trying ${modelId} with schema for ${count} ${questionType} questions...`);
       const response = await ai.models.generateContent({
         model: modelId,
-        contents: prompt + "\n\nIMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation, just the JSON array.",
+        contents: prompt,
         config: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: QUESTION_SCHEMA
         }
       });
+      const result = parseResponse(response.text || "[]");
+      console.log(`[AI Gen] Success with ${modelId} + schema! Got ${result.length} questions.`);
+      return result;
+    } catch (schemaError: any) {
+      const errMsg = schemaError?.message || schemaError?.toString() || '';
+      console.warn(`[AI Gen] ${modelId} + schema failed:`, errMsg);
 
-      const cleanedText = cleanJsonString(response.text || "[]");
-      const parsedData = JSON.parse(cleanedText);
-      console.log(`[AI Gen] Fallback success! Got ${parsedData.length} questions.`);
+      // If quota error, try next model immediately
+      if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+        console.warn(`[AI Gen] ${modelId} quota exceeded, trying next model...`);
+        lastError = schemaError;
+        continue;
+      }
 
-      return parsedData.map((item: any, index: number) => ({
-        id: `gen_ai_${Date.now()}_${index}`,
-        type: (item.questionType || questionType) as any,
-        content: item.content || '',
-        imageUrl: item.imageUrl,
-        options: Array.isArray(item.options) ? item.options : [],
-        correctOptionIndex: item.correctOptionIndex === -1 || item.correctOptionIndex === undefined ? undefined : item.correctOptionIndex,
-        solution: item.solution || '',
-        hint: item.hint || '',
-        level: item.level || levelCode,
-        topic: item.topic || cleanTopic
-      }));
-    } catch (secondError: any) {
-      const errMsg = secondError?.message || secondError?.toString() || 'Unknown error';
-      console.error("[AI Gen] Both attempts failed:", errMsg);
-      throw new Error(errMsg);
+      // Attempt 2: Same model but WITHOUT schema (more flexible)
+      try {
+        console.log(`[AI Gen] Retrying ${modelId} without schema...`);
+        const response = await ai.models.generateContent({
+          model: modelId,
+          contents: prompt + "\n\nIMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation, just the JSON array.",
+          config: {
+            responseMimeType: "application/json"
+          }
+        });
+        const result = parseResponse(response.text || "[]");
+        console.log(`[AI Gen] Success with ${modelId} without schema! Got ${result.length} questions.`);
+        return result;
+      } catch (noSchemaError: any) {
+        const noSchemaMsg = noSchemaError?.message || noSchemaError?.toString() || '';
+        console.warn(`[AI Gen] ${modelId} without schema also failed:`, noSchemaMsg);
+        lastError = noSchemaError;
+        // If quota error on no-schema attempt too, try next model
+        if (noSchemaMsg.includes('429') || noSchemaMsg.includes('quota') || noSchemaMsg.includes('RESOURCE_EXHAUSTED')) {
+          continue;
+        }
+      }
     }
   }
+
+  // All models exhausted
+  const finalMsg = lastError?.message || lastError?.toString() || 'All models failed';
+  console.error("[AI Gen] All attempts failed:", finalMsg);
+  throw new Error(finalMsg);
 };
 
 /**
