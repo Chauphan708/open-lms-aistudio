@@ -9,16 +9,40 @@ const cleanJsonString = (text: string): string => {
   return clean.trim();
 };
 
+// --- localStorage helpers cho API Key ---
+const GEMINI_KEY_STORAGE = 'gemini_api_key';
+
+export const setGeminiApiKey = (key: string) => {
+  localStorage.setItem(GEMINI_KEY_STORAGE, key.trim());
+};
+
+export const getGeminiApiKey = (): string => {
+  return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+};
+
+export const clearGeminiApiKey = () => {
+  localStorage.removeItem(GEMINI_KEY_STORAGE);
+};
+
 const getAiClient = () => {
-  // Safely get API Key checking both process.env and import.meta.env
   let apiKey = '';
 
-  // @ts-ignore
-  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    // @ts-ignore
-    apiKey = process.env.API_KEY;
+  // Ưu tiên 1: Đọc từ localStorage (người dùng tự nhập qua Settings)
+  const storedKey = getGeminiApiKey();
+  if (storedKey) {
+    apiKey = storedKey;
   }
 
+  // Ưu tiên 2: Đọc từ process.env.API_KEY (build-time .env)
+  if (!apiKey) {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      // @ts-ignore
+      apiKey = process.env.API_KEY;
+    }
+  }
+
+  // Ưu tiên 3: Đọc từ import.meta.env.VITE_API_KEY (Vite fallback)
   if (!apiKey) {
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
@@ -28,12 +52,11 @@ const getAiClient = () => {
   }
 
   if (!apiKey || apiKey.includes("API_KEY")) {
-    console.error("CRITICAL: Missing API KEY. Please check .env file or Vercel Environment Variables.");
-    throw new Error("API Key is missing or invalid.");
+    console.error("CRITICAL: Missing API KEY. Vui lòng vào Cài đặt → API Key để nhập.");
+    throw new Error("Chưa cấu hình API Key. Vui lòng vào Cài đặt → tab 🔑 API Key để nhập Google Gemini API Key của bạn.");
   }
 
-  // DEBUGGING: Log masked key to see if it's the same
-  console.log(`[DEBUG] getAiClient triggered. Found key: ${apiKey.substring(0, 5)}...${apiKey.slice(-5)}`);
+  console.log(`[DEBUG] getAiClient triggered. Source: ${storedKey ? 'localStorage' : '.env'}. Key: ${apiKey.substring(0, 5)}...${apiKey.slice(-5)}`);
 
   return new GoogleGenAI({ apiKey });
 };

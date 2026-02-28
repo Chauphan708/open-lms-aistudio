@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
+import { setGeminiApiKey, getGeminiApiKey, clearGeminiApiKey } from '../services/geminiService';
 import {
   User,
   Bell,
@@ -18,14 +19,21 @@ import {
   ChevronDown,
   ChevronRight,
   ToggleLeft,
-  X
+  X,
+  Key,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { CustomToolMenu } from '../types';
 
 export const Settings: React.FC = () => {
   const { user, updateUser, changePassword, updateUserCustomTools } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'SYSTEM' | 'TEACHING' | 'TOOLS'>('PROFILE');
+  const [activeTab, setActiveTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'SYSTEM' | 'TEACHING' | 'TOOLS' | 'APIKEY'>('PROFILE');
   const [loading, setLoading] = useState(false);
 
   // Profile State
@@ -46,6 +54,20 @@ export const Settings: React.FC = () => {
   // System Settings (Admin only)
   const [schoolName, setSchoolName] = useState('Trường Tiểu Học OpenLMS');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  // API Key State
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
+
+  useEffect(() => {
+    const existingKey = getGeminiApiKey();
+    if (existingKey) {
+      setApiKeyInput(existingKey);
+      setApiKeyConfigured(true);
+    }
+  }, []);
 
   // Custom Tools State (Teacher & Admin)
   const [customTools, setCustomTools] = useState<CustomToolMenu[]>(user?.customTools || []);
@@ -92,6 +114,53 @@ export const Settings: React.FC = () => {
       setLoading(false);
       alert('Đã cập nhật danh sách công cụ hỗ trợ trên Sidebar!');
     }, 500);
+  };
+
+  const handleSaveApiKey = () => {
+    if (!apiKeyInput.trim()) {
+      alert('Vui lòng nhập API Key!');
+      return;
+    }
+    setGeminiApiKey(apiKeyInput.trim());
+    setApiKeyConfigured(true);
+    setApiKeyStatus('idle');
+    alert('✅ Đã lưu API Key thành công!');
+  };
+
+  const handleClearApiKey = () => {
+    if (!confirm('Bạn có chắc muốn xóa API Key? Các tính năng AI sẽ ngừng hoạt động.')) return;
+    clearGeminiApiKey();
+    setApiKeyInput('');
+    setApiKeyConfigured(false);
+    setApiKeyStatus('idle');
+    alert('Đã xóa API Key.');
+  };
+
+  const handleTestApiKey = async () => {
+    if (!apiKeyInput.trim()) {
+      alert('Vui lòng nhập API Key trước!');
+      return;
+    }
+    setApiKeyStatus('checking');
+    try {
+      // Lưu tạm key để test
+      setGeminiApiKey(apiKeyInput.trim());
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: apiKeyInput.trim() });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-lite',
+        contents: 'Trả lời đúng 1 từ: Xin chào'
+      });
+      if (response.text) {
+        setApiKeyStatus('valid');
+        setApiKeyConfigured(true);
+      } else {
+        setApiKeyStatus('invalid');
+      }
+    } catch (err: any) {
+      console.error('API Key test failed:', err);
+      setApiKeyStatus('invalid');
+    }
   };
 
   const handleAddTool = (parentId: string | null = null) => {
@@ -183,6 +252,16 @@ export const Settings: React.FC = () => {
               className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'TOOLS' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
             >
               <ExternalLink className="h-5 w-5" /> Custom Tools
+            </button>
+          )}
+
+          {(user.role === 'TEACHER' || user.role === 'ADMIN') && (
+            <button
+              onClick={() => setActiveTab('APIKEY')}
+              className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'APIKEY' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              <Key className="h-5 w-5" /> 🔑 API Key
+              {apiKeyConfigured && <span className="ml-auto w-2 h-2 bg-green-500 rounded-full" title="Đã cấu hình"></span>}
             </button>
           )}
 
@@ -430,6 +509,116 @@ export const Settings: React.FC = () => {
                 >
                   <Save className="h-4 w-4" /> {loading ? 'Đang lưu...' : 'Lưu cài đặt danh mục công cụ'}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* API KEY TAB */}
+          {activeTab === 'APIKEY' && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-gray-800 border-b pb-4 flex items-center gap-2">
+                <Key className="h-5 w-5 text-amber-500" /> Cấu hình Google Gemini API Key
+              </h2>
+
+              {/* Trạng thái */}
+              <div className={`flex items-center gap-3 p-4 rounded-xl border ${apiKeyConfigured
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-amber-50 border-amber-200'
+                }`}>
+                {apiKeyConfigured
+                  ? <CheckCircle className="h-6 w-6 text-green-600 shrink-0" />
+                  : <AlertCircle className="h-6 w-6 text-amber-600 shrink-0" />
+                }
+                <div>
+                  <p className={`font-bold ${apiKeyConfigured ? 'text-green-800' : 'text-amber-800'}`}>
+                    {apiKeyConfigured ? '✅ API Key đã được cấu hình' : '⚠️ Chưa cấu hình API Key'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {apiKeyConfigured
+                      ? 'Các tính năng AI (tạo đề, chấm bài, phân tích) đã sẵn sàng.'
+                      : 'Bạn cần nhập API Key để sử dụng các tính năng AI.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Nhập Key */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Google Gemini API Key</label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKeyInput}
+                    onChange={e => { setApiKeyInput(e.target.value); setApiKeyStatus('idle'); }}
+                    placeholder="Dán API Key của bạn vào đây (VD: AIzaSy...)"
+                    className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-4 py-3 pr-12 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    title={showApiKey ? 'Ẩn API Key' : 'Hiện API Key'}
+                  >
+                    {showApiKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+
+                {/* Kết quả kiểm tra */}
+                {apiKeyStatus === 'valid' && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-4 w-4" /> Kết nối thành công! API Key hợp lệ.
+                  </p>
+                )}
+                {apiKeyStatus === 'invalid' && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" /> API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.
+                  </p>
+                )}
+              </div>
+
+              {/* Nút hành động */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSaveApiKey}
+                  disabled={!apiKeyInput.trim()}
+                  className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  <Save className="h-4 w-4" /> Lưu API Key
+                </button>
+                <button
+                  onClick={handleTestApiKey}
+                  disabled={!apiKeyInput.trim() || apiKeyStatus === 'checking'}
+                  className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {apiKeyStatus === 'checking'
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang kiểm tra...</>
+                    : <><Zap className="h-4 w-4" /> Kiểm tra kết nối</>
+                  }
+                </button>
+                {apiKeyConfigured && (
+                  <button
+                    onClick={handleClearApiKey}
+                    className="bg-white border border-red-300 text-red-600 px-5 py-2.5 rounded-lg font-bold hover:bg-red-50 flex items-center gap-2 transition"
+                  >
+                    <Trash2 className="h-4 w-4" /> Xóa API Key
+                  </button>
+                )}
+              </div>
+
+              {/* Hướng dẫn */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-3">
+                <h3 className="font-bold text-blue-800 flex items-center gap-2">
+                  <Zap className="h-4 w-4" /> Hướng dẫn lấy API Key miễn phí
+                </h3>
+                <ol className="text-sm text-blue-700 space-y-2 list-decimal list-inside">
+                  <li>Truy cập <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-blue-900">Google AI Studio → API Keys</a></li>
+                  <li>Đăng nhập bằng tài khoản Google của bạn</li>
+                  <li>Nhấn <strong>"Create API Key"</strong> → Chọn project → Tạo key</li>
+                  <li>Copy API Key và dán vào ô bên trên</li>
+                  <li>Nhấn <strong>"Lưu API Key"</strong> để hoàn tất</li>
+                </ol>
+                <p className="text-xs text-blue-600 mt-2">
+                  💡 API Key được lưu trên trình duyệt của bạn (localStorage), không gửi đi đâu khác ngoài Google AI.
+                </p>
               </div>
             </div>
           )}
