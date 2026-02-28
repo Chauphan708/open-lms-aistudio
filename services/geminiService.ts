@@ -62,14 +62,14 @@ const QUESTION_SCHEMA: Schema = {
 };
 
 // Model fallback list: try newer model first, fallback to older if quota exceeded
-const AI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"];
+const AI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
 /**
  * Parses raw text content (from Word/PDF copy-paste) into structured Question objects.
  */
 export const parseQuestionsFromText = async (rawText: string): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
+  const modelId = "gemini-2.0-flash";
 
   const prompt = `
     You are an AI exam parser for an LMS system. 
@@ -361,7 +361,7 @@ export const analyzeStudentAttempt = async (
   score: number
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
+  const modelId = "gemini-2.0-flash";
 
   // Filter wrong answers to save tokens and focus AI
   const wrongAnswers = questions.filter(q => {
@@ -421,7 +421,7 @@ export const analyzeClassPerformance = async (
   customInstructions?: string
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
+  const modelId = "gemini-2.0-flash";
 
   if (attempts.length === 0) return "Chưa có dữ liệu bài làm để phân tích.";
 
@@ -483,7 +483,7 @@ export const generateBehaviorAdvice = async (
   customPrompt?: string
 ): Promise<string> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
+  const modelId = "gemini-2.0-flash";
 
   const prompt = `
     Đóng vai một Chuyên gia Tâm lý Học đường và Cố vấn Hành vi.
@@ -522,7 +522,7 @@ export const analyzeStudentMaterial = async (
   customPrompt: string = ""
 ): Promise<any> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
+  const modelId = "gemini-2.0-flash";
 
   const prompt = `
     Đóng vai một Giáo viên chấm bài xuất sắc. Dưới đây là hình ảnh chụp các trang bài làm của học sinh.
@@ -588,7 +588,7 @@ export const analyzeStudentText = async (
   rubric: string = ""
 ): Promise<any> => {
   const ai = getAiClient();
-  const modelId = "gemini-1.5-flash";
+  const modelId = "gemini-2.0-flash";
 
   const prompt = `
     Đóng vai một Giáo viên chấm bài xuất sắc.
