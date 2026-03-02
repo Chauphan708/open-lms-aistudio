@@ -27,13 +27,15 @@ export const AssignmentManage: React.FC = () => {
         [classes, user]
     );
 
-    // Filter assignments by this teacher (exclude ones with deleted/missing exams)
+    // Filter assignments by this teacher (exclude ones with soft-deleted exams)
     const myAssignments = useMemo(() => {
         return assignments
             .filter(a => a.teacherId === user?.id)
             .filter(a => {
                 const exam = exams.find(e => e.id === a.examId);
-                return exam && !exam.deletedAt;
+                // Only exclude if exam is found AND soft-deleted
+                if (exam && exam.deletedAt) return false;
+                return true;
             })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [assignments, user, exams]);
