@@ -58,15 +58,14 @@ export const ExamResults: React.FC = () => {
       const max = Math.max(...scores);
       const min = Math.min(...scores);
 
-      // Distribution
-      const distribution = {
-         excellent: scores.filter(s => s >= 9).length,
-         good: scores.filter(s => s >= 7 && s < 9).length,
-         average: scores.filter(s => s >= 5 && s < 7).length,
-         weak: scores.filter(s => s < 5).length,
-      };
+      // Detailed Distribution (0-10) for Bell Curve
+      const detailedDistribution = Array.from({ length: 11 }, (_, i) => {
+         const count = scores.filter(s => Math.round(s) === i).length;
+         return { label: i.toString(), count };
+      });
+      const maxDistributionCount = Math.max(...detailedDistribution.map(d => d.count), 1);
 
-      return { avg, max, min, distribution, count: scores.length };
+      return { avg, max, min, detailedDistribution, maxDistributionCount, count: scores.length };
    }, [examAttempts]);
 
    const handleClassAnalyze = async () => {
@@ -173,47 +172,30 @@ export const ExamResults: React.FC = () => {
                {/* Distribution Chart */}
                <div className="bg-white p-6 rounded-xl border shadow-sm">
                   <h3 className="font-bold text-gray-800 mb-6">Phổ điểm</h3>
-                  <div className="flex items-end gap-4 h-48 px-2 md:px-8">
-                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
-                        <div className="w-16 md:w-20 bg-red-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.weak / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
-                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.weak}</div>
-                        </div>
-                        <div className="w-full h-1 bg-red-200 rounded-full"></div>
-                        <div className="text-center">
-                           <div className="text-xs font-medium text-gray-500 mb-1">Yếu (&lt;5)</div>
-                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.weak}</div>
-                        </div>
-                     </div>
-                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
-                        <div className="w-16 md:w-20 bg-yellow-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.average / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
-                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.average}</div>
-                        </div>
-                        <div className="w-full h-1 bg-yellow-300 rounded-full"></div>
-                        <div className="text-center">
-                           <div className="text-xs font-medium text-gray-500 mb-1">TB (5-7)</div>
-                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.average}</div>
-                        </div>
-                     </div>
-                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
-                        <div className="w-16 md:w-20 bg-blue-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.good / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
-                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.good}</div>
-                        </div>
-                        <div className="w-full h-1 bg-blue-300 rounded-full"></div>
-                        <div className="text-center">
-                           <div className="text-xs font-medium text-gray-500 mb-1">Khá (7-9)</div>
-                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.good}</div>
-                        </div>
-                     </div>
-                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
-                        <div className="w-16 md:w-20 bg-green-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.excellent / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
-                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.excellent}</div>
-                        </div>
-                        <div className="w-full h-1 bg-green-300 rounded-full"></div>
-                        <div className="text-center">
-                           <div className="text-xs font-medium text-gray-500 mb-1">Giỏi (&ge;9)</div>
-                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.excellent}</div>
-                        </div>
-                     </div>
+                  <div className="flex items-end justify-between h-48 px-1 md:px-4 gap-1 md:gap-2">
+                     {stats!.detailedDistribution.map((item, idx) => {
+                        const heightPercent = stats!.maxDistributionCount > 0 ? (item.count / stats!.maxDistributionCount) * 100 : 0;
+
+                        // Color styling based on score to make it look smooth and beautiful
+                        let bgColor = "bg-red-300";
+                        if (idx >= 5 && idx <= 6) bgColor = "bg-yellow-300";
+                        else if (idx >= 7 && idx <= 8) bgColor = "bg-blue-300";
+                        else if (idx >= 9) bgColor = "bg-green-300";
+
+                        return (
+                           <div key={idx} className="flex-1 flex flex-col justify-end items-center gap-2 group">
+                              <div
+                                 className={`w-full max-w-[40px] ${bgColor} rounded-t-md relative flex flex-col justify-end transition-all opacity-80 group-hover:opacity-100 hover:scale-x-105`}
+                                 style={{ height: `${heightPercent}%`, minHeight: '8px' }}
+                              >
+                                 <div className={`absolute -top-7 left-1/2 -translate-x-1/2 font-bold text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-gray-800 text-white px-2 py-1 rounded shadow-lg z-10 before:content-[''] before:absolute before:top-full before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-800`}>
+                                    {item.count} hs
+                                 </div>
+                              </div>
+                              <div className="text-xs font-bold text-gray-500">{item.label}</div>
+                           </div>
+                        );
+                     })}
                   </div>
                </div>
 
