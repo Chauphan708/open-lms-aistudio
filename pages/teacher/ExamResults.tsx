@@ -168,27 +168,47 @@ export const ExamResults: React.FC = () => {
 
                {/* Distribution Chart */}
                <div className="bg-white p-6 rounded-xl border shadow-sm">
-                  <h3 className="font-bold text-gray-800 mb-4">Phổ điểm</h3>
-                  <div className="flex items-end gap-2 h-40">
-                     <div className="flex-1 flex flex-col justify-end items-center gap-2">
-                        <div className="w-full bg-red-200 rounded-t-lg transition-all" style={{ height: `${(stats!.distribution.weak / stats!.count) * 100}%`, minHeight: '4px' }}></div>
-                        <span className="text-xs font-medium text-gray-600">Yếu (&lt;5)</span>
-                        <span className="text-sm font-bold">{stats!.distribution.weak}</span>
+                  <h3 className="font-bold text-gray-800 mb-6">Phổ điểm</h3>
+                  <div className="flex items-end gap-4 h-48 px-2 md:px-8">
+                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
+                        <div className="w-16 md:w-20 bg-red-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.weak / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
+                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.weak}</div>
+                        </div>
+                        <div className="w-full h-1 bg-red-200 rounded-full"></div>
+                        <div className="text-center">
+                           <div className="text-xs font-medium text-gray-500 mb-1">Yếu (&lt;5)</div>
+                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.weak}</div>
+                        </div>
                      </div>
-                     <div className="flex-1 flex flex-col justify-end items-center gap-2">
-                        <div className="w-full bg-yellow-200 rounded-t-lg transition-all" style={{ height: `${(stats!.distribution.average / stats!.count) * 100}%`, minHeight: '4px' }}></div>
-                        <span className="text-xs font-medium text-gray-600">TB (5-7)</span>
-                        <span className="text-sm font-bold">{stats!.distribution.average}</span>
+                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
+                        <div className="w-16 md:w-20 bg-yellow-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.average / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
+                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.average}</div>
+                        </div>
+                        <div className="w-full h-1 bg-yellow-300 rounded-full"></div>
+                        <div className="text-center">
+                           <div className="text-xs font-medium text-gray-500 mb-1">TB (5-7)</div>
+                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.average}</div>
+                        </div>
                      </div>
-                     <div className="flex-1 flex flex-col justify-end items-center gap-2">
-                        <div className="w-full bg-blue-200 rounded-t-lg transition-all" style={{ height: `${(stats!.distribution.good / stats!.count) * 100}%`, minHeight: '4px' }}></div>
-                        <span className="text-xs font-medium text-gray-600">Khá (7-9)</span>
-                        <span className="text-sm font-bold">{stats!.distribution.good}</span>
+                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
+                        <div className="w-16 md:w-20 bg-blue-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.good / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
+                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.good}</div>
+                        </div>
+                        <div className="w-full h-1 bg-blue-300 rounded-full"></div>
+                        <div className="text-center">
+                           <div className="text-xs font-medium text-gray-500 mb-1">Khá (7-9)</div>
+                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.good}</div>
+                        </div>
                      </div>
-                     <div className="flex-1 flex flex-col justify-end items-center gap-2">
-                        <div className="w-full bg-green-200 rounded-t-lg transition-all" style={{ height: `${(stats!.distribution.excellent / stats!.count) * 100}%`, minHeight: '4px' }}></div>
-                        <span className="text-xs font-medium text-gray-600">Giỏi (&ge;9)</span>
-                        <span className="text-sm font-bold">{stats!.distribution.excellent}</span>
+                     <div className="flex-1 flex flex-col justify-end items-center gap-3">
+                        <div className="w-16 md:w-20 bg-green-200 rounded-t-lg transition-all relative group flex flex-col justify-end" style={{ height: `${stats!.count > 0 ? (stats!.distribution.excellent / stats!.count) * 100 : 0}%`, minHeight: '8px' }}>
+                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 font-bold text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">{stats!.distribution.excellent}</div>
+                        </div>
+                        <div className="w-full h-1 bg-green-300 rounded-full"></div>
+                        <div className="text-center">
+                           <div className="text-xs font-medium text-gray-500 mb-1">Giỏi (&ge;9)</div>
+                           <div className="text-sm font-bold text-gray-900">{stats!.distribution.excellent}</div>
+                        </div>
                      </div>
                   </div>
                </div>
