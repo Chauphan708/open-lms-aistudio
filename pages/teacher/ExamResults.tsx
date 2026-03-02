@@ -193,6 +193,99 @@ export const ExamResults: React.FC = () => {
                   </div>
                </div>
 
+               {/* Statistics by Question */}
+               <div className="bg-white p-6 rounded-xl border shadow-sm">
+                  <h3 className="font-bold text-gray-800 mb-4">Thống kê theo câu hỏi</h3>
+                  <div className="space-y-4">
+                     {exam.questions.map((q, idx) => {
+                        let correctCount = 0;
+                        let incorrectCount = 0;
+                        examAttempts.forEach(att => {
+                           const studentAnsIdx = att.answers[q.id];
+                           // Only count if they answered
+                           if (studentAnsIdx !== undefined) {
+                              if (studentAnsIdx === q.correctOptionIndex) {
+                                 correctCount++;
+                              } else {
+                                 incorrectCount++;
+                              }
+                           } else {
+                              // If they didn't answer, it's incorrect
+                              incorrectCount++;
+                           }
+                        });
+                        const total = correctCount + incorrectCount;
+                        const correctPercent = total > 0 ? (correctCount / total) * 100 : 0;
+                        const incorrectPercent = total > 0 ? (incorrectCount / total) * 100 : 0;
+
+                        return (
+                           <div key={q.id}>
+                              <div className="flex justify-between text-sm mb-1">
+                                 <span className="font-medium text-gray-700">Câu {idx + 1}</span>
+                                 <span className="text-gray-500">
+                                    <span className="text-green-600 font-medium">{correctCount} đúng</span> / <span className="text-red-500">{incorrectCount} sai</span>
+                                 </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2.5 flex overflow-hidden">
+                                 <div className="bg-green-500 h-2.5" style={{ width: `${correctPercent}%` }}></div>
+                                 <div className="bg-red-500 h-2.5" style={{ width: `${incorrectPercent}%` }}></div>
+                              </div>
+                           </div>
+                        );
+                     })}
+                  </div>
+               </div>
+
+               {/* Statistics by Student */}
+               <div className="bg-white p-6 rounded-xl border shadow-sm">
+                  <h3 className="font-bold text-gray-800 mb-4">Thống kê theo từng học sinh</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {Array.from(new Set(examAttempts.map(a => a.studentId))).map(studentId => {
+                        const student = users.find(u => u.id === studentId);
+                        const studentAttempts = examAttempts.filter(a => a.studentId === studentId);
+                        const attemptCount = studentAttempts.length;
+                        const scores = studentAttempts.map(a => a.score || 0);
+                        const maxScore = Math.max(...scores);
+                        const minScore = Math.min(...scores);
+                        const avgScore = scores.reduce((a, b) => a + b, 0) / attemptCount;
+
+                        // Percentage based on a max score of 10
+                        const maxPercent = (maxScore / 10) * 100;
+                        const minPercent = (minScore / 10) * 100;
+                        const avgPercent = (avgScore / 10) * 100;
+
+                        return (
+                           <div key={studentId} className="border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                                 <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">
+                                    {student?.name.charAt(0) || '?'}
+                                 </div>
+                                 {student?.name || 'Khách'}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                 <div className="bg-gray-50 p-2 rounded">
+                                    <div className="text-xs text-gray-500">Số lần làm</div>
+                                    <div className="font-bold text-gray-800">{attemptCount}</div>
+                                 </div>
+                                 <div className="bg-gray-50 p-2 rounded">
+                                    <div className="text-xs text-gray-500">ĐTB</div>
+                                    <div className="font-bold text-indigo-600">{fmt(avgScore)} <span className="text-xs font-normal text-gray-500">({Math.round(avgPercent)}%)</span></div>
+                                 </div>
+                                 <div className="bg-gray-50 p-2 rounded">
+                                    <div className="text-xs text-gray-500">Cao nhất</div>
+                                    <div className="font-bold text-green-600">{fmt(maxScore)} <span className="text-xs font-normal text-gray-500">({Math.round(maxPercent)}%)</span></div>
+                                 </div>
+                                 <div className="bg-gray-50 p-2 rounded">
+                                    <div className="text-xs text-gray-500">Thấp nhất</div>
+                                    <div className="font-bold text-red-500">{fmt(minScore)} <span className="text-xs font-normal text-gray-500">({Math.round(minPercent)}%)</span></div>
+                                 </div>
+                              </div>
+                           </div>
+                        );
+                     })}
+                  </div>
+               </div>
+
                {/* AI Analysis Section */}
                {aiAnalysis && (
                   <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 p-6 rounded-xl shadow-sm animate-fade-in">
