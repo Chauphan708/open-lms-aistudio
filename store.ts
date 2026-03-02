@@ -417,7 +417,10 @@ export const useStore = create<AppState>((set, get) => ({
     // Optimistic: add to local state immediately so user sees it
     set((state) => ({ exams: [exam, ...state.exams] }));
     const { error } = await supabase.from('exams').insert(exam);
-    if (error) console.error("addExam Supabase error:", error);
+    if (error) {
+      console.error("addExam Supabase error:", error);
+      alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+    }
   },
   updateExam: async (updatedExam) => {
     const { error } = await supabase.from('exams').update(updatedExam).eq('id', updatedExam.id);
@@ -469,10 +472,15 @@ export const useStore = create<AppState>((set, get) => ({
   // Assignments
   assignments: [],
   addAssignment: async (assign) => {
-    const { error } = await supabase.from('assignments').insert(assign);
-    if (error) return;
-
+    // Optimistic: add to local state immediately
     set((state) => ({ assignments: [assign, ...state.assignments] }));
+
+    const { error } = await supabase.from('assignments').insert(assign);
+    if (error) {
+      console.error("addAssignment Supabase error:", error);
+      alert(`⚠️ Lỗi giao bài tập lên server: ${error.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+      return;
+    }
 
     const state = get();
     const targetClass = state.classes.find(c => c.id === assign.classId);
