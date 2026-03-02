@@ -84,9 +84,23 @@ export const ExamCreate: React.FC = () => {
     setError(null);
     try {
       const parsed = await parseQuestionsFromText(rawText);
-      setQuestions(prev => [...prev, ...parsed]);
-    } catch (err) {
-      setError("Không thể tách câu hỏi. Vui lòng kiểm tra lại văn bản.");
+      if (parsed.length === 0) {
+        setError("AI không tìm thấy câu hỏi nào trong văn bản. Vui lòng kiểm tra định dạng nhập liệu.");
+      } else {
+        setQuestions(prev => [...prev, ...parsed]);
+      }
+    } catch (err: any) {
+      const detail = err?.message || '';
+      if (detail.includes('API Key') || detail.includes('API_KEY') || detail.includes('Chưa cấu hình')) {
+        setError("Lỗi API Key: Vui lòng vào Cài đặt → tab 🔑 API Key để nhập Google Gemini API Key.");
+      } else if (detail.includes('quota') || detail.includes('429') || detail.includes('RESOURCE_EXHAUSTED')) {
+        setError("AI đang quá tải (hết quota). Vui lòng thử lại sau vài phút.");
+      } else if (detail.includes('network') || detail.includes('fetch') || detail.includes('Failed to fetch')) {
+        setError("Lỗi mạng: Không thể kết nối đến AI. Kiểm tra kết nối internet.");
+      } else {
+        setError(`Không thể tách câu hỏi: ${detail || 'Lỗi không xác định. Vui lòng thử lại.'}`);
+      }
+      console.error("[ExamCreate] handleParse error:", err);
     } finally {
       setIsProcessing(false);
     }

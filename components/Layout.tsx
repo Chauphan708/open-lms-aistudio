@@ -27,7 +27,8 @@ import {
   ExternalLink,
   Wrench,
   Clock,
-  BarChart3
+  BarChart3,
+  ClipboardList
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
@@ -99,6 +100,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
     // SHARED
     { label: 'Ngân hàng bài tập', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+    { label: 'QL Bài đã giao', path: '/teacher/assignments', icon: ClipboardList, roles: ['TEACHER'] },
 
     // RESOURCES (NEW)
     { label: 'Kho Tài Liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },

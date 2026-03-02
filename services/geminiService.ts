@@ -89,10 +89,10 @@ const AI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
 /**
  * Parses raw text content (from Word/PDF copy-paste) into structured Question objects.
+ * Includes model fallback and schema retry logic for robustness.
  */
 export const parseQuestionsFromText = async (rawText: string): Promise<Question[]> => {
   const ai = getAiClient();
-  const modelId = "gemini-2.0-flash";
 
   const prompt = `
     You are an AI exam parser for an LMS system. 
@@ -116,19 +116,10 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
     """
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: QUESTION_SCHEMA
-      }
-    });
-
-    const cleanedText = cleanJsonString(response.text || "[]");
+  // Helper to parse response into Question array
+  const parseResponse = (text: string): Question[] => {
+    const cleanedText = cleanJsonString(text || "[]");
     const parsedData = JSON.parse(cleanedText);
-
     return parsedData.map((item: any, index: number) => ({
       id: `gen_parse_${Date.now()}_${index}`,
       type: (item.questionType || 'MCQ') as any,
@@ -141,11 +132,65 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
       level: item.level || undefined,
       topic: item.topic || undefined
     }));
+  };
 
-  } catch (error) {
-    console.error("Gemini Parse Error:", error);
-    throw new Error("Failed to parse questions using AI.");
+  let lastError: any = null;
+
+  // Try each model in the fallback list
+  for (const modelId of AI_MODELS) {
+    // Attempt 1: With structured schema
+    try {
+      console.log(`[Parse] Trying ${modelId} with schema...`);
+      const response = await ai.models.generateContent({
+        model: modelId,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: QUESTION_SCHEMA
+        }
+      });
+      const result = parseResponse(response.text || "[]");
+      console.log(`[Parse] Success with ${modelId} + schema! Got ${result.length} questions.`);
+      return result;
+    } catch (schemaError: any) {
+      const errMsg = schemaError?.message || schemaError?.toString() || '';
+      console.warn(`[Parse] ${modelId} + schema failed:`, errMsg);
+
+      // If quota error, try next model immediately
+      if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+        console.warn(`[Parse] ${modelId} quota exceeded, trying next model...`);
+        lastError = schemaError;
+        continue;
+      }
+
+      // Attempt 2: Same model but WITHOUT schema (more flexible)
+      try {
+        console.log(`[Parse] Retrying ${modelId} without schema...`);
+        const response = await ai.models.generateContent({
+          model: modelId,
+          contents: prompt + "\n\nIMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation, just the JSON array.",
+          config: {
+            responseMimeType: "application/json"
+          }
+        });
+        const result = parseResponse(response.text || "[]");
+        console.log(`[Parse] Success with ${modelId} without schema! Got ${result.length} questions.`);
+        return result;
+      } catch (noSchemaError: any) {
+        const noSchemaMsg = noSchemaError?.message || noSchemaError?.toString() || '';
+        console.warn(`[Parse] ${modelId} without schema also failed:`, noSchemaMsg);
+        lastError = noSchemaError;
+        if (noSchemaMsg.includes('429') || noSchemaMsg.includes('quota') || noSchemaMsg.includes('RESOURCE_EXHAUSTED')) {
+          continue;
+        }
+      }
+    }
   }
+
+  // All models exhausted
+  const finalMsg = lastError?.message || lastError?.toString() || 'All models failed';
+  console.error("[Parse] All attempts failed:", finalMsg);
+  throw new Error(finalMsg);
 };
 
 /**

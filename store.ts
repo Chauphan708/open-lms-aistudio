@@ -481,6 +481,35 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  deleteAssignment: async (id) => {
+    const { error } = await supabase.from('assignments').delete().eq('id', id);
+    if (error) {
+      console.error("Delete assignment error:", error);
+      return false;
+    }
+    set((state) => ({
+      assignments: state.assignments.filter(a => a.id !== id)
+    }));
+    return true;
+  },
+
+  updateAssignment: async (updated) => {
+    const { error } = await supabase.from('assignments').update({
+      startTime: updated.startTime,
+      endTime: updated.endTime,
+      durationMinutes: updated.durationMinutes,
+      settings: updated.settings
+    }).eq('id', updated.id);
+    if (error) {
+      console.error("Update assignment error:", error);
+      return false;
+    }
+    set((state) => ({
+      assignments: state.assignments.map(a => a.id === updated.id ? updated : a)
+    }));
+    return true;
+  },
+
   // Attempts
   attempts: [],
   addAttempt: async (attempt) => {

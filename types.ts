@@ -358,6 +358,8 @@ export interface AppState {
 
   assignments: Assignment[];
   addAssignment: (assign: Assignment) => void;
+  deleteAssignment: (id: string) => Promise<boolean>;
+  updateAssignment: (updated: Assignment) => Promise<boolean>;
 
   attempts: Attempt[];
   addAttempt: (attempt: Attempt) => void;

@@ -25,6 +25,7 @@ import { DiscussionJoin } from './pages/student/DiscussionJoin';
 import { DiscussionList } from './pages/teacher/DiscussionList';
 import { DiscussionCreate } from './pages/teacher/DiscussionCreate';
 import { ExamResults } from './pages/teacher/ExamResults';
+import { AssignmentManage } from './pages/teacher/AssignmentManage';
 // Student History
 import { StudentHistory } from './pages/student/StudentHistory';
 // Settings
@@ -251,6 +252,11 @@ function App() {
         <Route path="/teacher/ai-grading" element={
           <ProtectedRoute roles={['TEACHER']}>
             <AIGrading />
+          </ProtectedRoute>
+        } />
+        <Route path="/teacher/assignments" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <AssignmentManage />
           </ProtectedRoute>
         } />
 
