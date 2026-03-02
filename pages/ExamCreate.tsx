@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { parseQuestionsFromText, generateQuestionsByTopic } from '../services/geminiService';
+import { parseQuestionsLocal } from '../utils/localParser';
 import { Question, QuestionType, ExamDifficulty } from '../types';
 import { Wand2, Save, Trash2, Plus, AlertCircle, FilePlus, BrainCircuit, FileText, Settings, Sparkles, Users, MessageSquarePlus, Edit2, X, GraduationCap, BarChart3, Image as ImageIcon, Lightbulb, Printer, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -78,7 +79,20 @@ export const ExamCreate: React.FC = () => {
   };
 
   // Handlers
-  const handleParse = async () => {
+  // --- Tách câu hỏi LOCAL (regex, không cần AI) ---
+  const handleParseLocal = () => {
+    if (!rawText.trim()) return;
+    setError(null);
+    const parsed = parseQuestionsLocal(rawText);
+    if (parsed.length === 0) {
+      setError("Không tìm thấy câu hỏi theo format chuẩn. Hãy thử nút \"✨ AI Tách\" hoặc kiểm tra lại định dạng (Câu 1:, A., B., C., D., Đáp án: X).");
+    } else {
+      setQuestions(prev => [...prev, ...parsed]);
+    }
+  };
+
+  // --- Tách câu hỏi bằng AI (cần API Key + Internet) ---
+  const handleParseAI = async () => {
     if (!rawText.trim()) return;
     setIsProcessing(true);
     setError(null);
@@ -94,13 +108,13 @@ export const ExamCreate: React.FC = () => {
       if (detail.includes('API Key') || detail.includes('API_KEY') || detail.includes('Chưa cấu hình')) {
         setError("Lỗi API Key: Vui lòng vào Cài đặt → tab 🔑 API Key để nhập Google Gemini API Key.");
       } else if (detail.includes('quota') || detail.includes('429') || detail.includes('RESOURCE_EXHAUSTED')) {
-        setError("AI đang quá tải (hết quota). Vui lòng thử lại sau vài phút.");
+        setError("AI đang quá tải (hết quota). Vui lòng thử lại sau vài phút hoặc dùng nút \"Tách câu hỏi\" (không cần AI).");
       } else if (detail.includes('network') || detail.includes('fetch') || detail.includes('Failed to fetch')) {
-        setError("Lỗi mạng: Không thể kết nối đến AI. Kiểm tra kết nối internet.");
+        setError("Lỗi mạng: Không thể kết nối đến AI. Kiểm tra kết nối internet hoặc dùng nút \"Tách câu hỏi\" (không cần AI).");
       } else {
         setError(`Không thể tách câu hỏi: ${detail || 'Lỗi không xác định. Vui lòng thử lại.'}`);
       }
-      console.error("[ExamCreate] handleParse error:", err);
+      console.error("[ExamCreate] handleParseAI error:", err);
     } finally {
       setIsProcessing(false);
     }
@@ -410,13 +424,24 @@ export const ExamCreate: React.FC = () => {
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={handleParse}
+                      onClick={handleParseLocal}
                       disabled={isProcessing || !rawText}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all
                               ${isProcessing || !rawText ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-md'}
                               `}
+                      title="Tách bằng regex (nhanh, miễn phí, không cần AI)"
                     >
-                      {isProcessing ? 'Đang xử lý...' : <><Wand2 className="h-3 w-3" /> Tách câu hỏi</>}
+                      <Wand2 className="h-3 w-3" /> Tách câu hỏi
+                    </button>
+                    <button
+                      onClick={handleParseAI}
+                      disabled={isProcessing || !rawText}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all
+                              ${isProcessing || !rawText ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-md'}
+                              `}
+                      title="Tách bằng AI (cần API Key, nhận dạng format linh hoạt hơn)"
+                    >
+                      {isProcessing ? 'AI đang xử lý...' : <><Sparkles className="h-3 w-3" /> AI Tách</>}
                     </button>
                   </div>
                 </div>
