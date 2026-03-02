@@ -5,7 +5,7 @@ import { Trash2, Edit2, X, Clock, Calendar, Search, Filter, CheckCircle, AlertTr
 import { Link } from 'react-router-dom';
 
 export const AssignmentManage: React.FC = () => {
-    const { assignments, exams, classes, user, deleteAssignment, updateAssignment, attempts } = useStore();
+    const { assignments, exams, classes, user, deleteAssignment, updateAssignment, updateExam, attempts } = useStore();
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -17,6 +17,7 @@ export const AssignmentManage: React.FC = () => {
     const [editStartTime, setEditStartTime] = useState('');
     const [editEndTime, setEditEndTime] = useState('');
     const [editDuration, setEditDuration] = useState(0);
+    const [editTitle, setEditTitle] = useState('');
 
     // Delete confirm
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -63,10 +64,12 @@ export const AssignmentManage: React.FC = () => {
     };
 
     const openEdit = (a: Assignment) => {
+        const exam = exams.find(e => e.id === a.examId);
         setEditingAssignment(a);
         setEditStartTime(a.startTime || '');
         setEditEndTime(a.endTime || '');
         setEditDuration(a.durationMinutes);
+        setEditTitle(exam?.title || '');
     };
 
     const handleSaveEdit = async () => {
@@ -79,6 +82,11 @@ export const AssignmentManage: React.FC = () => {
         };
         const ok = await updateAssignment(updated);
         if (ok) {
+            // Also update exam title if changed
+            const exam = exams.find(e => e.id === editingAssignment.examId);
+            if (exam && editTitle.trim() && editTitle !== exam.title) {
+                updateExam({ ...exam, title: editTitle.trim() });
+            }
             setEditingAssignment(null);
         } else {
             alert('Lỗi khi cập nhật. Vui lòng thử lại.');
@@ -268,6 +276,19 @@ export const AssignmentManage: React.FC = () => {
                             </div>
 
                             <div className="p-6 space-y-5">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-indigo-600" /> Tên bài tập
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full border rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500 bg-white text-gray-900"
+                                        value={editTitle}
+                                        onChange={e => setEditTitle(e.target.value)}
+                                        placeholder="Nhập tên bài tập..."
+                                    />
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
