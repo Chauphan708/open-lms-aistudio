@@ -27,12 +27,16 @@ export const AssignmentManage: React.FC = () => {
         [classes, user]
     );
 
-    // Filter assignments by this teacher
+    // Filter assignments by this teacher (exclude ones with deleted/missing exams)
     const myAssignments = useMemo(() => {
         return assignments
             .filter(a => a.teacherId === user?.id)
+            .filter(a => {
+                const exam = exams.find(e => e.id === a.examId);
+                return exam && !exam.deletedAt;
+            })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [assignments, user]);
+    }, [assignments, user, exams]);
 
     const getStatus = (a: Assignment) => {
         const now = new Date();

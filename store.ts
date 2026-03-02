@@ -425,6 +425,19 @@ export const useStore = create<AppState>((set, get) => ({
       exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
     }));
   },
+  softDeleteExam: async (id) => {
+    const deletedAt = new Date().toISOString();
+    set((state) => ({
+      exams: state.exams.map(e => e.id === id ? { ...e, deletedAt } : e)
+    }));
+    await supabase.from('exams').update({ deletedAt }).eq('id', id);
+  },
+  restoreExam: async (id) => {
+    set((state) => ({
+      exams: state.exams.map(e => e.id === id ? { ...e, deletedAt: undefined } : e)
+    }));
+    await supabase.from('exams').update({ deletedAt: null }).eq('id', id);
+  },
 
   // Question Bank
   questionBank: [],

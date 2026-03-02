@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../store';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, FileText, ChevronRight, Send, Radio, Search, Filter, Calendar, BookOpen, GraduationCap, X, Layers, BarChart3, HelpCircle, LineChart } from 'lucide-react';
+import { Clock, FileText, ChevronRight, Send, Radio, Search, Filter, Calendar, BookOpen, GraduationCap, X, Layers, BarChart3, HelpCircle, LineChart, Edit2, Trash2, RotateCcw, Save } from 'lucide-react';
 import { AssignModal } from '../components/AssignModal';
 import { Exam, LiveSession, QuestionType, ExamDifficulty } from '../types';
 
 export const ExamList: React.FC = () => {
-  const { exams, assignments, user, classes, createLiveSession } = useStore();
+  const { exams, assignments, user, classes, createLiveSession, updateExam, softDeleteExam, restoreExam } = useStore();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const navigate = useNavigate();
@@ -21,6 +21,14 @@ export const ExamList: React.FC = () => {
   const [filterQuestionType, setFilterQuestionType] = useState('');
   const [filterTopic, setFilterTopic] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
+
+  // Inline edit
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  // Delete confirm
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const subjects = useMemo(() => Array.from(new Set(exams.map(e => e.subject).filter(Boolean))), [exams]);
   const topics = useMemo(() => Array.from(new Set(exams.map(e => e.topic).filter(Boolean))) as string[], [exams]);
@@ -47,6 +55,9 @@ export const ExamList: React.FC = () => {
 
   const filteredExams = useMemo(() => {
     return exams.filter(exam => {
+      // Exclude soft-deleted exams from main view
+      if (exam.deletedAt) return false;
+
       const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesSubject = filterSubject ? exam.subject === filterSubject : true;
       const matchesGrade = filterGrade ? exam.grade === filterGrade : true;
@@ -70,6 +81,20 @@ export const ExamList: React.FC = () => {
       return matchesSearch && matchesSubject && matchesGrade && matchesTopic && matchesDate && matchesDuration && matchesDifficulty && matchesType;
     });
   }, [exams, searchTerm, filterSubject, filterGrade, filterTopic, filterDate, filterDuration, filterDifficulty, filterQuestionType]);
+
+  const trashedExams = useMemo(() => exams.filter(e => e.deletedAt), [exams]);
+
+  const handleStartEdit = (exam: Exam) => {
+    setEditingId(exam.id);
+    setEditTitle(exam.title);
+  };
+
+  const handleSaveEdit = (exam: Exam) => {
+    if (editTitle.trim() && editTitle !== exam.title) {
+      updateExam({ ...exam, title: editTitle.trim() });
+    }
+    setEditingId(null);
+  };
 
   const getDifficultyLabel = (diff: ExamDifficulty | undefined) => {
     switch (diff) {
@@ -332,7 +357,21 @@ export const ExamList: React.FC = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-gray-900 text-lg">{exam.title}</h3>
+                      {editingId === exam.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text" value={editTitle}
+                            onChange={e => setEditTitle(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(exam); if (e.key === 'Escape') setEditingId(null); }}
+                            className="border border-indigo-300 rounded-lg px-2 py-1 text-lg font-bold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 w-64"
+                            autoFocus
+                          />
+                          <button onClick={() => handleSaveEdit(exam)} className="p-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200" title="Lưu"><Save className="h-4 w-4" /></button>
+                          <button onClick={() => setEditingId(null)} className="p-1 bg-gray-100 text-gray-500 rounded hover:bg-gray-200" title="Huỷ"><X className="h-4 w-4" /></button>
+                        </div>
+                      ) : (
+                        <h3 className="font-bold text-gray-900 text-lg">{exam.title}</h3>
+                      )}
                       {exam.difficulty && (
                         <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${getDifficultyLabel(exam.difficulty).color}`}>
                           {getDifficultyLabel(exam.difficulty).label}
@@ -387,12 +426,73 @@ export const ExamList: React.FC = () => {
                   >
                     Xem thử
                   </Link>
+                  {user?.role === 'TEACHER' && (
+                    <>
+                      <button
+                        onClick={() => handleStartEdit(exam)}
+                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Sửa tên bài tập"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      {deletingId === exam.id ? (
+                        <div className="flex items-center gap-1 animate-fade-in">
+                          <button onClick={() => { softDeleteExam(exam.id); setDeletingId(null); }}
+                            className="px-2 py-1 text-xs font-bold text-white bg-red-500 rounded-lg hover:bg-red-600">Xoá</button>
+                          <button onClick={() => setDeletingId(null)}
+                            className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Huỷ</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeletingId(exam.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Xoá bài tập (vào thùng rác)"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Trash Section */}
+      {user?.role === 'TEACHER' && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowTrash(!showTrash)}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-3"
+          >
+            <Trash2 className="h-4 w-4" />
+            Thùng rác ({trashedExams.length})
+          </button>
+          {showTrash && trashedExams.length > 0 && (
+            <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 divide-y">
+              {trashedExams.map(exam => (
+                <div key={exam.id} className="p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-500 truncate">{exam.title}</p>
+                      <p className="text-xs text-gray-400">Xoá: {new Date(exam.deletedAt!).toLocaleString('vi-VN')} • {exam.questionCount} câu</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => restoreExam(exam.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 border border-indigo-100 whitespace-nowrap"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Khôi phục
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {selectedExam && (
         <AssignModal

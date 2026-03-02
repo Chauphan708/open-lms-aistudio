@@ -78,6 +78,7 @@ export interface Exam {
   status: 'DRAFT' | 'PUBLISHED';
   classId?: string; // If assigned to a specific class directly (or null for bank)
   questions: Question[];
+  deletedAt?: string; // Soft delete timestamp (thùng rác)
 }
 
 export interface AssignmentSettings {
@@ -349,6 +350,8 @@ export interface AppState {
   exams: Exam[];
   addExam: (exam: Exam) => void;
   updateExam: (exam: Exam) => void;
+  softDeleteExam: (id: string) => void;
+  restoreExam: (id: string) => void;
 
   questionBank: QuestionBankItem[];
   fetchQuestionBank: () => Promise<void>;
