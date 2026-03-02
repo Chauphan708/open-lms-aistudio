@@ -414,9 +414,10 @@ export const useStore = create<AppState>((set, get) => ({
   // Exams
   exams: [],
   addExam: async (exam) => {
+    // Optimistic: add to local state immediately so user sees it
+    set((state) => ({ exams: [exam, ...state.exams] }));
     const { error } = await supabase.from('exams').insert(exam);
-    if (!error) set((state) => ({ exams: [exam, ...state.exams] }));
-    else console.error(error);
+    if (error) console.error("addExam Supabase error:", error);
   },
   updateExam: async (updatedExam) => {
     const { error } = await supabase.from('exams').update(updatedExam).eq('id', updatedExam.id);

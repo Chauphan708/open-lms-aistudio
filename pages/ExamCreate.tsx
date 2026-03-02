@@ -158,7 +158,7 @@ export const ExamCreate: React.FC = () => {
     }
   };
 
-  const handleSaveExam = () => {
+  const handleSaveExam = async () => {
     if (!title.trim() || questions.length === 0) {
       setError("Vui lòng nhập tên bài tập và có ít nhất 1 câu hỏi.");
       return;
@@ -188,7 +188,7 @@ export const ExamCreate: React.FC = () => {
       questions
     };
 
-    addExam(newExam);
+    await addExam(newExam);
     navigate('/exams');
   };
 
