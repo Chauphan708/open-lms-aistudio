@@ -8,6 +8,7 @@ import { DictionaryWidget } from '../components/DictionaryWidget'; // IMPORT WID
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { supabase } from '../services/supabaseClient'; // BỔ SUNG ĐỂ GHI NHẬN HÀNH VI TỰ ĐỘNG
 
 export const ExamTake: React.FC = () => {
   const { id } = useParams();
@@ -234,7 +235,7 @@ export const ExamTake: React.FC = () => {
     setAnswers(prev => ({ ...prev, [questionId]: originalIndex }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isSubmitted) return;
 
     // Calculate Score
@@ -270,6 +271,65 @@ export const ExamTake: React.FC = () => {
       submittedAt: new Date().toISOString()
     };
     addAttempt(attempt);
+
+    // BỔ SUNG LOGIC: Tự động ghi nhận điểm hành vi
+    if (user && user.id && assignment?.classId) {
+      const percentage = (correctCount / exam.questions.length) * 100;
+      let pointsToGive = 0;
+      let reasonText = "";
+
+      if (percentage === 100) {
+        pointsToGive = 5;
+        reasonText = "Làm đúng tất cả bài online";
+      } else if (percentage >= 50) {
+        pointsToGive = 3;
+        reasonText = "Làm đúng từ 50% bài làm online";
+      } else {
+        pointsToGive = 1;
+        reasonText = "Có làm bài online";
+      }
+
+      try {
+        // Kiểm tra xem đã có log tự động nào cho bài này chưa (quy ước reason chứa chuỗi 'bài làm online' + assignment ID)
+        const identifyKey = `[Tự động - ${assignment.id}]`;
+        const finalReasonText = `${identifyKey} ${reasonText}`;
+
+        const { data: existingLogs, error: checkError } = await supabase
+          .from('behavior_logs')
+          .select('*')
+          .eq('student_id', user.id)
+          .eq('class_id', assignment.classId)
+          .like('reason', `${identifyKey}%`)
+          .order('points', { ascending: false });
+
+        if (!checkError) {
+          if (existingLogs && existingLogs.length > 0) {
+            const bestLog = existingLogs[0];
+            // Nếu log mới có điểm lớn hơn log cũ (trường hợp retake), thì ta update/nâng điểm
+            if (pointsToGive > bestLog.points) {
+              await supabase.from('behavior_logs').update({
+                points: pointsToGive,
+                reason: finalReasonText
+              }).eq('id', bestLog.id);
+            }
+          } else {
+            // Chưa có log thì tạo mới
+            const newLog = {
+              id: `log_auto_${Date.now()}`,
+              student_id: user.id,
+              class_id: assignment.classId,
+              points: pointsToGive,
+              reason: finalReasonText,
+              recorded_by: assignment.teacherId || 'system',
+              created_at: new Date().toISOString()
+            };
+            await supabase.from('behavior_logs').insert(newLog);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi tự động ghi nhận điểm hành vi:", err);
+      }
+    }
   };
 
   const formatScore = (val: number | null) => {
