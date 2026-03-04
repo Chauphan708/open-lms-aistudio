@@ -452,9 +452,9 @@ export const Settings: React.FC = () => {
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => handleAddTool(tool.id)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded transition" title="Thêm Menu Con"
+                            className="px-2.5 py-1.5 text-indigo-600 hover:bg-indigo-100 rounded transition flex items-center gap-1 text-xs font-bold border border-indigo-200 bg-indigo-50" title="Thêm Menu Con"
                           >
-                            <Plus className="h-4 w-4" />
+                            <Plus className="h-3.5 w-3.5" /> Thêm Link Con
                           </button>
                           <button
                             onClick={() => handleRemoveTool(tool.id)}
@@ -465,10 +465,10 @@ export const Settings: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Children Row */}
-                      {(tool.children && tool.children.length > 0) && (
-                        <div className="p-4 border-t border-gray-100 pl-10 space-y-3 bg-white">
-                          {tool.children.map(child => (
+                      {/* Children Rows */}
+                      <div className="p-4 border-t border-gray-100 pl-10 space-y-3 bg-white">
+                        {(tool.children && tool.children.length > 0) && (
+                          tool.children.map(child => (
                             <div key={child.id} className="flex flex-wrap md:flex-nowrap items-center gap-3">
                               <div className="flex-1">
                                 <input
@@ -493,9 +493,16 @@ export const Settings: React.FC = () => {
                                 <X className="h-4 w-4" />
                               </button>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          ))
+                        )}
+                        {/* Always show add-child button at bottom */}
+                        <button
+                          onClick={() => handleAddTool(tool.id)}
+                          className="w-full border border-dashed border-gray-300 rounded-lg py-2 text-xs text-gray-400 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 flex items-center justify-center gap-1 transition"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Thêm link con vào "{tool.title}"
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -522,8 +529,8 @@ export const Settings: React.FC = () => {
 
               {/* Trạng thái */}
               <div className={`flex items-center gap-3 p-4 rounded-xl border ${apiKeyConfigured
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-amber-50 border-amber-200'
+                ? 'bg-green-50 border-green-200'
+                : 'bg-amber-50 border-amber-200'
                 }`}>
                 {apiKeyConfigured
                   ? <CheckCircle className="h-6 w-6 text-green-600 shrink-0" />
