@@ -19,11 +19,11 @@ const OPTION_REGEX = /^\s*([A-Da-d])\s*[.):\]]\s*(.+)/;
 // Regex for correct answer (captures the whole remaining line so we can check if it's A/B/C/D or text)
 const ANSWER_REGEX = /(?:Đáp\s*án\s*(?:đúng)?\s*[:.]\s*)(.+)/i;
 
-// Regex for solution/explanation
-const SOLUTION_REGEX = /(?:Giải\s*thích|Hướng\s*dẫn|Lời\s*giải|Giải|Solution|Explanation)\s*[:.]\s*([\s\S]*?)$/i;
+// Regex for solution/explanation — must handle "Lời giải chi tiết:", "Hướng dẫn giải:", "Giải thích:", etc.
+const SOLUTION_REGEX = /(?:Lời\s*giải(?:\s*chi\s*tiết)?|Giải\s*thích|Hướng\s*dẫn\s*giải|Giải\s*chi\s*tiết|Solution|Explanation)\s*[:.]?\s*([\s\S]*?)$/i;
 
-// Regex for hint
-const HINT_REGEX = /(?:Gợi\s*ý|Hint)\s*[:.]\s*([\s\S]*?)$/i;
+// Regex for hint — must handle "Gợi ý:", "Gợi ý (Cách làm):", "Hint:", etc.
+const HINT_REGEX = /(?:Gợi\s*ý(?:\s*\([^)]*\))?|Hint)\s*[:.]?\s*([\s\S]*?)$/i;
 
 /**
  * Parse questions from raw text using regex (no AI needed).
@@ -129,6 +129,16 @@ function parseOneBlock(block: string, index: number): Question | null {
             continue;
         }
 
+        // Check hint BEFORE solution (hint typically appears first)
+        const hintMatch = trimmed.match(HINT_REGEX);
+        if (hintMatch) {
+            parsingState = 'hint';
+            if (hintMatch[1]?.trim()) {
+                hintLines.push(hintMatch[1].trim());
+            }
+            continue;
+        }
+
         // Check if this line starts a solution section
         const solutionMatch = trimmed.match(SOLUTION_REGEX);
         if (solutionMatch) {
@@ -139,33 +149,24 @@ function parseOneBlock(block: string, index: number): Question | null {
             continue;
         }
 
-        // Check if this line starts a hint section
-        const hintMatch = trimmed.match(HINT_REGEX);
-        if (hintMatch) {
-            parsingState = 'hint';
-            if (hintMatch[1]?.trim()) {
-                hintLines.push(hintMatch[1].trim());
-            }
-            continue;
-        }
-
         // Accumulate into current section
         switch (parsingState) {
             case 'content':
                 content += (content ? '\n' : '') + trimmed;
                 break;
             case 'solution':
+                solutionLines.push(trimmed);
+                break;
+            case 'hint':
+                hintLines.push(trimmed);
+                break;
             case 'answer':
                 // Lines after "Đáp án:" are likely solution
                 solutionLines.push(trimmed);
                 parsingState = 'solution';
                 break;
-            case 'hint':
-                hintLines.push(trimmed);
-                break;
             default:
                 // After options, any remaining text could be answer/solution
-                // Check for answer pattern in the rest
                 const lateAnswer = trimmed.match(ANSWER_REGEX);
                 if (lateAnswer) {
                     const ansRaw = lateAnswer[1].trim();
