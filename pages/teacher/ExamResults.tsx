@@ -169,33 +169,51 @@ export const ExamResults: React.FC = () => {
                   </div>
                </div>
 
-               {/* Distribution Chart */}
+               {/* Distribution Chart - Bar Chart */}
                <div className="bg-white p-6 rounded-xl border shadow-sm">
-                  <h3 className="font-bold text-gray-800 mb-6">Phổ điểm</h3>
-                  <div className="flex items-end justify-between h-48 px-1 md:px-4 gap-1 md:gap-2">
-                     {stats!.detailedDistribution.map((item, idx) => {
-                        const heightPercent = stats!.maxDistributionCount > 0 ? (item.count / stats!.maxDistributionCount) * 100 : 0;
-
-                        // Color styling based on score to make it look smooth and beautiful
-                        let bgColor = "bg-red-300";
-                        if (idx >= 5 && idx <= 6) bgColor = "bg-yellow-300";
-                        else if (idx >= 7 && idx <= 8) bgColor = "bg-blue-300";
-                        else if (idx >= 9) bgColor = "bg-green-300";
-
-                        return (
-                           <div key={idx} className="flex-1 flex flex-col justify-end items-center gap-2 group">
-                              <div
-                                 className={`w-full max-w-[40px] ${bgColor} rounded-t-md relative flex flex-col justify-end transition-all opacity-80 group-hover:opacity-100 hover:scale-x-105`}
-                                 style={{ height: `${heightPercent}%`, minHeight: '8px' }}
-                              >
-                                 <div className={`absolute -top-7 left-1/2 -translate-x-1/2 font-bold text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-gray-800 text-white px-2 py-1 rounded shadow-lg z-10 before:content-[''] before:absolute before:top-full before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-800`}>
-                                    {item.count} hs
-                                 </div>
+                  <h3 className="font-bold text-gray-800 mb-2">Phổ điểm</h3>
+                  <p className="text-xs text-gray-400 mb-4">Số lượng học sinh đạt điểm tương ứng (tổng: {stats?.count} bài)</p>
+                  <div className="relative">
+                     {/* Y-axis grid lines */}
+                     <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '28px' }}>
+                        {Array.from({ length: 5 }, (_, i) => {
+                           const val = Math.round((stats!.maxDistributionCount / 4) * (4 - i));
+                           return (
+                              <div key={i} className="flex items-center w-full">
+                                 <span className="text-[10px] text-gray-300 w-6 text-right mr-2 flex-shrink-0">{val}</span>
+                                 <div className="flex-1 border-t border-dashed border-gray-100"></div>
                               </div>
-                              <div className="text-xs font-bold text-gray-500">{item.label}</div>
-                           </div>
-                        );
-                     })}
+                           );
+                        })}
+                     </div>
+                     {/* Bars */}
+                     <div className="flex items-end justify-between pl-8 gap-1 md:gap-3" style={{ height: '220px', paddingBottom: '28px' }}>
+                        {stats!.detailedDistribution.map((item, idx) => {
+                           const heightPercent = stats!.maxDistributionCount > 0 ? (item.count / stats!.maxDistributionCount) * 100 : 0;
+
+                           let bgClass = "from-red-400 to-red-300";
+                           if (idx >= 5 && idx <= 6) bgClass = "from-yellow-400 to-yellow-300";
+                           else if (idx >= 7 && idx <= 8) bgClass = "from-blue-400 to-blue-300";
+                           else if (idx >= 9) bgClass = "from-emerald-400 to-emerald-300";
+
+                           return (
+                              <div key={idx} className="flex-1 flex flex-col justify-end items-center relative group">
+                                 {/* Count label on top */}
+                                 <span className={`text-xs font-bold mb-1 ${item.count > 0 ? 'text-gray-700' : 'text-gray-300'}`}>
+                                    {item.count}
+                                 </span>
+                                 {/* Bar */}
+                                 <div
+                                    className={`w-full max-w-[36px] md:max-w-[44px] bg-gradient-to-t ${bgClass} rounded-t-md transition-all duration-300 hover:opacity-90 hover:shadow-md cursor-default`}
+                                    style={{ height: `${Math.max(heightPercent, item.count > 0 ? 5 : 2)}%` }}
+                                    title={`Điểm ${item.label}: ${item.count} học sinh`}
+                                 />
+                                 {/* X-axis label */}
+                                 <div className="text-xs font-bold text-gray-500 mt-2 absolute -bottom-5">{item.label}</div>
+                              </div>
+                           );
+                        })}
+                     </div>
                   </div>
                </div>
 

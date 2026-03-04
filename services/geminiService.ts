@@ -101,15 +101,15 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
     
     Rules:
     1. Identify the question stem.
-    2. Identify options (A, B, C, D). If the question is essay/short answer with no options, set options to empty array [].
+    2. Identify options (A, B, C, D) for MCQ. If the question is SHORT_ANSWER (no A/B/C/D choices), extract the exact short answer text (e.g. "3300" or "26 cm") and put it into the 'options' array (e.g., ["3300", "3.300"]).
     3. Extract solution/explanation if present. If not, generate a brief one.
-    4. Determine the correct answer index (0-3) IF explicitly marked. If unknown, set to -1.
+    4. Determine the correct answer index (0-3) IF explicitly marked. If unknown or not applicable (like SHORT_ANSWER), set to -1.
     5. MATH FORMATTING: If you encounter math, use LaTeX format enclosed in single dollar signs ($) for inline math. Example: $x^2 + 5$.
     6. **HINT & SOLUTION**: Always try to extract or generate a 'hint' (method) and 'solution' (full steps).
-    7. **LEVEL (REQUIRED)**: Classify each question's difficulty as one of: NHAN_BIET (recall/recognition), THONG_HIEU (understanding/connection), VAN_DUNG (application/problem-solving).
-    8. **TOPIC (REQUIRED)**: Identify the specific knowledge topic/chapter for each question (e.g., "Phân số", "Hình học phẳng", "Từ vựng").
-    9. **questionType (REQUIRED)**: Detect the question format: MCQ (has A/B/C/D options), SHORT_ANSWER (essay/open-ended), MATCHING, ORDERING, or DRAG_DROP.
-    10. **CRITICAL**: The 'content' field MUST ONLY contain the question itself. DO NOT include the answer, solution, or "Đáp án: ..." in the 'content' field. The answer goes into the 'solution' field.
+    7. **LEVEL (REQUIRED)**: Classify each question's difficulty as one of: NHAN_BIET, THONG_HIEU, VAN_DUNG.
+    8. **TOPIC (REQUIRED)**: Identify the specific knowledge topic/chapter for each question.
+    9. **questionType (REQUIRED)**: Detect the question format: MCQ, SHORT_ANSWER, MATCHING, ORDERING, or DRAG_DROP.
+    10. **CRITICAL**: The 'content' field MUST ONLY contain the question itself. DO NOT include the answer, solution, or "Đáp án:" in the 'content' field. The exact answer goes into the 'options' array for SHORT_ANSWER, and the explanation goes into the 'solution' field.
     
     Raw Text:
     """
@@ -281,14 +281,14 @@ export const generateQuestionsByTopic = async (
         return `
     QUESTION TYPE: SHORT_ANSWER (Tự luận ngắn)
     - 'content': The question text.
-    - 'options': MUST be an empty array [].
+    - 'options': An array containing the exact accepted short answer(s) for auto-grading. E.g., ["26", "26 cm", "26cm"].
     - 'correctOptionIndex': MUST be -1.
     - 'solution': The full detailed answer.
     
     EXAMPLE JSON for ONE short answer question:
     {
       "content": "Tính chu vi hình chữ nhật có chiều dài 8cm và chiều rộng 5cm.",
-      "options": [],
+      "options": ["26", "26 cm", "26cm"],
       "correctOptionIndex": -1,
       "solution": "Chu vi = (8 + 5) × 2 = 26 (cm)",
       "hint": "Áp dụng công thức P = (a + b) × 2",

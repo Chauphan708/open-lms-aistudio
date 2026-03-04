@@ -16,8 +16,8 @@ const QUESTION_START_ALT_REGEX = /(?:^|\n)\s*(\d+)\s*[.)]\s+/g;
 // Regex for options
 const OPTION_REGEX = /^\s*([A-Da-d])\s*[.):\]]\s*(.+)/;
 
-// Regex for correct answer
-const ANSWER_REGEX = /(?:Đáp\s*án\s*(?:đúng)?\s*[:.]\s*([A-Da-d]))|(?:Đáp\s*án\s*[:.]\s*([A-Da-d]))/i;
+// Regex for correct answer (captures the whole remaining line so we can check if it's A/B/C/D or text)
+const ANSWER_REGEX = /(?:Đáp\s*án\s*(?:đúng)?\s*[:.]\s*)(.+)/i;
 
 // Regex for solution/explanation
 const SOLUTION_REGEX = /(?:Giải\s*thích|Hướng\s*dẫn|Lời\s*giải|Giải|Solution|Explanation)\s*[:.]\s*([\s\S]*?)$/i;
@@ -95,6 +95,7 @@ function parseOneBlock(block: string, index: number): Question | null {
     let correctOptionIndex: number | undefined = undefined;
     let solution = '';
     let hint = '';
+    let shortAnswerText = '';
 
     // Track parsing state
     let parsingState: 'content' | 'options' | 'answer' | 'solution' | 'hint' = 'content';
@@ -116,8 +117,14 @@ function parseOneBlock(block: string, index: number): Question | null {
         // Check if this line contains the correct answer
         const answerMatch = trimmed.match(ANSWER_REGEX);
         if (answerMatch) {
-            const answerLetter = (answerMatch[1] || answerMatch[2] || '').toUpperCase();
-            correctOptionIndex = answerLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+            const ansRaw = answerMatch[1].trim();
+            const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
+            if (letterMatch) {
+                const answerLetter = letterMatch[1].toUpperCase();
+                correctOptionIndex = answerLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+            } else {
+                shortAnswerText = ansRaw;
+            }
             parsingState = 'answer';
             continue;
         }
@@ -161,8 +168,14 @@ function parseOneBlock(block: string, index: number): Question | null {
                 // Check for answer pattern in the rest
                 const lateAnswer = trimmed.match(ANSWER_REGEX);
                 if (lateAnswer) {
-                    const ansLetter = (lateAnswer[1] || lateAnswer[2] || '').toUpperCase();
-                    correctOptionIndex = ansLetter.charCodeAt(0) - 65;
+                    const ansRaw = lateAnswer[1].trim();
+                    const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
+                    if (letterMatch) {
+                        const ansLetter = letterMatch[1].toUpperCase();
+                        correctOptionIndex = ansLetter.charCodeAt(0) - 65;
+                    } else {
+                        shortAnswerText = ansRaw;
+                    }
                 } else {
                     solutionLines.push(trimmed);
                 }
@@ -178,6 +191,9 @@ function parseOneBlock(block: string, index: number): Question | null {
 
     // Determine question type
     const type = options.length >= 2 ? 'MCQ' : 'SHORT_ANSWER';
+    if (type === 'SHORT_ANSWER' && shortAnswerText) {
+        options.push(shortAnswerText);
+    }
 
     return {
         id: `local_parse_${Date.now()}_${index}`,

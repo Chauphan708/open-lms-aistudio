@@ -91,7 +91,7 @@ export const Dashboard: React.FC = () => {
 
     // 1. Calculate XP & Level
     // Formula: Score * 10 XP. 
-    const totalXP = myAttempts.reduce((acc, curr) => acc + ((curr.score || 0) * 10), 0);
+    const totalXP = Math.round(myAttempts.reduce((acc, curr) => acc + ((curr.score || 0) * 10), 0));
     const level = Math.floor(totalXP / 100) + 1;
     const currentLevelXP = totalXP % 100; // Progress to next level (0-100)
 
