@@ -106,7 +106,7 @@ export interface Attempt {
   examId: string;
   assignmentId?: string;
   studentId: string;
-  answers: Record<string, number>;
+  answers: Record<string, any>; // Sửa thành any để hỗ trợ mảng (Matching/Ordering), chuỗi (Short Answer)
   score: number | null;
   submittedAt: string;
   teacherFeedback?: string;

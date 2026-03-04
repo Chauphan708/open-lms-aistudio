@@ -628,25 +628,50 @@ export const ExamCreate: React.FC = () => {
                       </div>
 
                       {/* Render Options based on type */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                        {q.options.map((opt, i) => (
-                          <div
-                            key={i}
-                            className={`p-2.5 rounded-lg border text-sm flex items-center gap-3 transition-colors
-                              ${q.correctOptionIndex === i ? 'bg-green-50 border-green-200 text-green-900' : 'bg-white border-gray-200 text-gray-600'}
-                            `}
-                          >
-                            <span className={`w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold ${q.correctOptionIndex === i ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
-                              {String.fromCharCode(65 + i)}
-                            </span>
-                            <span className="prose prose-p:my-0">
-                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                {opt}
-                              </ReactMarkdown>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      {q.type === 'MCQ' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                          {q.options.map((opt, i) => (
+                            <div
+                              key={i}
+                              className={`p-2.5 rounded-lg border text-sm flex items-center gap-3 transition-colors
+                                ${q.correctOptionIndex === i ? 'bg-green-50 border-green-200 text-green-900' : 'bg-white border-gray-200 text-gray-600'}
+                              `}
+                            >
+                              <span className={`w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold ${q.correctOptionIndex === i ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                                {String.fromCharCode(65 + i)}
+                              </span>
+                              <span className="prose prose-p:my-0">
+                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                  {opt}
+                                </ReactMarkdown>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type) && (
+                        <div className="mt-3 space-y-2">
+                          {q.options.map((opt, i) => (
+                            <div key={i} className="p-2.5 rounded-lg border bg-gray-50 border-gray-200 text-sm flex items-center gap-3">
+                              <span className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded bg-gray-200 text-gray-700 text-xs font-bold">
+                                {i + 1}
+                              </span>
+                              <span className="prose prose-p:my-0 text-gray-800">
+                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                  {opt}
+                                </ReactMarkdown>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {q.type === 'SHORT_ANSWER' && (
+                        <div className="mt-3 p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500 italic">
+                          Học sinh sẽ trả lời bằng đoạn văn bản vào ô nhập liệu ở phần thi.
+                        </div>
+                      )}
 
                       {(q.solution || q.hint) && (
                         <div className="mt-4 space-y-2">
@@ -701,50 +726,143 @@ export const ExamCreate: React.FC = () => {
                 />
               </div>
 
-              {/* Image URL Input */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4" /> Link ảnh minh họa (Tùy chọn)
-                </label>
-                <input
-                  type="text"
-                  value={editingQuestion.imageUrl || ''}
-                  onChange={e => setEditingQuestion({ ...editingQuestion, imageUrl: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                  placeholder="https://example.com/image.png"
-                />
-                {editingQuestion.imageUrl && (
-                  <div className="mt-2 p-2 border rounded-lg bg-gray-50">
-                    <p className="text-xs text-gray-500 mb-1">Xem trước:</p>
-                    <img src={editingQuestion.imageUrl} alt="Preview" className="h-32 object-contain rounded border bg-white" />
-                  </div>
-                )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Loại câu hỏi</label>
+                  <select
+                    value={editingQuestion.type}
+                    onChange={e => {
+                      const newType = e.target.value as QuestionType;
+                      let newOpts = [...editingQuestion.options];
+                      let newIdx = editingQuestion.correctOptionIndex;
+
+                      if (newType === 'MCQ' && newOpts.length === 0) {
+                        newOpts = ['A', 'B', 'C', 'D'];
+                        newIdx = 0;
+                      } else if (newType === 'SHORT_ANSWER') {
+                        newOpts = [];
+                        newIdx = undefined;
+                      }
+
+                      setEditingQuestion({
+                        ...editingQuestion,
+                        type: newType,
+                        options: newOpts,
+                        correctOptionIndex: newIdx
+                      });
+                    }}
+                    className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  >
+                    <option value="MCQ">Trắc nghiệm (ABCD)</option>
+                    <option value="MATCHING">Nối cột (Trái ||| Phải)</option>
+                    <option value="ORDERING">Sắp xếp thứ tự đúng</option>
+                    <option value="DRAG_DROP">Kéo thả / Điền khuyết</option>
+                    <option value="SHORT_ANSWER">Tự luận ngắn</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" /> Link ảnh minh họa (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    value={editingQuestion.imageUrl || ''}
+                    onChange={e => setEditingQuestion({ ...editingQuestion, imageUrl: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    placeholder="https://example.com/image.png"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Các lựa chọn</label>
-                {editingQuestion.options.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2 mb-2">
-                    <input
-                      type="radio"
-                      name="correctOpt"
-                      checked={editingQuestion.correctOptionIndex === i}
-                      onChange={() => setEditingQuestion({ ...editingQuestion, correctOptionIndex: i })}
-                      className="w-4 h-4 text-green-600 focus:ring-green-500"
-                    />
-                    <span className="font-bold w-6">{String.fromCharCode(65 + i)}.</span>
-                    <input
-                      value={opt}
-                      onChange={e => {
+              {editingQuestion.imageUrl && (
+                <div className="mt-2 p-2 border rounded-lg bg-gray-50">
+                  <p className="text-xs text-gray-500 mb-1">Xem trước:</p>
+                  <img src={editingQuestion.imageUrl} alt="Preview" className="h-32 object-contain rounded border bg-white" />
+                </div>
+              )}
+
+              {editingQuestion.type === 'MCQ' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center justify-between">
+                    Các lựa chọn
+                    <button onClick={() => setEditingQuestion({ ...editingQuestion, options: [...editingQuestion.options, 'Lựa chọn mới'] })} className="text-xs text-indigo-600 font-medium hover:underline">+ Thêm tùy chọn</button>
+                  </label>
+                  {editingQuestion.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-2 group">
+                      <input
+                        type="radio"
+                        name="correctOpt"
+                        checked={editingQuestion.correctOptionIndex === i}
+                        onChange={() => setEditingQuestion({ ...editingQuestion, correctOptionIndex: i })}
+                        className="w-4 h-4 text-green-600 focus:ring-green-500 cursor-pointer"
+                        title="Đánh dấu đáp án đúng"
+                      />
+                      <span className="font-bold w-6 text-gray-500 text-center">{String.fromCharCode(65 + i)}</span>
+                      <input
+                        value={opt}
+                        onChange={e => {
+                          const newOpts = [...editingQuestion.options];
+                          newOpts[i] = e.target.value;
+                          setEditingQuestion({ ...editingQuestion, options: newOpts });
+                        }}
+                        className="flex-1 border border-gray-300 rounded-lg p-2 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                      <button onClick={() => {
                         const newOpts = [...editingQuestion.options];
-                        newOpts[i] = e.target.value;
+                        newOpts.splice(i, 1);
+                        let newIdx = editingQuestion.correctOptionIndex;
+                        if (newIdx === i) newIdx = 0;
+                        else if (newIdx !== undefined && newIdx > i) newIdx--;
+                        setEditingQuestion({ ...editingQuestion, options: newOpts, correctOptionIndex: newIdx });
+                      }} className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(editingQuestion.type) && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center justify-between">
+                    {editingQuestion.type === 'MATCHING' && "Các cặp nối (Format: Nửa trái ||| Nửa phải)"}
+                    {editingQuestion.type === 'ORDERING' && "Các mục cần sắp xếp (Nhập theo thứ tự ĐÚNG)"}
+                    {editingQuestion.type === 'DRAG_DROP' && "Các từ/phần điền khuyết (Bao gồm cả đáp án đúng và gây nhiễu)"}
+                    <button onClick={() => setEditingQuestion({ ...editingQuestion, options: [...editingQuestion.options, editingQuestion.type === 'MATCHING' ? 'Vế Trái ||| Vế Phải' : 'Mục mới'] })} className="text-xs text-indigo-600 font-medium hover:underline">+ Thêm mục</button>
+                  </label>
+                  {editingQuestion.type === 'DRAG_DROP' && (
+                    <p className="text-xs text-gray-500 mb-2 italic">Ghi chú: Trong phần "Nội dung câu hỏi" ở trên, dùng <code className="bg-gray-100 px-1 rounded">[__]</code> để đánh dấu ô trống học sinh cần kéo thả/điền chữ vào.</p>
+                  )}
+                  {editingQuestion.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-2 group">
+                      <span className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{i + 1}</span>
+                      <input
+                        value={opt}
+                        onChange={e => {
+                          const newOpts = [...editingQuestion.options];
+                          newOpts[i] = e.target.value;
+                          setEditingQuestion({ ...editingQuestion, options: newOpts });
+                        }}
+                        className="flex-1 border border-gray-300 rounded-lg p-2 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                      <button onClick={() => {
+                        const newOpts = [...editingQuestion.options];
+                        newOpts.splice(i, 1);
                         setEditingQuestion({ ...editingQuestion, options: newOpts });
-                      }}
-                      className="flex-1 border border-gray-300 rounded-lg p-2 bg-white text-gray-900 text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
+                      }} className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editingQuestion.type === 'SHORT_ANSWER' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Loại này không cần Lựa chọn</label>
+                  <p className="text-xs text-gray-500 mb-2 italic">Học sinh sẽ nhập câu trả lời vào ô trống. Đừng quên điền đáp án chuẩn vào phần <strong>Lời giải chi tiết</strong> bên dưới để làm mẫu tham khảo.</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

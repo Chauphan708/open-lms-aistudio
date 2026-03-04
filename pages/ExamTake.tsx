@@ -22,7 +22,7 @@ export const ExamTake: React.FC = () => {
   const assignment = assignments.find(a => a.id === assignmentId);
   const liveSession = liveSessions.find(s => s.id === liveSessionId);
 
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
@@ -108,11 +108,11 @@ export const ExamTake: React.FC = () => {
       setScore(latestAttempt.score || 0);
 
       // Restore answers
-      const numAnswers: Record<string, number> = {};
+      const parsedAnswers: Record<string, any> = {};
       Object.entries(latestAttempt.answers).forEach(([k, v]) => {
-        if (typeof v === 'number') numAnswers[k] = v;
+        parsedAnswers[k] = v;
       });
-      setAnswers(numAnswers);
+      setAnswers(parsedAnswers);
 
       // NOTE: For reviewed attempts, use Standard Order to avoid confusion
       const standardMap: Record<string, number[]> = {};
@@ -230,9 +230,9 @@ export const ExamTake: React.FC = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const handleSelectOption = (questionId: string, originalIndex: number) => {
+  const handleSetAnswer = (questionId: string, value: any) => {
     if (isSubmitted) return;
-    setAnswers(prev => ({ ...prev, [questionId]: originalIndex }));
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
   const handleSubmit = async () => {
@@ -241,8 +241,23 @@ export const ExamTake: React.FC = () => {
     // Calculate Score
     let correctCount = 0;
     exam.questions.forEach(q => {
-      if (answers[q.id] === q.correctOptionIndex) {
-        correctCount++;
+      const userAns = answers[q.id];
+      if (q.type === 'MCQ') {
+        if (userAns === q.correctOptionIndex) correctCount++;
+      } else if (q.type === 'SHORT_ANSWER') {
+        // Tạm chấm bằng cách so khớp chính xác với phần lời giải (hoặc chờ GV chấm sau)
+        if (String(userAns || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase()) correctCount++;
+      } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
+        if (Array.isArray(userAns) && userAns.length === q.options.length) {
+          let isAllCorrect = true;
+          for (let i = 0; i < q.options.length; i++) {
+            if (userAns[i] !== q.options[i]) {
+              isAllCorrect = false;
+              break;
+            }
+          }
+          if (isAllCorrect) correctCount++;
+        }
       }
     });
 
@@ -463,71 +478,233 @@ export const ExamTake: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-11">
-                {shuffledIndices.map((originalIndex, displayIndex) => {
-                  const optContent = q.options[originalIndex];
-                  let optionClass = "border-gray-200 hover:bg-gray-50 bg-white";
+              <div className="pl-11 mt-4">
+                {q.type === 'MCQ' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {shuffledIndices.map((originalIndex, displayIndex) => {
+                      const optContent = q.options[originalIndex];
+                      let optionClass = "border-gray-200 hover:bg-gray-50 bg-white";
 
-                  // Visual Logic
-                  if (isSubmitted) {
-                    // Logic check for Pass/Fail View
-                    if (viewPassFail) {
-                      if (originalIndex === q.correctOptionIndex) {
-                        // Correct Option
-                        if (canViewSolution) {
-                          // Show Green if Solution is Allowed
-                          optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
-                        } else if (answers[q.id] === originalIndex) {
-                          // Student selected correct option -> Show Green (Confirm they were right)
-                          optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
+                      // Visual Logic
+                      if (isSubmitted) {
+                        // Logic check for Pass/Fail View
+                        if (viewPassFail) {
+                          if (originalIndex === q.correctOptionIndex) {
+                            // Correct Option
+                            if (canViewSolution) {
+                              optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
+                            } else if (answers[q.id] === originalIndex) {
+                              optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
+                            } else {
+                              optionClass = "opacity-50 bg-white";
+                            }
+                          } else if (answers[q.id] === originalIndex) {
+                            optionClass = "bg-red-50 border-red-500 text-red-700";
+                          } else {
+                            optionClass = "opacity-50 bg-white";
+                          }
                         } else {
-                          // Student was wrong, and solution HIDDEN -> Keep neutral/hidden
-                          optionClass = "opacity-50 bg-white";
+                          // Pass/Fail OFF -> Neutral
+                          if (answers[q.id] === originalIndex) {
+                            optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
+                          } else {
+                            optionClass = "opacity-50 bg-white";
+                          }
                         }
                       } else if (answers[q.id] === originalIndex) {
-                        // User picked wrong
-                        optionClass = "bg-red-50 border-red-500 text-red-700";
-                      } else {
-                        optionClass = "opacity-50 bg-white";
-                      }
-                    } else {
-                      // Pass/Fail OFF -> Neutral
-                      if (answers[q.id] === originalIndex) {
                         optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
-                      } else {
-                        optionClass = "opacity-50 bg-white";
                       }
-                    }
-                  } else if (answers[q.id] === originalIndex) {
-                    optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
-                  }
 
-                  // Force override for non-PassFail View (just show selection)
-                  if (isSubmitted && !viewPassFail && answers[q.id] === originalIndex) {
-                    optionClass = "bg-gray-100 border-gray-400 text-gray-800 font-bold";
-                  }
+                      if (isSubmitted && !viewPassFail && answers[q.id] === originalIndex) {
+                        optionClass = "bg-gray-100 border-gray-400 text-gray-800 font-bold";
+                      }
+
+                      return (
+                        <button
+                          key={originalIndex}
+                          onClick={() => handleSetAnswer(q.id, originalIndex)}
+                          disabled={isSubmitted}
+                          className={`w-full text-left p-4 rounded-lg border transition-all flex items-center gap-3 ${optionClass}`}
+                        >
+                          <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs flex-shrink-0 ${answers[q.id] === originalIndex ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-500'
+                            } ${isSubmitted && viewPassFail && originalIndex === q.correctOptionIndex && canViewSolution ? '!bg-green-500 !border-green-500 !text-white' : ''}
+                            ${isSubmitted && !viewPassFail && answers[q.id] === originalIndex ? '!bg-gray-600 !border-gray-600 !text-white' : ''}
+                          `}>
+                            {String.fromCharCode(65 + displayIndex)}
+                          </div>
+                          <span className="text-gray-800 prose prose-p:my-0">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {optContent}
+                            </ReactMarkdown>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {q.type === 'SHORT_ANSWER' && (
+                  <div>
+                    <textarea
+                      disabled={isSubmitted}
+                      value={answers[q.id] || ''}
+                      onChange={(e) => handleSetAnswer(q.id, e.target.value)}
+                      placeholder="Nhập câu trả lời của bạn vào đây..."
+                      className={`w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] ${isSubmitted ? 'bg-gray-50 text-gray-700 border-gray-300 relative' : 'bg-white border-gray-300 text-gray-900'} ${isSubmitted && viewPassFail && String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase() ? 'border-green-500 bg-green-50' : ''}`}
+                    />
+                    {isSubmitted && viewPassFail && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        {String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase()
+                          ? <span className="text-green-600 font-bold">✓ Hệ thống tự chấm khớp đáp án</span>
+                          : <span className="text-orange-600 font-bold">⚠ Cần giáo viên chấm điểm thủ công (hoặc chưa khớp hoàn toàn)</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {q.type === 'MATCHING' && (() => {
+                  const leftItems = q.options.map(o => o.split('|||')[0]?.trim() || o);
+                  const rightItems = q.options.map(o => o.split('|||')[1]?.trim() || o);
+
+                  // Create a consistent shuffled version of right items for the dropdowns
+                  // We use shuffledIndices as a seed to ensure stable shuffle per question per attempt
+                  const shuffledRightItems = shuffledIndices.map(i => rightItems[i]);
+
+                  const currentAns = Array.isArray(answers[q.id]) ? answers[q.id] : Array(q.options.length).fill("");
+
+                  const handleMatchChange = (index: number, val: string) => {
+                    if (isSubmitted) return;
+                    const newArr = [...currentAns];
+                    newArr[index] = `${leftItems[index]} ||| ${val}`;
+                    handleSetAnswer(q.id, newArr);
+                  };
 
                   return (
-                    <button
-                      key={originalIndex}
-                      onClick={() => handleSelectOption(q.id, originalIndex)}
-                      disabled={isSubmitted}
-                      className={`w-full text-left p-4 rounded-lg border transition-all flex items-center gap-3 ${optionClass}`}
-                    >
-                      <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs flex-shrink-0 ${answers[q.id] === originalIndex ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-500'
-                        } ${isSubmitted && viewPassFail && originalIndex === q.correctOptionIndex && canViewSolution ? '!bg-green-500 !border-green-500 !text-white' : ''}
-                        ${isSubmitted && !viewPassFail && answers[q.id] === originalIndex ? '!bg-gray-600 !border-gray-600 !text-white' : ''}
-                      `}>
-                        {String.fromCharCode(65 + displayIndex)}
-                      </div>
-                      <span className="text-gray-800 prose prose-p:my-0">
-                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                          {optContent}
-                        </ReactMarkdown>
-                      </span>
-                    </button>
+                    <div className="space-y-3">
+                      {leftItems.map((left, idx) => {
+                        const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === q.options[idx];
+                        const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== q.options[idx] && currentAns[idx];
+
+                        return (
+                          <div key={idx} className={`p-4 rounded-lg border flex flex-col md:flex-row gap-4 items-center ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+                            <div className="flex-1 font-medium text-gray-800 text-center md:text-left">{left}</div>
+                            <div className="mx-2 text-gray-400 hidden md:block">→</div>
+                            <div className="flex-1 w-full">
+                              <select
+                                disabled={isSubmitted}
+                                className="w-full p-2 border rounded border-gray-300 bg-white"
+                                value={currentAns[idx]?.split('|||')[1]?.trim() || ''}
+                                onChange={(e) => handleMatchChange(idx, e.target.value)}
+                              >
+                                <option value="">--- Chọn đáp án nối ---</option>
+                                {shuffledRightItems.map((r, i) => (
+                                  <option key={i} value={r}>{r}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {isSubmitted && viewPassFail && canViewSolution && isWrong && (
+                              <div className="text-xs text-green-700 font-bold mt-2 md:mt-0 w-full md:w-auto text-center md:text-left">
+                                (Đúng: {q.options[idx].split('|||')[1]?.trim()})
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   );
-                })}
+                })()}
+
+                {q.type === 'ORDERING' && (() => {
+                  // For ORDERING, we just let them pick positions from dropdowns 1 to N
+                  const currentAns = Array.isArray(answers[q.id]) ? answers[q.id] : Array(q.options.length).fill("");
+                  // Provide options to pick from (the shuffled ones)
+                  const availableOptions = shuffledIndices.map(i => q.options[i]);
+
+                  const handleOrderChange = (index: number, val: string) => {
+                    if (isSubmitted) return;
+                    const newArr = [...currentAns];
+                    newArr[index] = val;
+                    handleSetAnswer(q.id, newArr);
+                  };
+
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-500 mb-2 italic">Chọn mục tương ứng cho từng vị trí theo đúng thứ tự (từ Trên xuống Dưới):</p>
+                      {q.options.map((_, idx) => {
+                        const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === q.options[idx];
+                        const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== q.options[idx] && currentAns[idx];
+
+                        return (
+                          <div key={idx} className={`p-3 rounded-lg border flex gap-4 items-center ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                            <div className="w-20 font-bold text-gray-600 text-sm">Vị trí {idx + 1}:</div>
+                            <select
+                              disabled={isSubmitted}
+                              className="flex-1 p-2 border rounded border-gray-300 bg-white"
+                              value={currentAns[idx] || ''}
+                              onChange={(e) => handleOrderChange(idx, e.target.value)}
+                            >
+                              <option value="">--- Chọn nội dung ---</option>
+                              {availableOptions.map((opt, i) => (
+                                <option key={i} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                            {isSubmitted && viewPassFail && canViewSolution && isWrong && (
+                              <div className="text-xs text-green-700 font-bold mt-2 md:mt-0 w-full md:w-auto">
+                                (Đúng: {q.options[idx]})
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {q.type === 'DRAG_DROP' && (() => {
+                  const currentAns = Array.isArray(answers[q.id]) ? answers[q.id] : Array(q.options.length).fill("");
+                  const availableOptions = shuffledIndices.map(i => q.options[i]);
+
+                  const handleDropChange = (index: number, val: string) => {
+                    if (isSubmitted) return;
+                    const newArr = [...currentAns];
+                    newArr[index] = val;
+                    handleSetAnswer(q.id, newArr);
+                  };
+
+                  // Parse content to replace [__] with selects
+                  // We do this visually by just providing a list of dropdowns for each blank
+                  return (
+                    <div className="space-y-4 bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                      <p className="text-sm text-gray-700 font-medium">Bên dưới là các ô trống xuất hiện trong đề bài. Hãy chọn đáp án để điền vào:</p>
+                      <div className="flex flex-wrap gap-4">
+                        {Array(q.options.length).fill(0).map((_, idx) => {
+                          const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === q.options[idx];
+                          const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== q.options[idx] && currentAns[idx];
+
+                          return (
+                            <div key={idx} className={`flex flex-col gap-1 p-2 rounded border ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+                              <label className="text-xs font-bold text-gray-500">Ô trống {idx + 1}</label>
+                              <select
+                                disabled={isSubmitted}
+                                className="p-1 border rounded min-w-[120px]"
+                                value={currentAns[idx] || ''}
+                                onChange={(e) => handleDropChange(idx, e.target.value)}
+                              >
+                                <option value=""></option>
+                                {availableOptions.map((opt, i) => (
+                                  <option key={i} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                              {isSubmitted && viewPassFail && canViewSolution && isWrong && (
+                                <div className="text-[10px] text-green-700 font-bold mt-1">Đúng: {q.options[idx]}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* HINT BOX: Check viewHint setting */}

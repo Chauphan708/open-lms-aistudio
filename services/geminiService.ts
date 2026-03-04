@@ -223,13 +223,13 @@ export const generateQuestionsByTopic = async (
     QUESTION TYPE: MATCHING (Nối cột / Ghép đôi)
     - 'content': Describe the matching task clearly. E.g., "Nối mỗi phép tính ở cột A với kết quả đúng ở cột B."
     - 'options': An array of strings, each string is a PAIR formatted as "Left item ||| Right item". 
-      The CORRECT pairs should be listed. E.g., ["3 + 2 ||| 5", "10 - 4 ||| 6", "2 x 3 ||| 6", "8 : 2 ||| 4"]
+      IMPORTANT: The pairs MUST BE the CORRECT pairings. The system will shuffle them automatically. E.g., ["3 + 2 ||| 5", "10 - 4 ||| 6"]
     - 'correctOptionIndex': MUST be -1 (not applicable for matching).
-    - 'solution': List all correct pairings clearly. E.g., "3 + 2 → 5; 10 - 4 → 6; 2 x 3 → 6; 8 : 2 → 4"
+    - 'solution': Details of the logic...
     
     EXAMPLE JSON for ONE matching question:
     {
-      "content": "Nối mỗi phép tính ở cột A với kết quả đúng ở cột B.",
+      "content": "Nối mỗi phép tính ở cột A với kết quả chuẩn xác ở cột B.",
       "options": ["3 + 2 ||| 5", "10 - 4 ||| 6", "2 x 3 ||| 6", "8 : 2 ||| 4"],
       "correctOptionIndex": -1,
       "solution": "3 + 2 = 5; 10 - 4 = 6; 2 × 3 = 6; 8 : 2 = 4",
@@ -242,16 +242,16 @@ export const generateQuestionsByTopic = async (
         return `
     QUESTION TYPE: ORDERING (Sắp xếp theo thứ tự)
     - 'content': Describe the ordering task. E.g., "Sắp xếp các phân số sau theo thứ tự tăng dần."
-    - 'options': An array of items IN SHUFFLED/RANDOM ORDER that the student needs to reorder. E.g., ["1/2", "1/4", "3/4", "1/3"]
-    - 'correctOptionIndex': MUST be -1 (not applicable for ordering).
-    - 'solution': Show the correct order. E.g., "Thứ tự đúng: 1/4 < 1/3 < 1/2 < 3/4"
+    - 'options': An array of items IN THE EXACT CORRECT ORDER. Do NOT shuffle them; the system will shuffle automatically. E.g., ["1/4", "1/3", "1/2", "3/4"]
+    - 'correctOptionIndex': MUST be -1.
+    - 'solution': Explain the logical order steps.
     
     EXAMPLE JSON for ONE ordering question:
     {
       "content": "Sắp xếp các phân số sau theo thứ tự từ bé đến lớn.",
-      "options": ["1/2", "1/4", "3/4", "1/3"],
+      "options": ["1/4", "1/3", "1/2", "3/4"],
       "correctOptionIndex": -1,
-      "solution": "Thứ tự đúng: 1/4; 1/3; 1/2; 3/4",
+      "solution": "Quy đồng ta thấy 1/4 nhỏ nhất, rồi đến 1/3, 1/2 và 3/4.",
       "hint": "Quy đồng mẫu số rồi so sánh tử số.",
       "level": "${levelCode}",
       "topic": "${cleanTopic}",
@@ -260,17 +260,17 @@ export const generateQuestionsByTopic = async (
       case 'DRAG_DROP':
         return `
     QUESTION TYPE: DRAG_DROP (Điền khuyết / Kéo thả)
-    - 'content': A sentence or paragraph with blanks marked as "___". E.g., "Kết quả của 5 + ___ = 12 là ___."
-    - 'options': An array of words/values that fill the blanks (include some distractors too). E.g., ["7", "12", "5", "8"]
-    - 'correctOptionIndex': MUST be -1 (not applicable for drag-drop).
-    - 'solution': Show the filled sentence with correct answers. E.g., "5 + 7 = 12. Đáp án điền vào chỗ trống là 7."
+    - 'content': A sentence or paragraph with EXACTLY ONE OR MORE blanks marked as "[__]". E.g., "Kết quả của 5 + [__] = 12 là [__]."
+    - 'options': An array of words/values IN THE EXACT CORRECT ORDER matching the blanks. (You can append wrong distractors at the end of the correct ones if you want).
+    - 'correctOptionIndex': MUST be -1.
+    - 'solution': Show the filled sentence with correct answers. E.g., "5 + 7 = 12."
     
     EXAMPLE JSON for ONE drag-drop question:
     {
-      "content": "Điền số thích hợp vào chỗ trống: 15 + ___ = 23",
-      "options": ["8", "7", "9", "6"],
+      "content": "Điền số thích hợp vào: 15 + [__] = 23. Số chẵn liền trước 10 là [__].",
+      "options": ["8", "8", "9", "7"],
       "correctOptionIndex": -1,
-      "solution": "15 + 8 = 23. Số cần điền là 8.",
+      "solution": "15 + 8 = 23. Số chẵn liền trước 10 là 8.",
       "hint": "Lấy tổng trừ đi số hạng đã biết.",
       "level": "${levelCode}",
       "topic": "${cleanTopic}",
