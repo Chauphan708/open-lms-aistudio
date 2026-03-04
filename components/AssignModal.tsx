@@ -60,8 +60,8 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
       classId: selectedClassId,
       teacherId: user?.id || '',
       createdAt: new Date().toISOString(),
-      startTime: startTime || undefined,
-      endTime: endTime || undefined,
+      startTime: startTime ? new Date(startTime).toISOString() : undefined,
+      endTime: endTime ? new Date(endTime).toISOString() : undefined,
       durationMinutes: duration,
       settings: {
         viewScore,

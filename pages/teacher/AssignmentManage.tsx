@@ -69,11 +69,19 @@ export const AssignmentManage: React.FC = () => {
         }
     };
 
+    const formatForDatetimeLocal = (dateStr: string | undefined): string => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
     const openEdit = (a: Assignment) => {
         const exam = exams.find(e => e.id === a.examId);
         setEditingAssignment(a);
-        setEditStartTime(a.startTime || '');
-        setEditEndTime(a.endTime || '');
+        setEditStartTime(formatForDatetimeLocal(a.startTime));
+        setEditEndTime(formatForDatetimeLocal(a.endTime));
         setEditDuration(a.durationMinutes);
         setEditTitle(exam?.title || '');
     };
@@ -82,8 +90,8 @@ export const AssignmentManage: React.FC = () => {
         if (!editingAssignment) return;
         const updated: Assignment = {
             ...editingAssignment,
-            startTime: editStartTime || undefined,
-            endTime: editEndTime || undefined,
+            startTime: editStartTime ? new Date(editStartTime).toISOString() : undefined,
+            endTime: editEndTime ? new Date(editEndTime).toISOString() : undefined,
             durationMinutes: editDuration
         };
         const ok = await updateAssignment(updated);
