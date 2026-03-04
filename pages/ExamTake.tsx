@@ -465,7 +465,7 @@ export const ExamTake: React.FC = () => {
                 <div className="flex-1">
                   <div className="text-gray-900 font-medium text-lg leading-relaxed prose prose-p:my-0">
                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {q.content}
+                      {q.content.replace(/\s*Đáp án:\s*[^\n]*$/i, '').trim()}
                     </ReactMarkdown>
                   </div>
                   {q.imageUrl && (
@@ -550,13 +550,13 @@ export const ExamTake: React.FC = () => {
                       value={answers[q.id] || ''}
                       onChange={(e) => handleSetAnswer(q.id, e.target.value)}
                       placeholder="Nhập câu trả lời của bạn vào đây..."
-                      className={`w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] ${isSubmitted ? 'bg-gray-50 text-gray-700 border-gray-300 relative' : 'bg-white border-gray-300 text-gray-900'} ${isSubmitted && viewPassFail && String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase() ? 'border-green-500 bg-green-50' : ''}`}
+                      className={`w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] ${isSubmitted ? 'bg-gray-50 text-gray-700 border-gray-300 relative' : 'bg-white border-gray-300 text-gray-900'} ${isSubmitted && viewPassFail ? (String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase() ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : ''}`}
                     />
                     {isSubmitted && viewPassFail && (
                       <div className="mt-2 text-sm text-gray-600">
                         {String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase()
                           ? <span className="text-green-600 font-bold">✓ Hệ thống tự chấm khớp đáp án</span>
-                          : <span className="text-orange-600 font-bold">⚠ Cần giáo viên chấm điểm thủ công (hoặc chưa khớp hoàn toàn)</span>}
+                          : <span className="text-red-600 font-bold">✗ Sai (Không khớp với đáp án)</span>}
                       </div>
                     )}
                   </div>

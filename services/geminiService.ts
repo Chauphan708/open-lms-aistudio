@@ -109,6 +109,7 @@ export const parseQuestionsFromText = async (rawText: string): Promise<Question[
     7. **LEVEL (REQUIRED)**: Classify each question's difficulty as one of: NHAN_BIET (recall/recognition), THONG_HIEU (understanding/connection), VAN_DUNG (application/problem-solving).
     8. **TOPIC (REQUIRED)**: Identify the specific knowledge topic/chapter for each question (e.g., "Phân số", "Hình học phẳng", "Từ vựng").
     9. **questionType (REQUIRED)**: Detect the question format: MCQ (has A/B/C/D options), SHORT_ANSWER (essay/open-ended), MATCHING, ORDERING, or DRAG_DROP.
+    10. **CRITICAL**: The 'content' field MUST ONLY contain the question itself. DO NOT include the answer, solution, or "Đáp án: ..." in the 'content' field. The answer goes into the 'solution' field.
     
     Raw Text:
     """
@@ -337,6 +338,7 @@ export const generateQuestionsByTopic = async (
     4. 'level' (BẮT BUỘC): Đặt đúng giá trị "${levelCode}".
     5. 'topic' (BẮT BUỘC): Đặt đúng giá trị "${cleanTopic}".
     6. 'questionType' (BẮT BUỘC): Đặt đúng giá trị "${questionType}".
+    7. **QUAN TRỌNG NHẤT**: Trường 'content' CHỈ chứa nội dung câu hỏi. TUYỆT ĐỐI KHÔNG chứa đáp án, lời giải, hay cụm từ "Đáp án: ..." bên trong 'content'. Đáp án phải được đưa vào trường 'solution'.
 
     Trả về một JSON array gồm ${count} objects. Mỗi object có đầy đủ các field: content, options, correctOptionIndex, solution, hint, level, topic, questionType.
   `;
