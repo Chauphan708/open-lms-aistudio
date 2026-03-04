@@ -668,8 +668,22 @@ export const ExamCreate: React.FC = () => {
                       )}
 
                       {q.type === 'SHORT_ANSWER' && (
-                        <div className="mt-3 p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500 italic">
-                          Học sinh sẽ trả lời bằng đoạn văn bản vào ô nhập liệu ở phần thi.
+                        <div className="mt-3 space-y-2">
+                          <div className="p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500 italic">
+                            Học sinh sẽ trả lời bằng đoạn văn bản vào ô nhập liệu ở phần thi.
+                          </div>
+                          {q.options && q.options.length > 0 && (
+                            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                              <p className="text-xs font-bold text-green-700 mb-2">✅ Đáp án chấm tự động ({q.options.length}):</p>
+                              <div className="flex flex-wrap gap-2">
+                                {q.options.map((ans, i) => (
+                                  <span key={i} className="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full border border-green-200">
+                                    {ans}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
