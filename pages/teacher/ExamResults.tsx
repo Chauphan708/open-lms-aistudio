@@ -288,7 +288,53 @@ export const ExamResults: React.FC = () => {
                      </div>
                   </div>
                   {showStudentStats && (
-                     <div className="p-6 pt-2 border-t border-gray-100">
+                     <div className="p-6 pt-2 border-t border-gray-100 space-y-6">
+                        {/* Missing Students */}
+                        {(() => {
+                           const submittedStudentIds = new Set(examAttempts.map(a => a.studentId));
+                           const examAssignments = assignments.filter(a => a.examId === id);
+                           const examClassIds = new Set<string>();
+                           if (exam.classId) examClassIds.add(exam.classId);
+                           examAssignments.forEach(a => examClassIds.add(a.classId));
+                           const expectedStudentIds = new Set<string>();
+                           examClassIds.forEach(classId => {
+                              const cls = classes.find(c => c.id === classId);
+                              if (cls) cls.studentIds.forEach(stId => expectedStudentIds.add(stId));
+                           });
+                           const missingIds = Array.from(expectedStudentIds).filter(sid => !submittedStudentIds.has(sid));
+                           const missingStudents = missingIds.map(sid => users.find(u => u.id === sid)).filter(Boolean);
+
+                           if (expectedStudentIds.size > 0 && missingStudents.length > 0) {
+                              return (
+                                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                       <div className="bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold">
+                                          {missingStudents.length} HS chưa làm bài
+                                       </div>
+                                       <span className="text-xs text-gray-500">/ {expectedStudentIds.size} tổng</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                       {missingStudents.map((s: any) => (
+                                          <div key={s.id} className="flex items-center gap-2 bg-white border border-red-100 rounded-lg px-3 py-1.5 shadow-sm">
+                                             <img src={s.avatar} alt="" className="w-5 h-5 rounded-full border" />
+                                             <span className="text-sm font-medium text-red-700">{s.name}</span>
+                                          </div>
+                                       ))}
+                                    </div>
+                                 </div>
+                              );
+                           }
+                           if (expectedStudentIds.size > 0 && missingStudents.length === 0) {
+                              return (
+                                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                                    <span className="text-green-700 font-bold text-sm">✅ Tất cả học sinh đã nộp bài!</span>
+                                 </div>
+                              );
+                           }
+                           return null;
+                        })()}
+
+                        {/* Student Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                            {Array.from(new Set(examAttempts.map(a => a.studentId))).map(studentId => {
                               const student = users.find(u => u.id === studentId);
