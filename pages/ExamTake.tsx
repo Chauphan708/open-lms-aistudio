@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
-import { Clock, CheckCircle, AlertTriangle, Lock, Ban, ChevronLeft, Radio, Sparkles, MessageSquareQuote, RotateCcw, Lightbulb, BrainCircuit, Book } from 'lucide-react';
+import { Clock, CheckCircle, AlertTriangle, Lock, Ban, ChevronLeft, Radio, Sparkles, MessageSquareQuote, RotateCcw, Lightbulb, BrainCircuit, Book, Send } from 'lucide-react';
 import { Attempt } from '../types';
 import { analyzeStudentAttempt } from '../services/geminiService';
 import { DictionaryWidget } from '../components/DictionaryWidget'; // IMPORT WIDGET
@@ -749,6 +749,19 @@ export const ExamTake: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Bottom Submit Button */}
+      {!isSubmitted && (
+        <div className="mt-12 flex justify-center pb-12">
+          <button
+            onClick={handleSubmit}
+            className="bg-indigo-600 text-white px-10 py-4 rounded-xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 flex items-center gap-3 animate-bounce-subtle"
+          >
+            <Send className="h-6 w-6" />
+            Nộp bài tập
+          </button>
+        </div>
+      )}
     </div>
   );
 };
