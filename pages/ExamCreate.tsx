@@ -859,8 +859,38 @@ export const ExamCreate: React.FC = () => {
 
               {editingQuestion.type === 'SHORT_ANSWER' && (
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Loại này không cần Lựa chọn</label>
-                  <p className="text-xs text-gray-500 mb-2 italic">Học sinh sẽ nhập câu trả lời vào ô trống. Đừng quên điền đáp án chuẩn vào phần <strong>Lời giải chi tiết</strong> bên dưới để làm mẫu tham khảo.</p>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center justify-between">
+                    Các đáp án đúng được chấp nhận (Dùng cho máy chấm tự động)
+                    <button onClick={() => setEditingQuestion({ ...editingQuestion, options: [...editingQuestion.options, 'Đáp án'] })} className="text-xs text-indigo-600 font-medium hover:underline">+ Thêm đáp án</button>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2 italic">Hệ thống sẽ lấy danh sách này để so khớp tự động. Nếu trống, máy sẽ so khớp với nội dung Lời giải chi tiết.</p>
+                  {editingQuestion.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-2 group">
+                      <span className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{i + 1}</span>
+                      <input
+                        value={opt}
+                        onChange={e => {
+                          const newOpts = [...editingQuestion.options];
+                          newOpts[i] = e.target.value;
+                          setEditingQuestion({ ...editingQuestion, options: newOpts });
+                        }}
+                        placeholder="Nhập 1 đáp án được chấp nhận (VD: 3300)"
+                        className="flex-1 border border-indigo-300 rounded-lg p-2 bg-indigo-50 text-indigo-900 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                      <button onClick={() => {
+                        const newOpts = [...editingQuestion.options];
+                        newOpts.splice(i, 1);
+                        setEditingQuestion({ ...editingQuestion, options: newOpts });
+                      }} className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {editingQuestion.options.length === 0 && (
+                    <div className="p-3 bg-yellow-50 text-yellow-800 text-sm rounded-lg border border-yellow-200">
+                      Chưa có đáp án tự động nào. Hãy "Thêm đáp án" để máy chấm chính xác.
+                    </div>
+                  )}
                 </div>
               )}
 

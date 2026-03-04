@@ -245,8 +245,11 @@ export const ExamTake: React.FC = () => {
       if (q.type === 'MCQ') {
         if (userAns === q.correctOptionIndex) correctCount++;
       } else if (q.type === 'SHORT_ANSWER') {
-        // Tạm chấm bằng cách so khớp chính xác với phần lời giải (hoặc chờ GV chấm sau)
-        if (String(userAns || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase()) correctCount++;
+        const sAns = String(userAns || '').trim().toLowerCase();
+        const isCorrect = q.options && q.options.length > 0
+          ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
+          : sAns === String(q.solution || '').trim().toLowerCase();
+        if (isCorrect) correctCount++;
       } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
         if (Array.isArray(userAns) && userAns.length === q.options.length) {
           let isAllCorrect = true;
@@ -543,24 +546,30 @@ export const ExamTake: React.FC = () => {
                   </div>
                 )}
 
-                {q.type === 'SHORT_ANSWER' && (
-                  <div>
-                    <textarea
-                      disabled={isSubmitted}
-                      value={answers[q.id] || ''}
-                      onChange={(e) => handleSetAnswer(q.id, e.target.value)}
-                      placeholder="Nhập câu trả lời của bạn vào đây..."
-                      className={`w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] ${isSubmitted ? 'bg-gray-50 text-gray-700 border-gray-300 relative' : 'bg-white border-gray-300 text-gray-900'} ${isSubmitted && viewPassFail ? (String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase() ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : ''}`}
-                    />
-                    {isSubmitted && viewPassFail && (
-                      <div className="mt-2 text-sm text-gray-600">
-                        {String(answers[q.id] || '').trim().toLowerCase() === String(q.solution || '').trim().toLowerCase()
-                          ? <span className="text-green-600 font-bold">✓ Hệ thống tự chấm khớp đáp án</span>
-                          : <span className="text-red-600 font-bold">✗ Sai (Không khớp với đáp án)</span>}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {q.type === 'SHORT_ANSWER' && (() => {
+                  const sAns = String(answers[q.id] || '').trim().toLowerCase();
+                  const isCorrect = q.options && q.options.length > 0
+                    ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
+                    : sAns === String(q.solution || '').trim().toLowerCase();
+                  return (
+                    <div>
+                      <textarea
+                        disabled={isSubmitted}
+                        value={answers[q.id] || ''}
+                        onChange={(e) => handleSetAnswer(q.id, e.target.value)}
+                        placeholder="Nhập câu trả lời của bạn vào đây..."
+                        className={`w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] ${isSubmitted ? 'bg-gray-50 text-gray-700 border-gray-300 relative' : 'bg-white border-gray-300 text-gray-900'} ${isSubmitted && viewPassFail ? (isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : ''}`}
+                      />
+                      {isSubmitted && viewPassFail && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          {isCorrect
+                            ? <span className="text-green-600 font-bold">✓ Hệ thống tự chấm khớp đáp án</span>
+                            : <span className="text-red-600 font-bold">✗ Sai (Không khớp với đáp án)</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {q.type === 'MATCHING' && (() => {
                   const leftItems = q.options.map(o => o.split('|||')[0]?.trim() || o);
