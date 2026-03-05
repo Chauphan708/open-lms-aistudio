@@ -173,9 +173,9 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                     <tbody className="text-center">
                         {topics.map(t => {
                             const topicQs = questions.filter(q => (q.topic || 'Chung') === t);
-                            const l1 = topicQs.filter(q => q.level === 'NHAN_BIET').length;
-                            const l2 = topicQs.filter(q => q.level === 'THONG_HIEU').length;
-                            const l3 = topicQs.filter(q => q.level === 'VAN_DUNG').length;
+                            const l1 = topicQs.filter(q => q.level === 'LEVEL_1').length;
+                            const l2 = topicQs.filter(q => q.level === 'LEVEL_2').length;
+                            const l3 = topicQs.filter(q => q.level === 'LEVEL_3').length;
 
                             return (
                                 <tr key={t}>
@@ -191,9 +191,9 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                     <tfoot className="text-center font-bold bg-gray-50">
                         <tr>
                             <td className="border border-black p-2 text-left">TỔNG CỘNG</td>
-                            <td className="border border-black p-2">{questions.filter(q => q.level === 'NHAN_BIET').length}</td>
-                            <td className="border border-black p-2">{questions.filter(q => q.level === 'THONG_HIEU').length}</td>
-                            <td className="border border-black p-2">{questions.filter(q => q.level === 'VAN_DUNG').length}</td>
+                            <td className="border border-black p-2">{questions.filter(q => q.level === 'LEVEL_1').length}</td>
+                            <td className="border border-black p-2">{questions.filter(q => q.level === 'LEVEL_2').length}</td>
+                            <td className="border border-black p-2">{questions.filter(q => q.level === 'LEVEL_3').length}</td>
                             <td className="border border-black p-2 text-red-600">{questions.length}</td>
                         </tr>
                     </tfoot>
