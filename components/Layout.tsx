@@ -49,11 +49,23 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // State for built-in nested menus
   const [isStudyToolsExpanded, setIsStudyToolsExpanded] = useState(false);
+  const [expandedNavGroups, setExpandedNavGroups] = useState<Record<string, boolean>>({
+    'Khảo thí & Bài tập': true // Expand default group
+  });
 
   const isActive = (path: string) => location.pathname === path;
 
   const toggleTool = (toolId: string) => {
     setExpandedTools(prev => ({ ...prev, [toolId]: !prev[toolId] }));
+  };
+
+  const toggleGroup = (title: string) => {
+    if (isSidebarCollapsed) {
+      setIsSidebarCollapsed(false);
+      setExpandedNavGroups(prev => ({ ...prev, [title]: true }));
+    } else {
+      setExpandedNavGroups(prev => ({ ...prev, [title]: !prev[title] }));
+    }
   };
 
   // Filter notifications for current user
@@ -81,6 +93,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   interface NavGroup {
     title?: string;
     roles?: UserRole[];
+    icon?: any;
     items: NavItem[];
   }
 
@@ -92,6 +105,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     },
     {
       title: 'Quản lý Hệ thống',
+      icon: Settings,
       roles: ['ADMIN'],
       items: [
         { label: 'Quản lý Năm học', path: '/admin/years', icon: CalendarRange, roles: ['ADMIN'] },
@@ -100,6 +114,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     },
     {
       title: 'Khảo thí & Bài tập',
+      icon: BookOpen,
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
       items: [
         { label: 'Ngân hàng Bài tập', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
@@ -112,6 +127,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     },
     {
       title: 'Lớp học & Thi đua',
+      icon: GraduationCap,
       roles: ['ADMIN', 'TEACHER'],
       items: [
         { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
@@ -125,6 +141,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     },
     {
       title: 'Tương tác & Mở rộng',
+      icon: Globe,
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
       items: [
         { label: 'Kho Tài liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
@@ -136,6 +153,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     },
     {
       title: 'Báo cáo & Cài đặt',
+      icon: BarChart3,
       roles: ['ADMIN', 'TEACHER'],
       items: [
         { label: 'Thống kê & Backup', path: '/ai-stats', icon: BarChart3, roles: ['TEACHER'] },
@@ -210,36 +228,76 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
               return (
                 <div key={groupIdx} className={`${groupIdx > 0 ? 'pt-2 border-t border-gray-50' : ''}`}>
-                  {group.title && !isSidebarCollapsed && (
-                    <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 truncate">
-                      {group.title}
-                    </p>
+                  {group.title ? (
+                    <div>
+                      <button
+                        onClick={() => toggleGroup(group.title!)}
+                        title={isSidebarCollapsed ? group.title : undefined}
+                        className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
+                          ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'}
+                          text-gray-600 hover:bg-gray-50`}
+                      >
+                        <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                          {group.icon && React.createElement(group.icon, {
+                            className: "h-5 w-5 flex-shrink-0 text-gray-400 group-hover:scale-110 transition-transform"
+                          })}
+                          {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{group.title}</span>}
+                        </div>
+                        {!isSidebarCollapsed && (expandedNavGroups[group.title] ? <ChevronDown className="h-4 w-4 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 flex-shrink-0" />)}
+                      </button>
+
+                      {expandedNavGroups[group.title] && !isSidebarCollapsed && (
+                        <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-5 mt-1">
+                          {visibleItems.map(item => {
+                            const Icon = item.icon;
+                            const active = isActive(item.path);
+                            return (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`
+                                  flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group relative overflow-hidden
+                                  ${active
+                                    ? 'text-indigo-600 font-bold bg-indigo-50 translate-x-1'
+                                    : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 hover:pl-4'}
+                                `}
+                              >
+                                <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
+                                <span className="relative z-10 whitespace-nowrap">{item.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {visibleItems.map(item => {
+                        const Icon = item.icon;
+                        const active = isActive(item.path);
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            title={isSidebarCollapsed ? item.label : undefined}
+                            className={`
+                              flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
+                              ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}
+                              ${active
+                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' + (!isSidebarCollapsed ? ' translate-x-1' : '')
+                                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700' + (!isSidebarCollapsed ? ' hover:pl-5' : '')}
+                            `}
+                          >
+                            <Icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
+                            {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{item.label}</span>}
+                            {active && !isSidebarCollapsed && <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   )}
-                  <div className="space-y-1">
-                    {visibleItems.map(item => {
-                      const Icon = item.icon;
-                      const active = isActive(item.path);
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          title={isSidebarCollapsed ? item.label : undefined}
-                          className={`
-                            flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
-                            ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}
-                            ${active
-                              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' + (!isSidebarCollapsed ? ' translate-x-1' : '')
-                              : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700' + (!isSidebarCollapsed ? ' hover:pl-5' : '')}
-                          `}
-                        >
-                          <Icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
-                          {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{item.label}</span>}
-                          {active && !isSidebarCollapsed && <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>}
-                        </Link>
-                      );
-                    })}
-                  </div>
                 </div>
               );
             })}
