@@ -61,19 +61,23 @@ CREATE TABLE IF NOT EXISTS public.arena_match_events (
 -- ============================================
 ALTER TABLE public.arena_profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Arena profiles public access" ON public.arena_profiles;
-CREATE POLICY "Arena profiles public access" ON public.arena_profiles FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated read access" ON public.arena_profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "User update own profile" ON public.arena_profiles FOR ALL TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 ALTER TABLE public.arena_questions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Arena questions public access" ON public.arena_questions;
-CREATE POLICY "Arena questions public access" ON public.arena_questions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated read access" ON public.arena_questions FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Teacher full access" ON public.arena_questions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 ALTER TABLE public.arena_matches ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Arena matches public access" ON public.arena_matches;
-CREATE POLICY "Arena matches public access" ON public.arena_matches FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated read access" ON public.arena_matches FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Players can update match" ON public.arena_matches FOR ALL TO authenticated USING (auth.uid() = player1_id OR auth.uid() = player2_id) WITH CHECK (auth.uid() = player1_id OR auth.uid() = player2_id);
 
 ALTER TABLE public.arena_match_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Arena match events public access" ON public.arena_match_events;
-CREATE POLICY "Arena match events public access" ON public.arena_match_events FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated read access" ON public.arena_match_events FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Players create events" ON public.arena_match_events FOR ALL TO authenticated USING (auth.uid() = player_id) WITH CHECK (auth.uid() = player_id);
 
 -- ============================================
 -- REALTIME PUBLICATION

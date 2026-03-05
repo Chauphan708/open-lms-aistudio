@@ -21,10 +21,11 @@ const DIFFICULTIES = [
 ];
 
 export const ArenaAdmin: React.FC = () => {
-    const { arenaQuestions, fetchArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkAddArenaQuestions, questionBank } = useStore();
+    const { arenaQuestions, arenaQuestionsHasMore, fetchArenaQuestions, loadMoreArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkAddArenaQuestions, questionBank } = useStore();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [filterSubject, setFilterSubject] = useState('');
     const [filterDifficulty, setFilterDifficulty] = useState(0);
     const [editing, setEditing] = useState<ArenaQuestion | null>(null);
@@ -409,6 +410,23 @@ export const ArenaAdmin: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            {/* Load More Button */}
+            {arenaQuestionsHasMore && (
+                <div className="flex justify-center mt-6">
+                    <button
+                        onClick={async () => {
+                            setLoadingMore(true);
+                            await loadMoreArenaQuestions();
+                            setLoadingMore(false);
+                        }}
+                        disabled={loadingMore}
+                        className="px-6 py-2.5 bg-indigo-50 text-indigo-700 font-bold rounded-xl hover:bg-indigo-100 disabled:opacity-50 transition flex items-center gap-2"
+                    >
+                        {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang tải...</> : 'Tải thêm tĩnh...'}
+                    </button>
+                </div>
+            )}
 
             {/* Edit / New Modal */}
             {editing && (

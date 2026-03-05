@@ -402,12 +402,14 @@ export interface AppState {
   // ============================================
   arenaProfile: ArenaProfile | null;
   arenaQuestions: ArenaQuestion[];
+  arenaQuestionsHasMore: boolean;
   arenaMatches: ArenaMatch[];
 
   fetchArenaProfile: (userId: string) => Promise<void>;
   createArenaProfile: (userId: string, avatarClass: AvatarClass) => Promise<void>;
   updateArenaProfile: (profile: Partial<ArenaProfile> & { id: string }) => Promise<void>;
   fetchArenaQuestions: () => Promise<void>;
+  loadMoreArenaQuestions: () => Promise<void>;
   addArenaQuestion: (q: Omit<ArenaQuestion, 'id'>) => Promise<boolean>;
   updateArenaQuestion: (q: ArenaQuestion) => Promise<boolean>;
   deleteArenaQuestion: (id: string) => Promise<boolean>;

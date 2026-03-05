@@ -706,3 +706,74 @@ export const analyzeStudentText = async (
     throw new Error("Lỗi khi phân tích bài làm qua AI.");
   }
 };
+
+/**
+ * Generates an optimized seating chart using AI.
+ * Takes student list, grid dimensions, and any specific constraints.
+ */
+export const generateSeatingChart = async (
+  students: { id: string, name: string, gender?: string }[],
+  rows: number,
+  cols: number,
+  constraints: string = ""
+): Promise<Array<{ row: number, col: number, studentId: string | null }>> => {
+  const ai = getAiClient();
+  const modelId = "gemini-2.0-flash";
+
+  const totalSeats = rows * cols;
+  if (students.length > totalSeats) {
+    throw new Error(`Grid too small: ${totalSeats} seats for ${students.length} students.`);
+  }
+
+  const prompt = `
+    Đóng vai một Chuyên gia Sư phạm và Tâm lý học đường.
+    Nhiệm vụ của bạn là sắp xếp chỗ ngồi cho lớp học.
+
+    TÌNH TRẠNG LỚP HỌC:
+    - Tổng số học sinh: ${students.length}
+    - Kích thước sơ đồ lớp: ${rows} hàng ngang (Row) x ${cols} cột dọc (Col). Tổng cộng: ${totalSeats} chỗ.
+    - Danh sách học sinh (ID, Tên):
+    ${JSON.stringify(students.map(s => ({ id: s.id, name: s.name })))}
+
+    ${constraints ? `\nCHÚ Ý ĐẶC BIỆT TỪ GIÁO VIÊN: "${constraints}"\n` : ''}
+
+    YÊU CẦU XẾP CHỖ:
+    1. Trả về đúng định dạng JSON Array chứa sơ đồ chỗ ngồi.
+    2. Mỗi phần tử trong array là một object: {"row": số_nguyên, "col": số_nguyên, "studentId": "id_học_sinh"}. (row từ 0 đến ${rows - 1}, col từ 0 đến ${cols - 1}).
+    3. Nếu chỗ ngồi bị trống (do số học sinh ít hơn số ghế), gán "studentId": null.
+    4. Không được xếp 2 học sinh vào 1 ghế (trùng row, col). Đảm bảo mỗi học sinh có 1 ghế.
+    5. Cố gắng xếp nam nữ xen kẽ nếu có thể phân biệt qua tên. Học sinh cùng họ thường không nên ngồi cạnh nhau. Tối ưu hoá cho việc ngồi gần bảng (row thấp) hơn là đuôi lớp.
+    
+    CHỈ TRẢ VỀ JSON ARRAY. KHÔNG CHỨA BẤT KỲ VĂN BẢN NÀO KHÁC (Kể cả markdown \`\`\`json).
+    
+    VÍ DỤ TRẢ VỀ:
+    [
+      {"row": 0, "col": 0, "studentId": "id_1"},
+      {"row": 0, "col": 1, "studentId": "id_2"},
+      {"row": 0, "col": 2, "studentId": null}
+    ]
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+
+    const cleanedText = cleanJsonString(response.text || "[]");
+    const parsedChart = JSON.parse(cleanedText);
+
+    // Validate output
+    if (!Array.isArray(parsedChart)) {
+      throw new Error("AI returned invalid structure. Expected Array.");
+    }
+
+    return parsedChart;
+  } catch (error) {
+    console.error("Gemini Seating Error:", error);
+    throw new Error("Lỗi khi tạo sơ đồ bằng AI. Vui lòng thử lại hoặc xếp tay.");
+  }
+};

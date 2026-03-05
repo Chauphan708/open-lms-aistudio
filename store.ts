@@ -935,6 +935,7 @@ export const useStore = create<AppState>((set, get) => ({
   // ============================================
   arenaProfile: null,
   arenaQuestions: [],
+  arenaQuestionsHasMore: false,
   arenaMatches: [],
 
   fetchArenaProfile: async (userId) => {
@@ -967,9 +968,31 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   fetchArenaQuestions: async () => {
-    const { data } = await supabase.from('arena_questions').select('*');
+    const { data } = await supabase.from('arena_questions').select('*').order('created_at', { ascending: false }).limit(50);
     if (data) {
-      set({ arenaQuestions: data.map((q: any) => ({ ...q, answers: typeof q.answers === 'string' ? JSON.parse(q.answers) : q.answers })) });
+      set({
+        arenaQuestions: data.map((q: any) => ({ ...q, answers: typeof q.answers === 'string' ? JSON.parse(q.answers) : q.answers })),
+        arenaQuestionsHasMore: data.length === 50
+      });
+    }
+  },
+
+  loadMoreArenaQuestions: async () => {
+    const state = get();
+    if (!state.arenaQuestionsHasMore || state.arenaQuestions.length === 0) return;
+
+    // Sử dụng range với offset là độ dài hiện tại
+    const currentLength = state.arenaQuestions.length;
+    const { data } = await supabase.from('arena_questions').select('*').order('created_at', { ascending: false }).range(currentLength, currentLength + 49);
+
+    if (data && data.length > 0) {
+      const parsed = data.map((q: any) => ({ ...q, answers: typeof q.answers === 'string' ? JSON.parse(q.answers) : q.answers }));
+      set({
+        arenaQuestions: [...state.arenaQuestions, ...parsed],
+        arenaQuestionsHasMore: data.length === 50
+      });
+    } else {
+      set({ arenaQuestionsHasMore: false });
     }
   },
 

@@ -222,16 +222,34 @@ export const ExamResults: React.FC = () => {
                            let correctCount = 0;
                            let incorrectCount = 0;
                            examAttempts.forEach(att => {
-                              const studentAnsIdx = att.answers[q.id];
-                              // Only count if they answered
-                              if (studentAnsIdx !== undefined) {
-                                 if (studentAnsIdx === q.correctOptionIndex) {
-                                    correctCount++;
-                                 } else {
-                                    incorrectCount++;
+                              const userAns = att.answers[q.id];
+
+                              let isCorrect = false;
+                              if (userAns !== undefined && userAns !== null && userAns !== '') {
+                                 if (q.type === 'MCQ') {
+                                    isCorrect = userAns === q.correctOptionIndex;
+                                 } else if (q.type === 'SHORT_ANSWER') {
+                                    const sAns = String(userAns || '').trim().toLowerCase();
+                                    isCorrect = q.options && q.options.length > 0
+                                       ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
+                                       : sAns === String(q.solution || '').trim().toLowerCase();
+                                 } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
+                                    if (Array.isArray(userAns) && userAns.length === q.options.length) {
+                                       let isAllCorrect = true;
+                                       for (let i = 0; i < q.options.length; i++) {
+                                          if (userAns[i] !== q.options[i]) {
+                                             isAllCorrect = false;
+                                             break;
+                                          }
+                                       }
+                                       isCorrect = isAllCorrect;
+                                    }
                                  }
+                              }
+
+                              if (isCorrect) {
+                                 correctCount++;
                               } else {
-                                 // If they didn't answer, it's incorrect
                                  incorrectCount++;
                               }
                            });
@@ -420,11 +438,8 @@ export const ExamResults: React.FC = () => {
                         <tbody className="divide-y divide-gray-100">
                            {examAttempts.map(att => {
                               const student = users.find(u => u.id === att.studentId);
-                              // Calculate correct answers locally just for display if needed
-                              let correctCount = 0;
-                              exam.questions.forEach(q => {
-                                 if (att.answers[q.id] === q.correctOptionIndex) correctCount++;
-                              });
+                              // Use the score to accurately determine correct count to avoid recalculation discrepancies
+                              const correctCount = Math.round(((att.score || 0) / 10) * exam.questions.length);
 
                               return (
                                  <tr key={att.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openStudentDetail(att.id)}>

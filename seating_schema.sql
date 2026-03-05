@@ -24,9 +24,12 @@ BEFORE UPDATE ON public.class_seating_charts
 FOR EACH ROW
 EXECUTE FUNCTION update_class_seating_charts_modtime();
 
--- RLS (Row Level Security) (Nếu có)
+-- RLS (Row Level Security) 
 ALTER TABLE public.class_seating_charts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all read access" ON public.class_seating_charts FOR SELECT USING (true);
-CREATE POLICY "Allow all insert access" ON public.class_seating_charts FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow all update access" ON public.class_seating_charts FOR UPDATE USING (true);
-CREATE POLICY "Allow all delete access" ON public.class_seating_charts FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow all read access" ON public.class_seating_charts;
+DROP POLICY IF EXISTS "Allow all insert access" ON public.class_seating_charts;
+DROP POLICY IF EXISTS "Allow all update access" ON public.class_seating_charts;
+DROP POLICY IF EXISTS "Allow all delete access" ON public.class_seating_charts;
+
+CREATE POLICY "Authenticated read access" ON public.class_seating_charts FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Teacher full access" ON public.class_seating_charts FOR ALL TO authenticated USING (true) WITH CHECK (true);

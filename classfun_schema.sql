@@ -62,21 +62,31 @@ create index if not exists idx_behavior_logs_created on public.behavior_logs(cre
 create index if not exists idx_attendance_date on public.attendance(date);
 create index if not exists idx_attendance_class on public.attendance(class_id);
 
--- RLS Policies (Prototype: Allow All - Cần siết lại cho production)
+-- RLS Policies
 alter table public.class_groups enable row level security;
-create policy "Public access" on public.class_groups for all using (true) with check (true);
+drop policy if exists "Public access" on public.class_groups;
+create policy "Authenticated read access" on public.class_groups for select to authenticated using (true);
+create policy "Teacher full access" on public.class_groups for all to authenticated using (true) with check (true);
 
 alter table public.behaviors enable row level security;
-create policy "Public access" on public.behaviors for all using (true) with check (true);
+drop policy if exists "Public access" on public.behaviors;
+create policy "Authenticated read access" on public.behaviors for select to authenticated using (true);
+create policy "Teacher full access" on public.behaviors for all to authenticated using (auth.uid() = teacher_id) with check (auth.uid() = teacher_id);
 
 alter table public.behavior_logs enable row level security;
-create policy "Public access" on public.behavior_logs for all using (true) with check (true);
+drop policy if exists "Public access" on public.behavior_logs;
+create policy "Authenticated read access" on public.behavior_logs for select to authenticated using (true);
+create policy "Teacher full access" on public.behavior_logs for all to authenticated using (true) with check (true);
 
 alter table public.attendance enable row level security;
-create policy "Public access" on public.attendance for all using (true) with check (true);
+drop policy if exists "Public access" on public.attendance;
+create policy "Authenticated read access" on public.attendance for select to authenticated using (true);
+create policy "Teacher full access" on public.attendance for all to authenticated using (true) with check (true);
 
 alter table public.class_group_members enable row level security;
-create policy "Public access" on public.class_group_members for all using (true) with check (true);
+drop policy if exists "Public access" on public.class_group_members;
+create policy "Authenticated read access" on public.class_group_members for select to authenticated using (true);
+create policy "Teacher full access" on public.class_group_members for all to authenticated using (true) with check (true);
 
 -- Enable Realtime cho các bảng mới
 alter publication supabase_realtime add table public.behavior_logs;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useClassFunStore } from '../../services/classFunStore';
 import { User, ClassSeat } from '../../types';
+import { generateSeatingChart } from '../../services/geminiService';
 import { X, Users, RotateCcw, Save, LayoutGrid, AlertCircle, Wand2, CheckSquare } from 'lucide-react';
 
 interface ClassSeatingModalProps {
@@ -18,6 +19,7 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
     // Load existing chart
     useEffect(() => {
@@ -147,35 +149,34 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
         }
     }
 
-    const handleAIArrange = () => {
-        if (!window.confirm('Bạn muốn AI xếp chỗ tự động (đảo thứ tự theo tên/ngẫu nhiên cân bằng)?')) return;
+    const handleAIArrange = async () => {
+        if (!window.confirm('Bạn muốn AI phân tích và xếp chỗ tự động (tối ưu hóa ngẫu nhiên và xen kẽ giới tính)? Thời gian xử lý có thể mất vài giây.')) return;
 
-        const newSeats = [...seats].map(s => ({ ...s, studentId: null as string | null })); // Clear all
+        setIsGeneratingAI(true);
+        try {
+            const chart = await generateSeatingChart(
+                students.map(s => ({ id: s.id, name: s.name, gender: s.gender })),
+                rows,
+                cols,
+                "Hãy xếp chỗ cẩn thận, cân bằng. Học sinh nữ ưu tiên ngồi các hàng đầu tiên hơn."
+            );
 
-        // Simple AI: alternate boys/girls or just spread them out.
-        // Since we don't have gender on all users reliably yet, we'll do a snake-like distribution to separate friends.
-        // Sort students alphabetically to mix up typical clique structures
-        const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
-
-        // Snake distribute
-        let studentIdx = 0;
-        for (let r = 0; r < rows; r++) {
-            // alternate direction per row
-            const isEvenRow = r % 2 === 0;
-            for (let c = 0; c < cols; c++) {
-                const actualCol = isEvenRow ? c : (cols - 1 - c);
-                if (studentIdx < sortedStudents.length) {
-                    const realIdx = newSeats.findIndex(s => s.row === r && s.col === actualCol);
-                    if (realIdx !== -1) {
-                        newSeats[realIdx].studentId = sortedStudents[studentIdx].id as string | null;
-                        studentIdx++;
-                    }
+            // Re-map to preserve any metadata if needed, clear remaining seats
+            const newSeats = [...seats].map(s => ({ ...s, studentId: null as string | null }));
+            chart.forEach(seat => {
+                const realIdx = newSeats.findIndex(s => s.row === seat.row && s.col === seat.col);
+                if (realIdx !== -1) {
+                    newSeats[realIdx].studentId = seat.studentId;
                 }
-            }
-        }
+            });
 
-        setSeats(newSeats);
-        setSelectedSeat(null);
+            setSeats(newSeats);
+            setSelectedSeat(null);
+        } catch (error: any) {
+            alert(error.message || 'Có lỗi xảy ra khi dùng AI xếp chỗ.');
+        } finally {
+            setIsGeneratingAI(false);
+        }
     }
 
     const handleSave = async () => {
@@ -249,11 +250,12 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
                             <div className="h-px bg-gray-100 w-full my-4"></div>
 
                             <div className="grid grid-cols-2 gap-2">
-                                <button onClick={handleRandomize} className="flex items-center justify-center gap-2 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg text-sm transition">
+                                <button onClick={handleRandomize} disabled={isGeneratingAI} className="flex items-center justify-center gap-2 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg text-sm transition disabled:opacity-50">
                                     <RotateCcw className="h-4 w-4" /> Ngẫu nhiên
                                 </button>
-                                <button onClick={handleAIArrange} className="flex items-center justify-center gap-2 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold rounded-lg text-sm transition tooltip" title="Xếp dạng zic-zắc theo AlphaB">
-                                    <Wand2 className="h-4 w-4" /> Tự động
+                                <button onClick={handleAIArrange} disabled={isGeneratingAI} className="flex items-center justify-center gap-2 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold rounded-lg text-sm transition tooltip disabled:opacity-50" title="AI xếp chỗ thông minh">
+                                    {isGeneratingAI ? <div className="w-4 h-4 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></div> : <Wand2 className="h-4 w-4" />}
+                                    AI Tự động
                                 </button>
                             </div>
                         </div>

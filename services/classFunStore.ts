@@ -57,6 +57,7 @@ interface ClassFunState {
   groupMembers: GroupMember[];
   seatingChart: ClassSeatingChart | null;
   isLoading: boolean;
+  hasMoreLogs: boolean;
 
   // Actions - Groups
   fetchClassFunData: (classId: string, teacherId: string) => Promise<void>;
@@ -76,6 +77,7 @@ interface ClassFunState {
   batchAddBehaviorLogs: (logs: Omit<BehaviorLog, 'id' | 'created_at'>[]) => Promise<void>;
   fetchStudentLogs: (studentId: string) => Promise<void>;
   fetchAllBehaviorLogs: (classId: string) => Promise<void>;
+  loadMoreBehaviorLogs: (classId: string) => Promise<void>;
   deleteBehaviorLog: (id: string) => Promise<void>;
 
   // Actions - Attendance
@@ -95,6 +97,7 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
   groupMembers: [],
   seatingChart: null,
   isLoading: false,
+  hasMoreLogs: true,
 
   // --- Fetch all data for a class ---
   fetchClassFunData: async (classId, teacherId) => {
@@ -113,13 +116,13 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
         .select('*')
         .eq('teacher_id', teacherId);
 
-      // Fetch behavior logs for this class (last 500 entries)
+      // Fetch behavior logs for this class (last 100 entries instead of 500)
       const { data: logs } = await supabase
         .from('behavior_logs')
         .select('*')
         .eq('class_id', classId)
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(100);
 
       // Fetch group members
       const groupIds = (groups || []).map(g => g.id);
@@ -137,6 +140,7 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
         behaviors: (behaviors || []) as Behavior[],
         logs: (logs || []) as BehaviorLog[],
         groupMembers,
+        hasMoreLogs: (logs || []).length === 100,
       });
     } catch (e) {
       console.error('Error fetching ClassFun data:', e);
@@ -244,6 +248,36 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
         reason: d.reason || d.behaviors?.description || 'Ghi nhận hành vi'
       }));
       set({ logs: mappedLogs as BehaviorLog[] });
+    }
+  },
+
+  loadMoreBehaviorLogs: async (classId) => {
+    const currentLogs = get().logs;
+    const lastLog = currentLogs[currentLogs.length - 1];
+    if (!lastLog) return;
+
+    // Convert current logs' max length safely
+    const fetchLimit = 100;
+
+    const { data } = await supabase
+      .from('behavior_logs')
+      .select('*, behaviors(*)')
+      .eq('class_id', classId)
+      .lt('created_at', lastLog.created_at) // Pagination key
+      .order('created_at', { ascending: false })
+      .limit(fetchLimit);
+
+    if (data && data.length > 0) {
+      const mappedLogs = data.map(d => ({
+        ...d,
+        reason: d.reason || d.behaviors?.description || 'Ghi nhận hành vi'
+      }));
+      set(s => ({
+        logs: [...s.logs, ...(mappedLogs as BehaviorLog[])],
+        hasMoreLogs: data.length === fetchLimit
+      }));
+    } else {
+      set({ hasMoreLogs: false });
     }
   },
 

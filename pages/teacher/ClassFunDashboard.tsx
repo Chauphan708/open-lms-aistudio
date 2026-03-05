@@ -13,7 +13,8 @@ const toDateKey = (date: Date): string => {
 
 export const ClassFunDashboard: React.FC = () => {
     const { user, classes, users } = useStore();
-    const { groups, logs, behaviors, groupMembers, isLoading, fetchClassFunData } = useClassFunStore();
+    const { groups, logs, behaviors, groupMembers, isLoading, hasMoreLogs, fetchClassFunData, loadMoreBehaviorLogs } = useClassFunStore();
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     // Chọn lớp (nếu giáo viên có nhiều lớp)
     const myClasses = classes.filter(c => c.teacherId === user?.id);
@@ -377,26 +378,43 @@ export const ClassFunDashboard: React.FC = () => {
                 {filteredLogs.length === 0 ? (
                     <p className="text-gray-400 text-center py-8">Chưa có hoạt động nào.</p>
                 ) : (
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {filteredLogs.slice(0, 20).map(l => {
-                            const student = classStudents.find(s => s.id === l.student_id);
-                            return (
-                                <div key={l.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                                    <div>
-                                        <span className="font-semibold text-gray-800">{student?.name || 'Không rõ'}</span>
-                                        <span className="text-gray-500 text-sm ml-2">— {l.reason || 'Không có ghi chú'}</span>
+                    <div className="space-y-4">
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {filteredLogs.slice(0, viewMode === 'week' ? filteredLogs.length : 50).map(l => {
+                                const student = classStudents.find(s => s.id === l.student_id);
+                                return (
+                                    <div key={l.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                                        <div>
+                                            <span className="font-semibold text-gray-800">{student?.name || 'Không rõ'}</span>
+                                            <span className="text-gray-500 text-sm ml-2">— {l.reason || 'Không có ghi chú'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`font-bold ${l.points > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                {l.points > 0 ? '+' : ''}{l.points}
+                                            </span>
+                                            <span className="text-xs text-gray-400">
+                                                {new Date(l.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className={`font-bold ${l.points > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                            {l.points > 0 ? '+' : ''}{l.points}
-                                        </span>
-                                        <span className="text-xs text-gray-400">
-                                            {new Date(l.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
+                        {viewMode === 'all' && hasMoreLogs && (
+                            <div className="text-center pt-2 border-t border-gray-100">
+                                <button
+                                    onClick={async () => {
+                                        setIsLoadingMore(true);
+                                        await loadMoreBehaviorLogs(selectedClassId);
+                                        setIsLoadingMore(false);
+                                    }}
+                                    disabled={isLoadingMore}
+                                    className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition disabled:opacity-50"
+                                >
+                                    {isLoadingMore ? 'Đang tải...' : 'Tải thêm lịch sử'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
