@@ -91,7 +91,7 @@ export const PvPBattle: React.FC = () => {
                             content: q.content,
                             answers: q.options.slice(0, 4),
                             correct_index: q.correctOptionIndex,
-                            difficulty: exam?.difficulty === 'LEVEL_1' ? 1 : exam?.difficulty === 'LEVEL_2' ? 2 : 3,
+                            difficulty: exam?.difficulty === 'NHAN_BIET' ? 1 : exam?.difficulty === 'THONG_HIEU' ? 2 : 3,
                             subject: exam?.subject || 'general'
                         });
                     }

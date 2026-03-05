@@ -29,7 +29,7 @@ export const ExamCreate: React.FC = () => {
   const [subject, setSubject] = useState('Toán'); // Default Toán
   const [topic, setTopic] = useState(''); // New topic field
   const [grade, setGrade] = useState('5'); // Default Grade 5
-  const [difficulty, setDifficulty] = useState<ExamDifficulty>('LEVEL_1');
+  const [difficulty, setDifficulty] = useState<ExamDifficulty>('NHAN_BIET');
 
   // Save Settings
   const [saveTarget, setSaveTarget] = useState<'BANK' | 'CLASS'>('BANK');
@@ -67,18 +67,18 @@ export const ExamCreate: React.FC = () => {
   // Helper to map enum to readable string for AI
   const getDifficultyDescription = (diff: ExamDifficulty) => {
     switch (diff) {
-      case 'LEVEL_1': return 'Mức 1 (Nhận biết - Nhắc lại)';
-      case 'LEVEL_2': return 'Mức 2 (Hiểu - Kết nối)';
-      case 'LEVEL_3': return 'Mức 3 (Vận dụng - Giải quyết vấn đề)';
+      case 'NHAN_BIET': return 'Mức 1 (Nhận biết - Nhắc lại)';
+      case 'THONG_HIEU': return 'Mức 2 (Hiểu - Kết nối)';
+      case 'VAN_DUNG': return 'Mức 3 (Vận dụng - Giải quyết vấn đề)';
       default: return 'Mức 1 (Nhận biết)';
     }
   };
 
   const getDifficultyLabel = (diff: ExamDifficulty) => {
     switch (diff) {
-      case 'LEVEL_1': return 'Mức 1 (Nhận biết)';
-      case 'LEVEL_2': return 'Mức 2 (Kết nối)';
-      case 'LEVEL_3': return 'Mức 3 (Vận dụng)';
+      case 'NHAN_BIET': return 'Mức 1 (Nhận biết)';
+      case 'THONG_HIEU': return 'Mức 2 (Kết nối)';
+      case 'VAN_DUNG': return 'Mức 3 (Vận dụng)';
       default: return 'Mức 1';
     }
   };
@@ -92,7 +92,7 @@ export const ExamCreate: React.FC = () => {
         setSubject(examToEdit.subject || 'Toán');
         setTopic(examToEdit.topic || '');
         setGrade(examToEdit.grade || '5');
-        setDifficulty(examToEdit.difficulty || 'LEVEL_1');
+        setDifficulty(examToEdit.difficulty || 'NHAN_BIET');
         setDuration(examToEdit.durationMinutes);
         setQuestions(JSON.parse(JSON.stringify(examToEdit.questions))); // Deep copy
 
@@ -832,9 +832,9 @@ export const ExamCreate: React.FC = () => {
                   className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
                 >
                   <option value="">-- Không phân mức --</option>
-                  <option value="LEVEL_1">Mức 1 (Nhận biết)</option>
-                  <option value="LEVEL_2">Mức 2 (Kết nối)</option>
-                  <option value="LEVEL_3">Mức 3 (Vận dụng)</option>
+                  <option value="NHAN_BIET">Mức 1 (Nhận biết)</option>
+                  <option value="THONG_HIEU">Mức 2 (Kết nối)</option>
+                  <option value="VAN_DUNG">Mức 3 (Vận dụng)</option>
                 </select>
               </div>
 

@@ -59,7 +59,7 @@ export const ExamMatrix: React.FC = () => {
             title,
             subject,
             grade,
-            difficulty: 'LEVEL_1' as const,
+            difficulty: 'NHAN_BIET' as const,
             durationMinutes: duration,
             questionCount: questions.length,
             createdAt: new Date().toISOString(),

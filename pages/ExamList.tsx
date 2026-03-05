@@ -95,9 +95,9 @@ export const ExamList: React.FC = () => {
 
   const getDifficultyLabel = (diff: ExamDifficulty | undefined) => {
     switch (diff) {
-      case 'LEVEL_1': return { label: 'Mức 1', color: 'bg-green-100 text-green-700' };
-      case 'LEVEL_2': return { label: 'Mức 2', color: 'bg-yellow-100 text-yellow-700' };
-      case 'LEVEL_3': return { label: 'Mức 3', color: 'bg-red-100 text-red-700' };
+      case 'NHAN_BIET': return { label: 'Mức 1', color: 'bg-green-100 text-green-700' };
+      case 'THONG_HIEU': return { label: 'Mức 2', color: 'bg-yellow-100 text-yellow-700' };
+      case 'VAN_DUNG': return { label: 'Mức 3', color: 'bg-red-100 text-red-700' };
       default: return { label: 'Khác', color: 'bg-gray-100 text-gray-500' };
     }
   };
@@ -256,9 +256,9 @@ export const ExamList: React.FC = () => {
                   className="w-full pl-8 pr-2 py-2 border rounded-lg text-xs bg-white text-gray-900 outline-none focus:border-indigo-500 appearance-none"
                 >
                   <option value="">Tất cả</option>
-                  <option value="LEVEL_1">Mức 1</option>
-                  <option value="LEVEL_2">Mức 2</option>
-                  <option value="LEVEL_3">Mức 3</option>
+                  <option value="NHAN_BIET">Mức 1</option>
+                  <option value="THONG_HIEU">Mức 2</option>
+                  <option value="VAN_DUNG">Mức 3</option>
                 </select>
               </div>
             </div>

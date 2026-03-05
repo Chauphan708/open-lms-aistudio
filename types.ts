@@ -42,7 +42,7 @@ export interface Class {
 }
 
 export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
-export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
+export type ExamDifficulty = 'NHAN_BIET' | 'THONG_HIEU' | 'VAN_DUNG';
 
 export interface Question {
   id: string;
