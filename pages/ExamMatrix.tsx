@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { Question, QuestionType } from '../types';
 import { MatrixConfig } from '../components/MatrixConfig';
 import { PrintableContent } from '../components/PrintableContent';
-import { Save, Trash2, Edit2, X, Plus, Printer, ChevronDown, BarChart3, Lightbulb, BrainCircuit, FileText, AlertCircle, Shuffle, Timer, Download } from 'lucide-react';
+import { Save, Trash2, Edit2, X, Plus, Printer, ChevronDown, BarChart3, Lightbulb, BrainCircuit, FileText, AlertCircle, Shuffle, Timer, Download, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -11,7 +11,7 @@ import rehypeKatex from 'rehype-katex';
 type PrintType = 'MATRIX' | 'EXAM_MCQ' | 'EXAM_ESSAY' | 'SOLUTION' | 'ALL';
 
 export const ExamMatrix: React.FC = () => {
-    const { addExam } = useStore();
+    const { addExam, questionBank } = useStore();
 
     const [title, setTitle] = useState('');
     const [subject, setSubject] = useState('Toán');
@@ -86,6 +86,30 @@ export const ExamMatrix: React.FC = () => {
         setExamVariant(prev => prev === 'A' ? 'B' : prev === 'B' ? 'C' : 'A');
     };
 
+    const handleReRollQuestion = (currentQ: Question) => {
+        // Find alternative from bank
+        const availableQuestions = questionBank.filter(q =>
+            q.subject === subject &&
+            q.grade === grade &&
+            q.level === currentQ.level &&
+            q.type === currentQ.type &&
+            q.id !== currentQ.id && // Don't pick same question
+            !questions.some(existingQ => existingQ.id === q.id) // Don't pick one already in exam
+        );
+
+        if (availableQuestions.length === 0) {
+            setError(`Không tìm thấy câu hỏi thay thế phù hợp trong ngân hàng (Môn: ${subject}, Lớp: ${grade}, Mức độ: ${currentQ.level || 'Không xác định'}, Loại: ${currentQ.type}).`);
+            return;
+        }
+
+        // Pick a random alternative
+        const randomAlternative = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+
+        // Replace in questions array
+        setQuestions(questions.map(q => q.id === currentQ.id ? { ...randomAlternative, id: `reroll_${Date.now()}_${randomAlternative.id}` } : q));
+        setError(null);
+    };
+
     // C2: Xuất text file
     const exportTextFile = () => {
         let text = `ĐỀ KIỂM TRA - ${title || 'Chưa đặt tên'}\nMôn: ${subject} - Lớp ${grade} - Thời gian: ${duration} phút\nĐề: ${examVariant}\n${'='.repeat(50)}\n\n`;
@@ -138,13 +162,9 @@ export const ExamMatrix: React.FC = () => {
                             <button onClick={shuffleQuestions} className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-100 font-medium shadow-sm border border-amber-200">
                                 <Shuffle className="h-4 w-4" /> Trộn đề {examVariant === 'A' ? '→ B' : examVariant === 'B' ? '→ C' : '→ A'}
                             </button>
-                            {/* C2: Xuất txt */}
-                            <button onClick={exportTextFile} className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-100 font-medium shadow-sm border border-emerald-200">
-                                <Download className="h-4 w-4" /> Tải .TXT
-                            </button>
                             <div className="relative group">
                                 <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm">
-                                    <Printer className="h-4 w-4" /> In đề <ChevronDown className="h-3 w-3" />
+                                    <Printer className="h-4 w-4" /> Xuất File <ChevronDown className="h-3 w-3" />
                                 </button>
                                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
                                     <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Xuất Ma trận</button>
@@ -236,8 +256,9 @@ export const ExamMatrix: React.FC = () => {
                             questions.map((q, idx) => (
                                 <div key={q.id} className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative group">
                                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openEditModal(q)} className="text-gray-300 hover:text-indigo-600 p-1"><Edit2 className="h-3.5 w-3.5" /></button>
-                                        <button onClick={() => removeQuestion(q.id)} className="text-gray-300 hover:text-red-500 p-1"><Trash2 className="h-3.5 w-3.5" /></button>
+                                        <button onClick={() => handleReRollQuestion(q)} className="text-gray-300 hover:text-amber-500 p-1" title="Đổi câu khác cùng mức độ"><RefreshCw className="h-3.5 w-3.5" /></button>
+                                        <button onClick={() => openEditModal(q)} className="text-gray-300 hover:text-indigo-600 p-1" title="Sửa câu hỏi này"><Edit2 className="h-3.5 w-3.5" /></button>
+                                        <button onClick={() => removeQuestion(q.id)} className="text-gray-300 hover:text-red-500 p-1" title="Xóa bỏ"><Trash2 className="h-3.5 w-3.5" /></button>
                                     </div>
                                     <div className="flex gap-2 items-start">
                                         <span className="flex-shrink-0 w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center font-bold text-emerald-600 text-xs">{idx + 1}</span>

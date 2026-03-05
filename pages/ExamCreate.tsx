@@ -4,7 +4,7 @@ import { parseQuestionsFromText, generateQuestionsByTopic } from '../services/ge
 import { parseQuestionsLocal } from '../utils/localParser';
 import { Question, QuestionType, ExamDifficulty } from '../types';
 import { Wand2, Save, Trash2, Plus, AlertCircle, FilePlus, BrainCircuit, FileText, Settings, Sparkles, Users, MessageSquarePlus, Edit2, X, GraduationCap, BarChart3, Image as ImageIcon, Lightbulb, Printer, ChevronDown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -16,7 +16,12 @@ type PrintType = 'MATRIX' | 'EXAM_MCQ' | 'EXAM_ESSAY' | 'SOLUTION' | 'ALL';
 
 export const ExamCreate: React.FC = () => {
   const navigate = useNavigate();
-  const { addExam, user, classes } = useStore();
+  const location = useLocation();
+  const { addExam, updateExam, exams, user, classes } = useStore();
+
+  const searchParams = new URLSearchParams(location.search);
+  const editExamId = searchParams.get('edit');
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Basic Info - Default for Primary School
   const [title, setTitle] = useState('');
@@ -77,6 +82,30 @@ export const ExamCreate: React.FC = () => {
       default: return 'Mức 1';
     }
   };
+
+  React.useEffect(() => {
+    if (editExamId) {
+      const examToEdit = exams.find(e => e.id === editExamId);
+      if (examToEdit) {
+        setIsEditMode(true);
+        setTitle(examToEdit.title);
+        setSubject(examToEdit.subject || 'Toán');
+        setTopic(examToEdit.topic || '');
+        setGrade(examToEdit.grade || '5');
+        setDifficulty(examToEdit.difficulty || 'LEVEL_1');
+        setDuration(examToEdit.durationMinutes);
+        setQuestions(JSON.parse(JSON.stringify(examToEdit.questions))); // Deep copy
+
+        // Also figure out save target based on classId
+        if (examToEdit.classId) {
+          setSaveTarget('CLASS');
+          setTargetClassId(examToEdit.classId);
+        } else {
+          setSaveTarget('BANK');
+        }
+      }
+    }
+  }, [editExamId, exams]);
 
   // Handlers
   // --- Tách câu hỏi LOCAL (regex, không cần AI) ---
@@ -173,6 +202,27 @@ export const ExamCreate: React.FC = () => {
       return;
     }
 
+    if (isEditMode && editExamId) {
+      // Update logic
+      const updatedExam = exams.find(e => e.id === editExamId);
+      if (updatedExam) {
+        updateExam({
+          ...updatedExam,
+          title,
+          subject,
+          topic: topic.trim() || undefined,
+          grade,
+          difficulty,
+          durationMinutes: duration,
+          questionCount: questions.length,
+          classId: saveTarget === 'CLASS' ? targetClassId : undefined,
+          questions
+        });
+        navigate('/exams');
+        return;
+      }
+    }
+
     const newExam = {
       id: `exam_${Date.now()}`,
       title,
@@ -246,8 +296,8 @@ export const ExamCreate: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tạo Bài Tập Mới</h1>
-          <p className="text-gray-500">Soạn thảo, upload file hoặc nhờ AI tạo bài tập tự động.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Chỉnh sửa Bài Tập' : 'Tạo Bài Tập Mới'}</h1>
+          <p className="text-gray-500">{isEditMode ? 'Quản lý nội dung câu hỏi và cấu hình bài tập.' : 'Soạn thảo, upload file hoặc nhờ AI tạo bài tập tự động.'}</p>
         </div>
         <div className="flex gap-3">
           <div className="flex bg-gray-200 p-1 rounded-lg">
@@ -262,12 +312,6 @@ export const ExamCreate: React.FC = () => {
               className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${mode === 'GENERATE' ? 'bg-white shadow text-purple-700' : 'text-gray-600'}`}
             >
               <Sparkles className="h-4 w-4" /> AI Tạo Bài Tập
-            </button>
-            <button
-              onClick={() => setMode('MATRIX')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${mode === 'MATRIX' ? 'bg-white shadow text-emerald-700' : 'text-gray-600'}`}
-            >
-              <BarChart3 className="h-4 w-4" /> Ma trận đề
             </button>
           </div>
 
@@ -560,14 +604,6 @@ export const ExamCreate: React.FC = () => {
                 </div>
               </>
             )}
-
-            {mode === 'MATRIX' && (
-              <MatrixConfig
-                onGenerate={(qs) => setQuestions(prev => [...prev, ...qs])}
-                subject={subject}
-                grade={grade}
-              />
-            )}
           </div>
         </div>
 
@@ -786,6 +822,20 @@ export const ExamCreate: React.FC = () => {
                     placeholder="https://example.com/image.png"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Mức độ (Tùy chọn)</label>
+                <select
+                  value={editingQuestion.level || ''}
+                  onChange={e => setEditingQuestion({ ...editingQuestion, level: (e.target.value as ExamDifficulty) || undefined })}
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                >
+                  <option value="">-- Không phân mức --</option>
+                  <option value="LEVEL_1">Mức 1 (Nhận biết)</option>
+                  <option value="LEVEL_2">Mức 2 (Kết nối)</option>
+                  <option value="LEVEL_3">Mức 3 (Vận dụng)</option>
+                </select>
               </div>
 
               {editingQuestion.imageUrl && (

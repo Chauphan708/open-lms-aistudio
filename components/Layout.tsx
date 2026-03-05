@@ -29,7 +29,9 @@ import {
   Clock,
   BarChart3,
   ClipboardList,
-  Zap
+  Zap,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
@@ -40,6 +42,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // State to track expanded custom tools
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
@@ -75,49 +78,70 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     roles?: UserRole[];
   }
 
-  const navItems: NavItem[] = [
-    { label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+  interface NavGroup {
+    title?: string;
+    roles?: UserRole[];
+    items: NavItem[];
+  }
 
-    // ADMIN ONLY
-    { label: 'Quản lý Năm học', path: '/admin/years', icon: CalendarRange, roles: ['ADMIN'] },
-    { label: 'QL Giáo Viên', path: '/admin/teachers', icon: Users, roles: ['ADMIN'] },
-
-    // TEACHER ONLY
-    { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
-
-    // ADMIN & TEACHER
-    { label: 'QL Học Sinh', path: '/manage/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER'] },
-
-    { label: '📋 Điểm Danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
-    { label: 'Thi Đua Lớp', path: '/teacher/class-fun', icon: Trophy, roles: ['TEACHER'] },
-    { label: '⚡ Ghi Nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
-    { label: '⚠️ Cảnh Báo Hành Vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
-    { label: 'Tạo Bài Tập', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
-    { label: '📝 Tạo Đề KT', path: '/exam-matrix', icon: BookOpen, roles: ['TEACHER'] },
-    { label: 'Chấm Bài', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
-
-    // STUDENT ONLY
-    { label: 'Lịch sử làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
-
-    // SHARED
-    { label: 'Ngân hàng bài tập', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-    { label: 'QL Bài đã giao', path: '/teacher/assignments', icon: ClipboardList, roles: ['TEACHER'] },
-    { label: '⚡ Thống kê XP', path: '/teacher/xp-stats', icon: Zap, roles: ['TEACHER'] },
-
-    // RESOURCES (NEW)
-    { label: 'Kho Tài Liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-
-    // DISCUSSION
-    { label: 'Phòng Thảo Luận', path: '/teacher/discussions', icon: MessageSquare, roles: ['TEACHER'] },
-    { label: 'Thảo luận & Vote', path: '/discussion/join', icon: MessageSquare, roles: ['STUDENT'] },
-
-    // ARENA
-    { label: '🧠 Đấu Trí', path: '/arena', icon: Brain, roles: ['STUDENT'] },
-    { label: '🧠 QL Đấu Trí', path: '/arena/admin', icon: Brain, roles: ['TEACHER', 'ADMIN'] },
-
-    // SETTINGS
-    { label: '📊 Thống kê & Backup', path: '/ai-stats', icon: BarChart3, roles: ['TEACHER'] },
-    { label: 'Cài đặt', path: '/settings', icon: Settings, roles: ['ADMIN', 'TEACHER'] },
+  const navGroups: NavGroup[] = [
+    {
+      items: [
+        { label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+      ]
+    },
+    {
+      title: 'Quản lý Hệ thống',
+      roles: ['ADMIN'],
+      items: [
+        { label: 'Quản lý Năm học', path: '/admin/years', icon: CalendarRange, roles: ['ADMIN'] },
+        { label: 'Quản lý Giáo viên', path: '/admin/teachers', icon: Users, roles: ['ADMIN'] },
+      ]
+    },
+    {
+      title: 'Khảo thí & Bài tập',
+      roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+      items: [
+        { label: 'Ngân hàng Bài tập', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { label: 'Tạo Bài tập', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
+        { label: 'Tạo Đề kiểm tra', path: '/exam-matrix', icon: BookOpen, roles: ['TEACHER'] },
+        { label: 'Quản lý Bài đã giao', path: '/teacher/assignments', icon: ClipboardList, roles: ['TEACHER'] },
+        { label: 'Chấm bài AI', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
+        { label: 'Lịch sử Làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
+      ]
+    },
+    {
+      title: 'Lớp học & Thi đua',
+      roles: ['ADMIN', 'TEACHER'],
+      items: [
+        { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
+        { label: 'Quản lý Học sinh', path: '/manage/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER'] },
+        { label: 'Thi đua Lớp', path: '/teacher/class-fun', icon: Trophy, roles: ['TEACHER'] },
+        { label: 'Điểm danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
+        { label: 'Ghi nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
+        { label: 'Cảnh báo Hành vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
+        { label: 'Thống kê Kinh nghiệm', path: '/teacher/xp-stats', icon: Zap, roles: ['TEACHER'] },
+      ]
+    },
+    {
+      title: 'Tương tác & Mở rộng',
+      roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+      items: [
+        { label: 'Kho Tài liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { label: 'Phòng Thảo luận (GV)', path: '/teacher/discussions', icon: MessageSquare, roles: ['TEACHER'] },
+        { label: 'Phòng Thảo luận', path: '/discussion/join', icon: MessageSquare, roles: ['STUDENT'] },
+        { label: 'QL Đấu trí', path: '/arena/admin', icon: Brain, roles: ['ADMIN', 'TEACHER'] },
+        { label: 'Đấu trí', path: '/arena', icon: Brain, roles: ['STUDENT'] },
+      ]
+    },
+    {
+      title: 'Báo cáo & Cài đặt',
+      roles: ['ADMIN', 'TEACHER'],
+      items: [
+        { label: 'Thống kê & Backup', path: '/ai-stats', icon: BarChart3, roles: ['TEACHER'] },
+        { label: 'Cài đặt', path: '/settings', icon: Settings, roles: ['ADMIN', 'TEACHER'] },
+      ]
+    }
   ];
 
   return (
@@ -141,67 +165,112 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white border-r shadow-lg transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-30 bg-white border-r shadow-lg transform transition-all duration-300 ease-in-out flex flex-col
         md:relative md:translate-x-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isSidebarCollapsed ? 'w-20' : 'w-64'}
       `}>
         <div className="h-full flex flex-col">
-          <div className="p-6 border-b flex items-center gap-3">
-            <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
-              <GraduationCap className="h-6 w-6 text-white" />
+          <div className={`p-4 border-b flex items-center h-[73px] ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <div className={`flex items-center gap-3 overflow-hidden ${isSidebarCollapsed ? 'justify-center w-full' : ''}`}>
+              <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200 flex-shrink-0">
+                <GraduationCap className="h-6 w-6 text-white" />
+              </div>
+              {!isSidebarCollapsed && <span className="text-xl font-extrabold text-gray-800 tracking-tight whitespace-nowrap">OpenLMS</span>}
             </div>
-            <span className="text-xl font-extrabold text-gray-800 tracking-tight">OpenLMS</span>
+            {!isSidebarCollapsed && (
+              <button
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="hidden md:flex p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+                title="Thu gọn menu"
+              >
+                <PanelLeftClose className="h-5 w-5" />
+              </button>
+            )}
           </div>
 
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {navItems.map((item) => {
-              if (item.roles && user && !item.roles.includes(user.role)) return null;
-              const Icon = item.icon;
-              const active = isActive(item.path);
+          {isSidebarCollapsed && (
+            <div className="hidden md:flex justify-center p-2 border-b border-gray-50">
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+                title="Mở rộng menu"
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+
+          <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+            {navGroups.map((group, groupIdx) => {
+              if (group.roles && user && !group.roles.includes(user.role)) return null;
+
+              const visibleItems = group.items.filter(item => !item.roles || (user && item.roles.includes(user.role)));
+              if (visibleItems.length === 0) return null;
+
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
-                    ${active
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 translate-x-1'
-                      : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 hover:pl-6'}
-                  `}
-                >
-                  <Icon className={`h-5 w-5 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
-                  <span className="relative z-10">{item.label}</span>
-                  {active && <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>}
-                </Link>
+                <div key={groupIdx} className={`${groupIdx > 0 ? 'pt-2 border-t border-gray-50' : ''}`}>
+                  {group.title && !isSidebarCollapsed && (
+                    <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 truncate">
+                      {group.title}
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    {visibleItems.map(item => {
+                      const Icon = item.icon;
+                      const active = isActive(item.path);
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          title={isSidebarCollapsed ? item.label : undefined}
+                          className={`
+                            flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
+                            ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}
+                            ${active
+                              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' + (!isSidebarCollapsed ? ' translate-x-1' : '')
+                              : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700' + (!isSidebarCollapsed ? ' hover:pl-5' : '')}
+                          `}
+                        >
+                          <Icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
+                          {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{item.label}</span>}
+                          {active && !isSidebarCollapsed && <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
 
-            {/* CÔNG CỤ HỌC TẬP (LEVEL 1 & 2) */}
+            {/* CÔNG CỤ HỌC TẬP */}
             {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && (
-              <div className="mb-2">
+              <div className="pt-2 border-t border-gray-50">
                 <button
-                  onClick={() => setIsStudyToolsExpanded(!isStudyToolsExpanded)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden ${location.pathname.startsWith('/tools/') ? 'text-indigo-700 bg-indigo-50 font-bold' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                  onClick={() => !isSidebarCollapsed && setIsStudyToolsExpanded(!isStudyToolsExpanded)}
+                  title={isSidebarCollapsed ? "Công cụ học tập" : undefined}
+                  className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
+                    ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'}
+                    ${location.pathname.startsWith('/tools/') ? 'text-indigo-700 bg-indigo-50 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Wrench className={`h-5 w-5 ${location.pathname.startsWith('/tools/') ? 'text-indigo-600' : 'text-gray-400 group-hover:scale-110 transition-transform'}`} />
-                    <span className="relative z-10">Công cụ học tập</span>
+                  <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <Wrench className={`h-5 w-5 flex-shrink-0 ${location.pathname.startsWith('/tools/') ? 'text-indigo-600' : 'text-gray-400 group-hover:scale-110 transition-transform'}`} />
+                    {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">Công cụ học tập</span>}
                   </div>
-                  {isStudyToolsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {!isSidebarCollapsed && (isStudyToolsExpanded ? <ChevronDown className="h-4 w-4 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 flex-shrink-0" />)}
                 </button>
 
-                {isStudyToolsExpanded && (
-                  <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-6 mt-1">
+                {isStudyToolsExpanded && !isSidebarCollapsed && (
+                  <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-5 mt-1">
                     <Link
                       to="/tools/timer"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive('/tools/timer') ? 'text-indigo-600 font-bold bg-indigo-50' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
                         }`}
                     >
-                      <Clock className="h-4 w-4" />
-                      <span>Đồng hồ đếm ngược</span>
+                      <Clock className="h-4 w-4 flex-shrink-0" />
+                      <span className="whitespace-nowrap">Đồng hồ đếm ngược</span>
                     </Link>
                   </div>
                 )}
@@ -210,26 +279,29 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
             {/* CUSTOM TOOLS RENDERER (TEACHER AND ADMIN) */}
             {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && user.customTools && user.customTools.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Các Công Cụ Hỗ Trợ</p>
+              <div className="pt-2 border-t border-gray-50">
+                {!isSidebarCollapsed && (
+                  <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 truncate">Các Công Cụ Hỗ Trợ</p>
+                )}
                 {user.customTools.map(tool => (
                   <div key={tool.id} className="mb-1">
                     {tool.children && tool.children.length > 0 ? (
-                      // Parent with children
                       <div>
                         <button
-                          onClick={() => toggleTool(tool.id)}
-                          className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                          onClick={() => !isSidebarCollapsed && toggleTool(tool.id)}
+                          title={isSidebarCollapsed ? tool.title : undefined}
+                          className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors
+                            ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <ExternalLink className="h-4 w-4 text-gray-400" />
-                            <span className="truncate">{tool.title}</span>
+                          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                            <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            {!isSidebarCollapsed && <span className="truncate">{tool.title}</span>}
                           </div>
-                          {expandedTools[tool.id] ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                          {!isSidebarCollapsed && (expandedTools[tool.id] ? <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />)}
                         </button>
-                        {/* Recursive Children Render (1 Level Deep) */}
-                        {expandedTools[tool.id] && (
-                          <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-6">
+                        {/* Recursive Children Render */}
+                        {expandedTools[tool.id] && !isSidebarCollapsed && (
+                          <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-5">
                             {tool.children.map(child => (
                               <a
                                 key={child.id}
@@ -250,10 +322,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         href={tool.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                        title={isSidebarCollapsed ? tool.title : undefined}
+                        className={`flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors
+                          ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
                       >
-                        <ExternalLink className="h-4 w-4 text-gray-400" />
-                        <span className="truncate">{tool.title}</span>
+                        <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        {!isSidebarCollapsed && <span className="truncate">{tool.title}</span>}
                       </a>
                     )}
                   </div>
@@ -262,21 +336,36 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             )}
           </nav>
 
-          <div className="p-4 border-t bg-gray-50/50">
-            <div className="flex items-center gap-3 mb-4 px-2 p-2 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-gray-100 hover:shadow-sm">
-              <img src={user?.avatar || "https://via.placeholder.com/40"} alt="User" className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm" />
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-gray-900 truncate">{user?.name}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+          <div className="p-3 border-t bg-gray-50/50">
+            {!isSidebarCollapsed ? (
+              <>
+                <div className="flex items-center gap-3 mb-3 px-2 py-2 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-gray-100 hover:shadow-sm">
+                  <img src={user?.avatar || "https://via.placeholder.com/40"} alt="User" className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0" />
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-bold text-gray-900 truncate">{user?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all duration-200 font-medium"
+                >
+                  <LogOut className="h-4 w-4 hover:scale-110 transition-transform" />
+                  Đăng Xuất
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-2">
+                <img src={user?.avatar || "https://via.placeholder.com/40"} alt="User" title={user?.name} className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 cursor-pointer" />
+                <button
+                  onClick={handleLogout}
+                  title="Đăng xuất"
+                  className="flex items-center justify-center w-10 h-10 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all duration-200"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
               </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all duration-200 font-medium"
-            >
-              <LogOut className="h-4 w-4" />
-              Đăng Xuất
-            </button>
+            )}
           </div>
         </div>
       </aside>

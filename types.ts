@@ -42,7 +42,7 @@ export interface Class {
 }
 
 export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
-export type QuestionLevel = 'NHAN_BIET' | 'THONG_HIEU' | 'VAN_DUNG';
+export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
 
 export interface Question {
   id: string;
@@ -53,7 +53,7 @@ export interface Question {
   correctOptionIndex?: number; // For MCQ
   solution?: string;
   hint?: string;
-  level?: QuestionLevel;
+  level?: ExamDifficulty;
   topic?: string;
   isArenaEligible?: boolean;
 }
@@ -62,8 +62,6 @@ export interface QuestionBankItem extends Question {
   subject: string;
   grade: string;
 }
-
-export type ExamDifficulty = 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
 
 export interface Exam {
   id: string;
