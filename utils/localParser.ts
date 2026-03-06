@@ -88,7 +88,16 @@ function splitIntoQuestionBlocks(text: string): string[] {
  * Parse a single question block into a Question object.
  */
 function parseOneBlock(block: string, index: number): Question | null {
-    const lines = block.split('\n').map(l => l.trimEnd());
+    // Tiền xử lý: Tách các từ khóa ra dòng mới nếu chúng bị dính trên cùng một dòng
+    let normalizedBlock = block
+        // Tách Đáp án
+        .replace(/(\s+)(Đáp\s*án\s*(?:đúng)?\s*[:.])/gi, '\n$2')
+        // Tách Gợi ý
+        .replace(/(\s+)(Gợi\s*ý(?:\s*\([^)]*\))?|Hint)\s*[:.]?/gi, '\n$2:')
+        // Tách Lời giải 
+        .replace(/(\s+)(Lời\s*giải(?:\s*chi\s*tiết)?|Giải\s*thích|Hướng\s*dẫn\s*giải|Giải\s*chi\s*tiết|Solution|Explanation)\s*[:.]?/gi, '\n$2:');
+
+    const lines = normalizedBlock.split('\n').map(l => l.trimEnd());
 
     let content = '';
     const options: string[] = [];
