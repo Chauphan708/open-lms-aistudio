@@ -61,10 +61,12 @@ export const ExamResults: React.FC = () => {
       // Detailed Distribution (0-10) for Bell Curve
       const detailedDistribution = Array.from({ length: 11 }, (_, i) => {
          const matchingAttempts = examAttempts.filter(att => Math.round(att.score || 0) === i);
-         const studentNames = matchingAttempts.map(att => {
+         const studentNamesRaw = matchingAttempts.map(att => {
             const u = users.find(u => u.id === att.studentId);
             return u?.name || 'HS Ẩn danh';
          });
+         // Deduplicate names in case a student has multiple attempts with the same score
+         const studentNames = Array.from(new Set(studentNamesRaw));
          return { label: i.toString(), count: matchingAttempts.length, studentNames };
       });
       const maxDistributionCount = Math.max(...detailedDistribution.map(d => d.count), 1);
@@ -204,14 +206,14 @@ export const ExamResults: React.FC = () => {
 
                                  {/* Tooltip */}
                                  {item.count > 0 && (
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[220px] bg-gray-900 text-white text-xs rounded-lg p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-xl pointer-events-none">
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[220px] bg-gray-900 text-white text-xs rounded-lg p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
                                        <p className="font-bold border-b border-gray-700 pb-1 mb-1.5 text-center text-indigo-200">Điểm {item.label} ({item.count} học sinh)</p>
                                        <ul className="max-h-32 overflow-y-auto custom-scrollbar text-left space-y-1">
                                           {item.studentNames?.map((name, i) => (
                                              <li key={i} className="truncate text-gray-100">• {name}</li>
                                           ))}
                                        </ul>
-                                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 pointer-events-none"></div>
                                     </div>
                                  )}
                               </div>
