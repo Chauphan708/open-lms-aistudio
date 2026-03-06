@@ -60,13 +60,17 @@ export const ExamResults: React.FC = () => {
 
       // Detailed Distribution (0-10) for Bell Curve
       const detailedDistribution = Array.from({ length: 11 }, (_, i) => {
-         const count = scores.filter(s => Math.round(s) === i).length;
-         return { label: i.toString(), count };
+         const matchingAttempts = examAttempts.filter(att => Math.round(att.score || 0) === i);
+         const studentNames = matchingAttempts.map(att => {
+            const u = users.find(u => u.id === att.studentId);
+            return u?.name || 'HS Ẩn danh';
+         });
+         return { label: i.toString(), count: matchingAttempts.length, studentNames };
       });
       const maxDistributionCount = Math.max(...detailedDistribution.map(d => d.count), 1);
 
       return { avg, max, min, detailedDistribution, maxDistributionCount, count: scores.length };
-   }, [examAttempts]);
+   }, [examAttempts, users]);
 
    const handleClassAnalyze = async () => {
       if (!exam || !stats) return;
@@ -191,12 +195,26 @@ export const ExamResults: React.FC = () => {
                               <span className={`text-xs font-bold mb-1 ${item.count > 0 ? 'text-gray-700' : 'text-gray-300'}`}>
                                  {item.count}
                               </span>
-                              {/* Bar */}
-                              <div
-                                 className={`w-full max-w-[36px] md:max-w-[44px] bg-gradient-to-t ${bgClass} rounded-t-md transition-all duration-300 hover:opacity-80 hover:shadow-md`}
-                                 style={{ height: `${barHeight}px` }}
-                                 title={`Điểm ${item.label}: ${item.count} học sinh`}
-                              />
+                              {/* Bar wrapper with relative group for tooltip */}
+                              <div className="relative group w-full flex justify-center">
+                                 <div
+                                    className={`w-full max-w-[36px] md:max-w-[44px] bg-gradient-to-t ${bgClass} rounded-t-md transition-all duration-300 hover:opacity-80 hover:shadow-md cursor-pointer`}
+                                    style={{ height: `${barHeight}px` }}
+                                 />
+
+                                 {/* Tooltip */}
+                                 {item.count > 0 && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[220px] bg-gray-900 text-white text-xs rounded-lg p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-xl pointer-events-none">
+                                       <p className="font-bold border-b border-gray-700 pb-1 mb-1.5 text-center text-indigo-200">Điểm {item.label} ({item.count} học sinh)</p>
+                                       <ul className="max-h-32 overflow-y-auto custom-scrollbar text-left space-y-1">
+                                          {item.studentNames?.map((name, i) => (
+                                             <li key={i} className="truncate text-gray-100">• {name}</li>
+                                          ))}
+                                       </ul>
+                                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                 )}
+                              </div>
                               {/* X-axis label */}
                               <div className="text-xs font-bold text-gray-500 mt-2">{item.label}</div>
                            </div>

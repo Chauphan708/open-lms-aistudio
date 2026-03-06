@@ -266,15 +266,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                     to={item.path}
                                     onClick={() => setIsMobileMenuOpen(false)}
                                     className={`
-                                       flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-300 group relative overflow-hidden
-                                       ${active
-                                        ? 'text-indigo-700 font-bold bg-white shadow-sm border border-indigo-50 translate-x-1'
+                                        flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-300 group relative overflow-hidden
+                                        ${active
+                                        ? 'bg-indigo-100 text-indigo-800 font-bold shadow-sm translate-x-1 border border-indigo-200 hover:bg-indigo-200 hover:text-indigo-900'
                                         : 'text-gray-500 hover:text-indigo-700 hover:bg-white hover:shadow-sm hover:border hover:border-indigo-50 hover:pl-4'}
-                                     `}
+                                      `}
                                   >
-                                    <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${active ? 'text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
+                                    <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${active ? 'text-indigo-700 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
                                     <span className="relative z-10 truncate">{item.label}</span>
-                                    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-r-md"></div>}
+                                    {active && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-r-md"></div>}
                                   </Link>
                                 );
                               })}
