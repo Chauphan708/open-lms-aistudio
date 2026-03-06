@@ -219,7 +219,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </div>
           )}
 
-          <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+          <nav className="flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar">
             {navGroups.map((group, groupIdx) => {
               if (group.roles && user && !group.roles.includes(user.role)) return null;
 
@@ -247,7 +247,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                       </button>
 
                       {expandedNavGroups[group.title] && !isSidebarCollapsed && (
-                        <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-5 mt-1">
+                        <div className="pl-4 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-200 ml-5 mt-1">
                           {visibleItems.map(item => {
                             const Icon = item.icon;
                             const active = isActive(item.path);
@@ -264,7 +264,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                 `}
                               >
                                 <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
-                                <span className="relative z-10 whitespace-nowrap">{item.label}</span>
+                                <span className="relative z-10 truncate">{item.label}</span>
                               </Link>
                             );
                           })}
@@ -320,7 +320,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </button>
 
                 {isStudyToolsExpanded && !isSidebarCollapsed && (
-                  <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-5 mt-1">
+                  <div className="pl-4 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-200 ml-5 mt-1">
                     <Link
                       to="/tools/timer"
                       onClick={() => setIsMobileMenuOpen(false)}
@@ -328,7 +328,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         }`}
                     >
                       <Clock className="h-4 w-4 flex-shrink-0" />
-                      <span className="whitespace-nowrap">Đồng hồ đếm ngược</span>
+                      <span className="truncate">Đồng hồ đếm ngược</span>
                     </Link>
                   </div>
                 )}
@@ -359,7 +359,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         </button>
                         {/* Recursive Children Render */}
                         {expandedTools[tool.id] && !isSidebarCollapsed && (
-                          <div className="pl-11 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-100 ml-5">
+                          <div className="pl-4 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-200 ml-5">
                             {tool.children.map(child => (
                               <a
                                 key={child.id}
@@ -394,7 +394,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             )}
           </nav>
 
-          <div className="p-3 border-t bg-gray-50/50">
+          <div className="mt-auto p-3 border-t bg-gray-50/50">
             {!isSidebarCollapsed ? (
               <>
                 <div className="flex items-center gap-3 mb-3 px-2 py-2 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-gray-100 hover:shadow-sm">
@@ -429,11 +429,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-x-hidden relative flex flex-col">
+      < main className="flex-1 p-4 md:p-8 overflow-x-hidden relative flex flex-col" >
         {/* Top Bar for Desktop */}
-        <div className="hidden md:flex justify-end items-center mb-6 gap-4">
+        < div className="hidden md:flex justify-end items-center mb-6 gap-4" >
           {/* Notifications */}
-          <div className="relative">
+          < div className="relative" >
             <button
               onClick={() => setIsNotifOpen(!isNotifOpen)}
               className="relative p-2 rounded-full bg-white text-gray-600 hover:bg-gray-100 border shadow-sm transition-all"
@@ -446,72 +446,78 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               )}
             </button>
 
-            {isNotifOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border z-50 animate-in fade-in zoom-in-95 origin-top-right">
-                <div className="p-3 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                  <h3 className="font-bold text-sm text-gray-800">Thông báo</h3>
-                  {unreadCount > 0 && (
-                    <button onClick={() => user && markAllNotificationsRead(user.id)} className="text-xs text-indigo-600 hover:underline">
-                      Đánh dấu đã đọc
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {myNotifications.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 text-sm">
-                      <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      Không có thông báo mới
-                    </div>
-                  ) : (
-                    <div className="divide-y">
-                      {myNotifications.map(n => (
-                        <div
-                          key={n.id}
-                          onClick={() => handleNotifClick(n)}
-                          className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-indigo-50/50' : ''}`}
-                        >
-                          <div className="flex gap-3">
-                            <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${!n.isRead ? 'bg-indigo-600' : 'bg-transparent'}`}></div>
-                            <div>
-                              <p className={`text-sm ${!n.isRead ? 'font-bold text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
-                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{n.message}</p>
-                              <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleDateString('vi-VN')} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            {
+              isNotifOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border z-50 animate-in fade-in zoom-in-95 origin-top-right">
+                  <div className="p-3 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <h3 className="font-bold text-sm text-gray-800">Thông báo</h3>
+                    {unreadCount > 0 && (
+                      <button onClick={() => user && markAllNotificationsRead(user.id)} className="text-xs text-indigo-600 hover:underline">
+                        Đánh dấu đã đọc
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {myNotifications.length === 0 ? (
+                      <div className="p-8 text-center text-gray-400 text-sm">
+                        <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        Không có thông báo mới
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {myNotifications.map(n => (
+                          <div
+                            key={n.id}
+                            onClick={() => handleNotifClick(n)}
+                            className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-indigo-50/50' : ''}`}
+                          >
+                            <div className="flex gap-3">
+                              <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${!n.isRead ? 'bg-indigo-600' : 'bg-transparent'}`}></div>
+                              <div>
+                                <p className={`text-sm ${!n.isRead ? 'font-bold text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{n.message}</p>
+                                <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleDateString('vi-VN')} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )
+            }
+          </div >
+        </div >
 
         {/* Toasts Popup (Bottom Right) */}
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
-          {myNotifications.filter(n => !n.isRead && new Date(n.createdAt).getTime() > Date.now() - 5000).map(n => (
-            <div key={n.id} className="bg-white p-4 rounded-xl shadow-2xl border-l-4 border-indigo-500 w-80 animate-in slide-in-from-right pointer-events-auto flex gap-3">
-              <CheckCircle className="h-6 w-6 text-indigo-500 flex-shrink-0" />
-              <div>
-                <h4 className="font-bold text-gray-900 text-sm">{n.title}</h4>
-                <p className="text-xs text-gray-600 mt-1">{n.message}</p>
-                <button onClick={() => handleNotifClick(n)} className="text-xs text-indigo-600 font-bold mt-2 hover:underline">Xem ngay</button>
+        < div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" >
+          {
+            myNotifications.filter(n => !n.isRead && new Date(n.createdAt).getTime() > Date.now() - 5000).map(n => (
+              <div key={n.id} className="bg-white p-4 rounded-xl shadow-2xl border-l-4 border-indigo-500 w-80 animate-in slide-in-from-right pointer-events-auto flex gap-3">
+                <CheckCircle className="h-6 w-6 text-indigo-500 flex-shrink-0" />
+                <div>
+                  <h4 className="font-bold text-gray-900 text-sm">{n.title}</h4>
+                  <p className="text-xs text-gray-600 mt-1">{n.message}</p>
+                  <button onClick={() => handleNotifClick(n)} className="text-xs text-indigo-600 font-bold mt-2 hover:underline">Xem ngay</button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))
+          }
+        </div >
 
         {children}
-      </main>
+      </main >
 
       {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-    </div>
+      {
+        isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )
+      }
+    </div >
   );
 };
