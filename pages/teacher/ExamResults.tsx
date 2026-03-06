@@ -612,8 +612,30 @@ export const ExamResults: React.FC = () => {
 
                      <div className="space-y-4">
                         {exam.questions.map((q, idx) => {
-                           const studentAnsIdx = selectedAttempt.answers[q.id];
-                           const isCorrect = studentAnsIdx === q.correctOptionIndex;
+                           const userAns = selectedAttempt.answers[q.id];
+
+                           let isCorrect = false;
+                           if (userAns !== undefined && userAns !== null && userAns !== '') {
+                              if (!q.type || q.type === 'MCQ') {
+                                 isCorrect = userAns === q.correctOptionIndex;
+                              } else if (q.type === 'SHORT_ANSWER') {
+                                 const sAns = String(userAns || '').trim().toLowerCase();
+                                 isCorrect = q.options && q.options.length > 0
+                                    ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
+                                    : sAns === String(q.solution || '').trim().toLowerCase();
+                              } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
+                                 if (Array.isArray(userAns) && userAns.length === q.options.length) {
+                                    let isAllCorrect = true;
+                                    for (let i = 0; i < q.options.length; i++) {
+                                       if (userAns[i] !== q.options[i]) {
+                                          isAllCorrect = false;
+                                          break;
+                                       }
+                                    }
+                                    isCorrect = isAllCorrect;
+                                 }
+                              }
+                           }
 
                            return (
                               <div key={q.id} className={`bg-white p-4 rounded-xl border ${isCorrect ? 'border-green-200' : 'border-red-200'} shadow-sm`}>
@@ -631,21 +653,45 @@ export const ExamResults: React.FC = () => {
                                           <img src={q.imageUrl} alt="Question" className="my-2 rounded-lg border max-h-40 object-contain" />
                                        )}
 
-                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                          {q.options.map((opt, i) => {
-                                             let optionClass = "p-2 rounded border ";
-                                             if (i === q.correctOptionIndex) optionClass += "bg-green-50 border-green-500 text-green-800 font-bold";
-                                             else if (i === studentAnsIdx && !isCorrect) optionClass += "bg-red-50 border-red-500 text-red-800 font-bold";
-                                             else optionClass += "bg-white border-gray-200 text-gray-500 opacity-70";
+                                       {(!q.type || q.type === 'MCQ') ? (
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                             {q.options.map((opt, i) => {
+                                                let optionClass = "p-2 rounded border ";
+                                                if (i === q.correctOptionIndex) optionClass += "bg-green-50 border-green-500 text-green-800 font-bold";
+                                                else if (i === userAns && !isCorrect) optionClass += "bg-red-50 border-red-500 text-red-800 font-bold";
+                                                else optionClass += "bg-white border-gray-200 text-gray-500 opacity-70";
 
-                                             return (
-                                                <div key={i} className={optionClass}>
-                                                   <span className="mr-2">{String.fromCharCode(65 + i)}.</span>
-                                                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} className="inline">{opt}</ReactMarkdown>
-                                                </div>
-                                             );
-                                          })}
-                                       </div>
+                                                return (
+                                                   <div key={i} className={optionClass}>
+                                                      <span className="mr-2">{String.fromCharCode(65 + i)}.</span>
+                                                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} className="inline">{opt}</ReactMarkdown>
+                                                   </div>
+                                                );
+                                             })}
+                                          </div>
+                                       ) : q.type === 'SHORT_ANSWER' ? (
+                                          <div className="space-y-2 mt-3 text-sm">
+                                             <div className={`p-3 rounded border ${isCorrect ? 'bg-green-50 border-green-500 text-green-800' : 'bg-red-50 border-red-500 text-red-800'} font-medium`}>
+                                                <span className="text-gray-500 mr-2 text-xs uppercase tracking-wider">Học sinh trả lời:</span>
+                                                <div className="mt-1 font-bold text-base">{userAns !== undefined && userAns !== null && userAns !== '' ? String(userAns) : <span className="text-gray-400 italic font-normal">Chưa trả lời</span>}</div>
+                                             </div>
+                                             <div className="p-3 rounded border bg-blue-50 border-blue-500 text-blue-800 font-medium">
+                                                <span className="text-gray-500 mr-2 text-xs uppercase tracking-wider">Đáp án đúng:</span>
+                                                <div className="mt-1 font-bold text-base">{q.options && q.options.length > 0 ? q.options.join(' hoặc ') : q.solution || String(q.correctOptionIndex ?? '')}</div>
+                                             </div>
+                                          </div>
+                                       ) : (
+                                          <div className="space-y-2 mt-3 text-sm">
+                                             <div className={`p-3 rounded border ${isCorrect ? 'bg-green-50 border-green-500 text-green-800' : 'bg-red-50 border-red-500 text-red-800'} font-medium`}>
+                                                <span className="text-gray-500 mr-2 text-xs uppercase tracking-wider">Học sinh trả lời:</span>
+                                                <div className="mt-1 font-bold text-base">{(userAns === undefined || userAns === null || userAns === '') ? <span className="text-gray-400 italic font-normal">Chưa trả lời</span> : Array.isArray(userAns) ? userAns.join(' | ') : String(userAns)}</div>
+                                             </div>
+                                             <div className="p-3 rounded border bg-blue-50 border-blue-500 text-blue-800 font-medium">
+                                                <span className="text-gray-500 mr-2 text-xs uppercase tracking-wider">Đáp án đúng:</span>
+                                                <div className="mt-1 font-bold text-base">{q.options ? q.options.join(' | ') : ''}</div>
+                                             </div>
+                                          </div>
+                                       )}
                                     </div>
                                  </div>
                               </div>

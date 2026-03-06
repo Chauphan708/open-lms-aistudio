@@ -58,7 +58,28 @@ export const ExamCreate: React.FC = () => {
   const [aiCount, setAiCount] = useState(5);
   const [aiCustomPrompt, setAiCustomPrompt] = useState('');
 
+  // Topic Combobox State
+  const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false);
+
   const teacherClasses = classes.filter(c => c.teacherId === user?.id);
+
+  // Extract unique topics from past exams
+  const availableTopics = React.useMemo(() => {
+    const topics = new Set<string>();
+    exams.forEach(exam => {
+      if (exam.topic && exam.topic.trim() !== '') {
+        topics.add(exam.topic.trim());
+      }
+    });
+    return Array.from(topics).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [exams]);
+
+  // Filter topics based on current input
+  const filteredTopics = React.useMemo(() => {
+    if (!topic) return availableTopics;
+    const lowerSearch = topic.toLowerCase();
+    return availableTopics.filter(t => t.toLowerCase().includes(lowerSearch));
+  }, [topic, availableTopics]);
 
   // Constants for Primary School
   const SUBJECTS = ['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'];
@@ -388,13 +409,54 @@ export const ExamCreate: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề / Nội dung kiến thức (Tùy chọn)</label>
-                <input
-                  type="text" value={topic} onChange={e => setTopic(e.target.value)}
-                  placeholder="VD: Phân số, Hình học..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={e => {
+                      setTopic(e.target.value);
+                      setIsTopicDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsTopicDropdownOpen(true)}
+                    onBlur={() => {
+                      // Small delay to allow click on dropdown items
+                      setTimeout(() => setIsTopicDropdownOpen(false), 200);
+                    }}
+                    placeholder="VD: Phân số, Hình học..."
+                    className="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                </div>
+
+                {/* Topic Dropdown */}
+                {isTopicDropdownOpen && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredTopics.length > 0 ? (
+                      <ul className="py-1">
+                        {filteredTopics.map((t, idx) => (
+                          <li
+                            key={idx}
+                            onMouseDown={(e) => {
+                              // Use onMouseDown instead of onClick to fire before onBlur of input
+                              e.preventDefault();
+                              setTopic(t);
+                              setIsTopicDropdownOpen(false);
+                            }}
+                            className="px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
+                          >
+                            {t}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-gray-500 italic">
+                        {topic ? 'Nhấn "Lưu & Xuất Bản" để lưu chủ đề mới này.' : 'Chưa có chủ đề nào được lưu trước đó.'}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

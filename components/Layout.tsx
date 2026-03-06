@@ -229,50 +229,62 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               return (
                 <div key={groupIdx} className={`${groupIdx > 0 ? 'pt-2 border-t border-gray-50' : ''}`}>
                   {group.title ? (
-                    <div>
+                    <div className="mb-2">
                       <button
                         onClick={() => toggleGroup(group.title!)}
                         title={isSidebarCollapsed ? group.title : undefined}
-                        className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
-                          ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'}
-                          text-gray-600 hover:bg-gray-50`}
+                        className={`w-full flex items-center py-3 rounded-xl text-sm font-semibold transition-all duration-300 group relative overflow-hidden
+                           ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-4'}
+                           ${expandedNavGroups[group.title] && !isSidebarCollapsed ? 'bg-indigo-50/80 text-indigo-700' : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'}`}
                       >
                         <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                           {group.icon && React.createElement(group.icon, {
-                            className: "h-5 w-5 flex-shrink-0 text-gray-400 group-hover:scale-110 transition-transform"
+                            className: `h-5 w-5 flex-shrink-0 transition-all duration-300 ${expandedNavGroups[group.title] && !isSidebarCollapsed ? 'text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`
                           })}
                           {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{group.title}</span>}
                         </div>
-                        {!isSidebarCollapsed && (expandedNavGroups[group.title] ? <ChevronDown className="h-4 w-4 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 flex-shrink-0" />)}
+                        {!isSidebarCollapsed && (
+                          <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${expandedNavGroups[group.title] ? 'rotate-90 text-indigo-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                        )}
+                        {expandedNavGroups[group.title] && !isSidebarCollapsed && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-indigo-600 rounded-r-full shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                        )}
                       </button>
 
-                      {expandedNavGroups[group.title] && !isSidebarCollapsed && (
-                        <div className="pl-4 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-200 ml-5 mt-1">
-                          {visibleItems.map(item => {
-                            const Icon = item.icon;
-                            const active = isActive(item.path);
-                            return (
-                              <Link
-                                key={item.path}
-                                to={item.path}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={`
-                                  flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group relative overflow-hidden
-                                  ${active
-                                    ? 'text-indigo-600 font-bold bg-indigo-50 translate-x-1'
-                                    : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 hover:pl-4'}
-                                `}
-                              >
-                                <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
-                                <span className="relative z-10 truncate">{item.label}</span>
-                              </Link>
-                            );
-                          })}
+                      {!isSidebarCollapsed && (
+                        <div
+                          className={`grid transition-all duration-300 ease-in-out ${expandedNavGroups[group.title] ? 'grid-rows-[1fr] opacity-100 mt-1' : 'grid-rows-[0fr] opacity-0 mt-0'}`}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="pl-4 pr-2 py-1 space-y-1 my-1 ml-5 border-l-2 border-indigo-100/50">
+                              {visibleItems.map(item => {
+                                const Icon = item.icon;
+                                const active = isActive(item.path);
+                                return (
+                                  <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`
+                                       flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-300 group relative overflow-hidden
+                                       ${active
+                                        ? 'text-indigo-700 font-bold bg-white shadow-sm border border-indigo-50 translate-x-1'
+                                        : 'text-gray-500 hover:text-indigo-700 hover:bg-white hover:shadow-sm hover:border hover:border-indigo-50 hover:pl-4'}
+                                     `}
+                                  >
+                                    <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${active ? 'text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
+                                    <span className="relative z-10 truncate">{item.label}</span>
+                                    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-r-md"></div>}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-1 mb-2">
                       {visibleItems.map(item => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
@@ -283,14 +295,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             onClick={() => setIsMobileMenuOpen(false)}
                             title={isSidebarCollapsed ? item.label : undefined}
                             className={`
-                              flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
-                              ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}
+                              flex items-center gap-3 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group relative overflow-hidden shadow-sm
+                              ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4'}
                               ${active
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' + (!isSidebarCollapsed ? ' translate-x-1' : '')
-                                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700' + (!isSidebarCollapsed ? ' hover:pl-5' : '')}
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' + (!isSidebarCollapsed ? ' translate-x-1' : '')
+                                : 'bg-white text-gray-600 hover:bg-indigo-50 hover:text-indigo-700' + (!isSidebarCollapsed ? ' hover:translate-x-1' : '')}
                             `}
                           >
-                            <Icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`} />
+                            <Icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${!active ? 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110' : 'text-white'}`} />
                             {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">{item.label}</span>}
                             {active && !isSidebarCollapsed && <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>}
                           </Link>
@@ -304,32 +316,44 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
             {/* CÔNG CỤ HỌC TẬP */}
             {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && (
-              <div className="pt-2 border-t border-gray-50">
+              <div className="pt-2 border-t border-gray-100/50">
                 <button
                   onClick={() => !isSidebarCollapsed && setIsStudyToolsExpanded(!isStudyToolsExpanded)}
                   title={isSidebarCollapsed ? "Công cụ học tập" : undefined}
-                  className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden
-                    ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'}
-                    ${location.pathname.startsWith('/tools/') ? 'text-indigo-700 bg-indigo-50 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                  className={`w-full flex items-center py-3 rounded-xl text-sm font-semibold transition-all duration-300 group relative overflow-hidden
+                    ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-4'}
+                    ${location.pathname.startsWith('/tools/') ? 'bg-indigo-50/80 text-indigo-700' : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'}`}
                 >
                   <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                    <Wrench className={`h-5 w-5 flex-shrink-0 ${location.pathname.startsWith('/tools/') ? 'text-indigo-600' : 'text-gray-400 group-hover:scale-110 transition-transform'}`} />
+                    <Wrench className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${location.pathname.startsWith('/tools/') ? 'text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
                     {!isSidebarCollapsed && <span className="relative z-10 whitespace-nowrap">Công cụ học tập</span>}
                   </div>
-                  {!isSidebarCollapsed && (isStudyToolsExpanded ? <ChevronDown className="h-4 w-4 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 flex-shrink-0" />)}
+                  {!isSidebarCollapsed && (
+                    <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${isStudyToolsExpanded ? 'rotate-90 text-indigo-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                  )}
+                  {isStudyToolsExpanded && !isSidebarCollapsed && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-indigo-600 rounded-r-full shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                  )}
                 </button>
 
-                {isStudyToolsExpanded && !isSidebarCollapsed && (
-                  <div className="pl-4 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-200 ml-5 mt-1">
-                    <Link
-                      to="/tools/timer"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive('/tools/timer') ? 'text-indigo-600 font-bold bg-indigo-50' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
-                        }`}
-                    >
-                      <Clock className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">Đồng hồ đếm ngược</span>
-                    </Link>
+                {!isSidebarCollapsed && (
+                  <div
+                    className={`grid transition-all duration-300 ease-in-out ${isStudyToolsExpanded ? 'grid-rows-[1fr] opacity-100 mt-1' : 'grid-rows-[0fr] opacity-0 mt-0'}`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="pl-4 pr-2 py-1 space-y-1 my-1 ml-5 border-l-2 border-indigo-100/50">
+                        <Link
+                          to="/tools/timer"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-300 group relative overflow-hidden ${isActive('/tools/timer') ? 'text-indigo-700 font-bold bg-white shadow-sm border border-indigo-50 translate-x-1' : 'text-gray-500 hover:text-indigo-700 hover:bg-white hover:shadow-sm hover:border hover:border-indigo-50 hover:pl-4'
+                            }`}
+                        >
+                          <Clock className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${isActive('/tools/timer') ? 'text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
+                          <span className="relative z-10 truncate">Đồng hồ đếm ngược</span>
+                          {isActive('/tools/timer') && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-r-md"></div>}
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -337,9 +361,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
             {/* CUSTOM TOOLS RENDERER (TEACHER AND ADMIN) */}
             {user && (user.role === 'TEACHER' || user.role === 'ADMIN') && user.customTools && user.customTools.length > 0 && (
-              <div className="pt-2 border-t border-gray-50">
+              <div className="pt-2 border-t border-gray-100/50">
                 {!isSidebarCollapsed && (
-                  <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 truncate">Các Công Cụ Hỗ Trợ</p>
+                  <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-2 truncate">Các Công Cụ Hỗ Trợ</p>
                 )}
                 {user.customTools.map(tool => (
                   <div key={tool.id} className="mb-1">
@@ -348,29 +372,41 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         <button
                           onClick={() => !isSidebarCollapsed && toggleTool(tool.id)}
                           title={isSidebarCollapsed ? tool.title : undefined}
-                          className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors
-                            ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'}`}
+                          className={`w-full flex items-center py-3 rounded-xl text-sm font-semibold transition-all duration-300 group relative overflow-hidden
+                            ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-4'}
+                            ${expandedTools[tool.id] && !isSidebarCollapsed ? 'bg-indigo-50/80 text-indigo-700' : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'}`}
                         >
                           <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                            <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                            {!isSidebarCollapsed && <span className="truncate">{tool.title}</span>}
+                            <ExternalLink className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${expandedTools[tool.id] && !isSidebarCollapsed ? 'text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
+                            {!isSidebarCollapsed && <span className="relative z-10 truncate">{tool.title}</span>}
                           </div>
-                          {!isSidebarCollapsed && (expandedTools[tool.id] ? <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />)}
+                          {!isSidebarCollapsed && (
+                            <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${expandedTools[tool.id] ? 'rotate-90 text-indigo-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                          )}
+                          {expandedTools[tool.id] && !isSidebarCollapsed && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-indigo-600 rounded-r-full shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+                          )}
                         </button>
-                        {/* Recursive Children Render */}
-                        {expandedTools[tool.id] && !isSidebarCollapsed && (
-                          <div className="pl-4 pr-2 py-1 space-y-1 animate-fade-in border-l-2 border-gray-200 ml-5">
-                            {tool.children.map(child => (
-                              <a
-                                key={child.id}
-                                href={child.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors truncate"
-                              >
-                                {child.title}
-                              </a>
-                            ))}
+                        {/* Recursive Children Render with Grid Animation */}
+                        {!isSidebarCollapsed && (
+                          <div
+                            className={`grid transition-all duration-300 ease-in-out ${expandedTools[tool.id] ? 'grid-rows-[1fr] opacity-100 mt-1' : 'grid-rows-[0fr] opacity-0 mt-0'}`}
+                          >
+                            <div className="overflow-hidden">
+                              <div className="pl-4 pr-2 py-1 space-y-1 my-1 ml-5 border-l-2 border-indigo-100/50">
+                                {tool.children.map(child => (
+                                  <a
+                                    key={child.id}
+                                    href={child.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:text-indigo-700 hover:bg-white hover:shadow-sm hover:border hover:border-indigo-50 hover:pl-4 transition-all duration-300 truncate"
+                                  >
+                                    {child.title}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -381,11 +417,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         target="_blank"
                         rel="noopener noreferrer"
                         title={isSidebarCollapsed ? tool.title : undefined}
-                        className={`flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors
-                          ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
+                        className={`flex items-center gap-3 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group relative overflow-hidden shadow-sm bg-white text-gray-600 hover:bg-indigo-50 hover:text-indigo-700
+                          ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 hover:translate-x-1'}`}
                       >
-                        <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        {!isSidebarCollapsed && <span className="truncate">{tool.title}</span>}
+                        <ExternalLink className="h-5 w-5 text-gray-400 group-hover:text-indigo-500 group-hover:scale-110 flex-shrink-0 transition-transform duration-300" />
+                        {!isSidebarCollapsed && <span className="relative z-10 truncate">{tool.title}</span>}
                       </a>
                     )}
                   </div>
@@ -425,8 +461,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             )}
           </div>
-        </div>
-      </aside>
+        </div >
+      </aside >
 
       {/* Main Content */}
       < main className="flex-1 p-4 md:p-8 overflow-x-hidden relative flex flex-col" >
