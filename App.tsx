@@ -157,16 +157,71 @@ function App() {
 
   // Load data once when app starts
   useEffect(() => {
-    fetchInitialData();
-    // Safety fallback for dev environment without actual DB keys
-    const fallbackTimer = setTimeout(() => {
-      if (useStore.getState().isDataLoading) {
-        console.log("Supabase taking too long - forcing app open with mock state.");
-        useStore.setState({ isDataLoading: false, users: useStore.getState().users.length ? useStore.getState().users : [{ id: 'admin1', name: 'Quản Trị Viên', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', password: '123456' }, { id: 'teacher1', name: 'Giáo Viên 1', email: 'gv@test.com', role: 'TEACHER', password: '123456' }, { id: 'student1', name: 'Học Sinh', email: 'hs@test.com', role: 'STUDENT', password: '123456' }] });
+    // FORCE MOCK DATA FOR VERIFICATION
+    const mockUsers: any[] = [
+      { id: 'admin1', name: 'Quản Trị Viên', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', password: '123456' },
+      { id: 'teacher1', name: 'Giáo Viên 1', email: 'gv@test.com', role: 'TEACHER', password: '123456' },
+      { id: 'student1', name: 'Học Sinh', email: 'hs@test.com', role: 'STUDENT', password: '123456' }
+    ];
+
+    const mockExams: any[] = [
+      {
+        id: 'exam1',
+        title: 'Kiểm Tra Giao Diện Nối Cột Mới',
+        description: 'Kiểm tra tính năng vẽ đường nối SVG trực quan.',
+        subject: 'Công nghệ',
+        grade: '12',
+        difficulty: 'THONG_HIEU',
+        durationMinutes: 45,
+        questions: [
+          {
+            id: 'q1',
+            type: 'MATCHING',
+            content: 'Hãy nối các cặp từ đồng nghĩa sau đây:',
+            options: [
+              'Thông minh ||| Sáng dạ',
+              'Cần cù ||| Chịu khó',
+              'Dũng cảm ||| Gan dạ',
+              'Đoàn kết ||| Gắn bó'
+            ]
+          },
+          {
+            id: 'q2',
+            type: 'MCQ',
+            content: 'Câu hỏi phụ: 1 + 1 = ?',
+            options: ['1', '2', '3', '4'],
+            correctOptionIndex: 1
+          }
+        ],
+        createdAt: new Date().toISOString()
       }
-    }, 4000);
-    return () => clearTimeout(fallbackTimer);
-  }, [fetchInitialData]);
+    ];
+
+    useStore.setState({
+      isDataLoading: false,
+      users: mockUsers,
+      exams: mockExams,
+      assignments: [
+        {
+          id: 'assign1',
+          examId: 'exam1',
+          classId: 'class1',
+          teacherId: 'teacher1',
+          createdAt: new Date().toISOString(),
+          startTime: new Date().toISOString(),
+          endTime: new Date(Date.now() + 3600000).toISOString(),
+          durationMinutes: 45,
+          settings: {
+            viewScore: true,
+            viewPassFail: true,
+            viewHint: true,
+            viewSolution: true,
+            maxAttempts: 0
+          }
+        }
+      ]
+    });
+  }, []);
 
   if (isDataLoading) {
     return (

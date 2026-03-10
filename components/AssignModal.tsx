@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Eye, Repeat, Lightbulb, CheckCircle, Copy } from 'lucide-react';
+import { X, Calendar, Clock, Eye, Repeat, Lightbulb, CheckCircle, Copy, ShieldAlert, Monitor, CopyX, Expand, Laptop, HelpCircle } from 'lucide-react';
 import { useStore } from '../store';
 import { Exam, Assignment } from '../types';
 
@@ -43,6 +43,23 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
   const [viewHint, setViewHint] = useState(true); // New Hint Setting
   const [maxAttempts, setMaxAttempts] = useState(1); // Default 1 attempt
 
+  // Security Settings
+  const [mode, setMode] = useState<'practice' | 'exam'>('practice');
+  const [requireCamera, setRequireCamera] = useState(false);
+  const [requireFullscreen, setRequireFullscreen] = useState(false);
+  const [preventTabSwitch, setPreventTabSwitch] = useState(false);
+  const [preventCopy, setPreventCopy] = useState(false);
+
+  // Auto-configure security based on mode
+  useEffect(() => {
+    if (mode === 'exam') {
+      setRequireFullscreen(true);
+      setPreventTabSwitch(true);
+      setPreventCopy(true);
+      setRequireCamera(false); // Make it optional even in exam mode, but recommended
+    }
+  }, [mode]);
+
   if (!isOpen) return null;
 
   // Filter classes taught by this teacher
@@ -63,12 +80,18 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
       startTime: startTime ? new Date(startTime).toISOString() : undefined,
       endTime: endTime ? new Date(endTime).toISOString() : undefined,
       durationMinutes: duration,
+      mode: mode,
       settings: {
         viewScore,
         viewPassFail,
         viewSolution,
         viewHint,
-        maxAttempts
+        maxAttempts,
+        // Enforce settings if it's exam mode, otherwise take custom state
+        requireFullscreen: mode === 'exam' ? true : requireFullscreen,
+        preventTabSwitch: mode === 'exam' ? true : preventTabSwitch,
+        preventCopy: mode === 'exam' ? true : preventCopy,
+        requireCamera
       }
     };
 
@@ -139,6 +162,38 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Chế độ Giao bài (Mode) */}
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Chế độ giao bài</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  onClick={() => setMode('practice')}
+                  className={`cursor-pointer border-2 rounded-xl p-3 flex flex-col gap-1 transition-all ${mode === 'practice' ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-200 bg-white hover:border-indigo-200'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${mode === 'practice' ? 'border-indigo-600' : 'border-gray-400'}`}>
+                      {mode === 'practice' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                    </div>
+                    <span className="font-bold text-gray-900">Luyện Tập Tự Do</span>
+                  </div>
+                  <p className="text-xs text-gray-500 pl-6">Học sinh làm bài thoải mái, không áp lực. Tùy chỉnh bật/tắt từng tính năng bảo mật.</p>
+                </div>
+
+                <div
+                  onClick={() => setMode('exam')}
+                  className={`cursor-pointer border-2 rounded-xl p-3 flex flex-col gap-1 transition-all ${mode === 'exam' ? 'border-red-500 bg-red-50 shadow-sm' : 'border-gray-200 bg-white hover:border-red-200'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${mode === 'exam' ? 'border-red-600' : 'border-gray-400'}`}>
+                      {mode === 'exam' && <div className="w-2 h-2 bg-red-600 rounded-full" />}
+                    </div>
+                    <span className="font-bold text-gray-900">Thi / Kiểm Tra</span>
+                  </div>
+                  <p className="text-xs text-gray-500 pl-6">Bảo vệ nghiêm ngặt: Ép toàn màn hình, chặn đổi tab, chặn copy. Có lưu lịch sử vi phạm.</p>
+                </div>
+              </div>
             </div>
 
             {/* Time Config */}
@@ -219,6 +274,54 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                   <input type="checkbox" checked={viewSolution} onChange={e => setViewSolution(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                   <span className="text-sm text-gray-700 group-hover:text-gray-900">Hiển thị lời giải chi tiết (Đáp án)</span>
                 </label>
+              </div>
+            </div>
+            {/* Cấu hình Bảo mật Anti-Cheat */}
+            <div className="border border-gray-200 rounded-xl p-4 bg-white">
+              <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-orange-600" /> Cấu hình bảo mật & Giám sát
+              </h3>
+
+              <div className="space-y-4">
+                {/* Khóa mềm nếu là Exam mode */}
+                <div className="grid grid-cols-1 gap-3">
+                  <label className={`flex items-start gap-3 cursor-pointer group ${mode === 'exam' ? 'opacity-80' : ''}`}>
+                    <input type="checkbox" disabled={mode === 'exam'} checked={mode === 'exam' ? true : requireFullscreen} onChange={e => setRequireFullscreen(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900 flex items-center gap-1 group-hover:text-indigo-600"><Expand className="h-4 w-4 text-gray-400" /> Yêu cầu Toàn màn hình (Fullscreen)</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Bắt buộc học sinh phải phóng to màn hình mới được làm bài.</p>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 cursor-pointer group ${mode === 'exam' ? 'opacity-80' : ''}`}>
+                    <input type="checkbox" disabled={mode === 'exam'} checked={mode === 'exam' ? true : preventTabSwitch} onChange={e => setPreventTabSwitch(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900 flex items-center gap-1 group-hover:text-indigo-600"><Laptop className="h-4 w-4 text-gray-400" /> Chặn chuyển Tab / Cửa sổ khác</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Hệ thống sẽ đếm số lần vi phạm nếu học sinh chuyển qua cửa sổ khác để tra tài liệu.</p>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 cursor-pointer group ${mode === 'exam' ? 'opacity-80' : ''}`}>
+                    <input type="checkbox" disabled={mode === 'exam'} checked={mode === 'exam' ? true : preventCopy} onChange={e => setPreventCopy(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900 flex items-center gap-1 group-hover:text-indigo-600"><CopyX className="h-4 w-4 text-gray-400" /> Chặn Copy & Chuột phải</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Không cho phép bôi đen, sao chép nội dung câu hỏi.</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Advanced AI Camera */}
+                <div className="pt-3 border-t border-gray-100">
+                  <label className="flex items-start gap-3 cursor-pointer group bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 hover:bg-indigo-50 transition-colors">
+                    <input type="checkbox" checked={requireCamera} onChange={e => setRequireCamera(e.target.checked)} className="mt-1 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <div>
+                      <span className="text-sm font-bold text-indigo-900 flex items-center gap-1 group-hover:text-indigo-700">
+                        <Monitor className="h-4 w-4 text-indigo-500" /> Bật Giám sát Camera (AI on Edge) <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded ml-2 uppercase font-black tracking-wider">Mới</span>
+                      </span>
+                      <p className="text-xs text-indigo-700/80 mt-1">Sử dụng Camera của học sinh để chạy thuật toán nhận diện khuôn mặt trực tiếp ngay trên trình duyệt mà không cần gửi video về Server. Cảnh báo nếu học sinh vắng mặt hoặc nhờ người thi hộ.</p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
           </div>

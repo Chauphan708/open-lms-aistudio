@@ -545,6 +545,7 @@ export const ExamCreate: React.FC = () => {
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2 text-xs text-blue-700 space-y-1">
                   <p className="font-bold">📋 Hướng dẫn format nhập liệu:</p>
                   <p>• Mỗi câu bắt đầu bằng: <code className="bg-blue-100 px-1 rounded">Câu 1:</code> hoặc <code className="bg-blue-100 px-1 rounded">Bài 1:</code></p>
+                  <p>• Mức độ (tùy chọn): <code className="bg-blue-100 px-1 rounded">Mức độ: Nhận biết</code>, <code className="bg-blue-100 px-1 rounded">Thông hiểu</code>, <code>Vận dụng</code></p>
                   <p>• Đáp án: <code className="bg-blue-100 px-1 rounded">A.</code> <code className="bg-blue-100 px-1 rounded">B.</code> <code className="bg-blue-100 px-1 rounded">C.</code> <code className="bg-blue-100 px-1 rounded">D.</code> (mỗi đáp án 1 dòng)</p>
                   <p>• Đáp án đúng: <code className="bg-blue-100 px-1 rounded">Đáp án: B</code></p>
                   <p>• Lời giải: <code className="bg-blue-100 px-1 rounded">Giải thích:</code> hoặc <code className="bg-blue-100 px-1 rounded">Hướng dẫn:</code></p>
@@ -554,7 +555,7 @@ export const ExamCreate: React.FC = () => {
                 <textarea
                   value={rawText}
                   onChange={e => setRawText(e.target.value)}
-                  placeholder={`Dán nội dung từ Word/PDF vào đây...\n\nVí dụ:\nCâu 1: 1+1=?\nA. 1\nB. 2\nC. 3\nD. 4\nĐáp án: B`}
+                  placeholder={`Dán nội dung từ Word/PDF vào đây...\n\nVí dụ:\nCâu 1: 1+1=?\nMức độ: Nhận biết\nA. 1\nB. 2\nC. 3\nD. 4\nĐáp án: B`}
                   className="flex-1 w-full border border-gray-300 rounded-lg p-3 font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-white text-gray-900"
                   style={{ minHeight: '500px' }}
                 />
@@ -714,9 +715,22 @@ export const ExamCreate: React.FC = () => {
                             <img src={q.imageUrl} alt="Question" className="mt-3 max-w-full h-auto rounded-lg border border-gray-200 max-h-64 object-contain" />
                           )}
                         </div>
-                        <span className="ml-2 text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded border uppercase whitespace-nowrap">
-                          {getTypeLabel(q.type)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="ml-2 text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded border uppercase whitespace-nowrap">
+                            {getTypeLabel(q.type)}
+                          </span>
+                          {q.level && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded border uppercase whitespace-nowrap font-medium ${q.level === 'NHAN_BIET' ? 'bg-green-100 text-green-700 border-green-200' :
+                              q.level === 'THONG_HIEU' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                                q.level === 'VAN_DUNG' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                  'bg-red-100 text-red-700 border-red-200'
+                              }`}>
+                              {q.level === 'NHAN_BIET' ? 'Nhận biết' :
+                                q.level === 'THONG_HIEU' ? 'Thông hiểu' :
+                                  q.level === 'VAN_DUNG' ? 'Vận dụng' : ''}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Render Options based on type */}

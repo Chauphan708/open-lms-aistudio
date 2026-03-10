@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
-import { Clock, CheckCircle, AlertTriangle, Lock, Ban, ChevronLeft, Radio, Sparkles, MessageSquareQuote, RotateCcw, Lightbulb, BrainCircuit, Book, Send } from 'lucide-react';
+import { Clock, CheckCircle, AlertTriangle, Lock, Ban, ChevronLeft, Radio, Sparkles, MessageSquareQuote, RotateCcw, Lightbulb, BrainCircuit, Book, Send, ShieldAlert, Menu, X, ListOrdered } from 'lucide-react';
 import { Attempt } from '../types';
 import { analyzeStudentAttempt } from '../services/geminiService';
 import { DictionaryWidget } from '../components/DictionaryWidget'; // IMPORT WIDGET
@@ -9,6 +9,413 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { supabase } from '../services/supabaseClient'; // BỔ SUNG ĐỂ GHI NHẬN HÀNH VI TỰ ĐỘNG
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import { AssignmentSettings } from '../types';
+
+// --- MEMOIZED QUESTION COMPONENTS FOR PERFORMANCE ---
+
+const MCQQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail, canViewSolution, shuffledIndices }: any) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {shuffledIndices.map((originalIndex: number, displayIndex: number) => {
+        const optContent = question.options[originalIndex];
+        let optionClass = "border-gray-200 hover:bg-gray-50 bg-white";
+
+        if (isSubmitted) {
+          if (viewPassFail) {
+            if (originalIndex === question.correctOptionIndex) {
+              if (canViewSolution || answer === originalIndex) {
+                optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
+              } else {
+                optionClass = "opacity-50 bg-white";
+              }
+            } else if (answer === originalIndex) {
+              optionClass = "bg-red-50 border-red-500 text-red-700";
+            } else {
+              optionClass = "opacity-50 bg-white";
+            }
+          } else if (answer === originalIndex) {
+            optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
+          } else {
+            optionClass = "opacity-50 bg-white";
+          }
+        } else if (answer === originalIndex) {
+          optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
+        }
+
+        if (isSubmitted && !viewPassFail && answer === originalIndex) {
+          optionClass = "bg-gray-100 border-gray-400 text-gray-800 font-bold";
+        }
+
+        return (
+          <button
+            key={originalIndex}
+            onClick={() => onSetAnswer(originalIndex)}
+            disabled={isSubmitted}
+            className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 shadow-sm ${optionClass} ${!isSubmitted && 'hover:border-indigo-300 hover:shadow-md active:scale-[0.98]'}`}
+          >
+            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold flex-shrink-0 transition-colors ${answer === originalIndex ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-500'
+              } ${isSubmitted && viewPassFail && originalIndex === question.correctOptionIndex && (canViewSolution || answer === originalIndex) ? '!bg-green-500 !border-green-500 !text-white' : ''}
+              ${isSubmitted && !viewPassFail && answer === originalIndex ? '!bg-gray-600 !border-gray-600 !text-white' : ''}
+            `}>
+              {String.fromCharCode(65 + displayIndex)}
+            </div>
+            <span className="text-gray-800 prose prose-p:my-0 flex-1">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {optContent}
+              </ReactMarkdown>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+const ShortAnswerQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail }: any) => {
+  const sAns = String(answer || '').trim().toLowerCase();
+  const isCorrect = question.options && question.options.length > 0
+    ? question.options.some((opt: any) => String(opt).trim().toLowerCase() === sAns)
+    : sAns === String(question.solution || '').trim().toLowerCase();
+
+  return (
+    <div className="max-w-2xl">
+      {isSubmitted ? (
+        <div
+          className={`w-full p-4 border-2 rounded-xl min-h-[60px] flex items-center shadow-inner ${isSubmitted && viewPassFail ? (isCorrect ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-500 bg-red-50 text-red-700') : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+        >
+          <span className="font-bold text-lg">{answer || '(Bỏ trống)'}</span>
+        </div>
+      ) : (
+        <div className="relative group">
+          <input
+            type="text"
+            value={answer || ''}
+            onChange={(e) => onSetAnswer(e.target.value)}
+            placeholder="Nhập câu trả lời của bạn tại đây..."
+            className="w-full p-5 border-2 border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 bg-white text-gray-900 text-lg font-medium transition-all shadow-sm"
+          />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-400">
+            <Sparkles className="h-5 w-5" />
+          </div>
+        </div>
+      )}
+      {isSubmitted && viewPassFail && (
+        <div className="mt-3 flex items-center gap-2 px-2">
+          {isCorrect
+            ? <><CheckCircle className="h-5 w-5 text-green-600" /><span className="text-green-700 font-bold">Hệ thống chấp nhận đáp án này</span></>
+            : <><X className="h-5 w-5 text-red-600" /><span className="text-red-700 font-bold">Sai (Không khớp đáp án mẫu)</span></>}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const MatchingQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail, canViewSolution, shuffledIndices }: any) => {
+  useEffect(() => {
+    const styleId = 'matching-question-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        @keyframes dash {
+          to {
+            stroke-dashoffset: -16;
+          }
+        }
+        .animate-dash {
+          animation: dash 1s linear infinite;
+        }
+        @keyframes bounce-subtle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        .animate-bounce-subtle {
+          animation: bounce-subtle 2s ease-in-out infinite;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  const leftItems = question.options.map((o: string) => o.split('|||')[0]?.trim() || o);
+  const rightItems = question.options.map((o: string) => o.split('|||')[1]?.trim() || o);
+  const shuffledRightItems = shuffledIndices.map((i: number) => rightItems[i]);
+  const currentAns = Array.isArray(answer) ? answer : Array(question.options.length).fill("");
+
+  const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState<any[]>([]);
+
+  // Update SVG lines positions based on DOM elements
+  const updateLines = useCallback(() => {
+    if (!containerRef.current) return;
+    const newLines: any[] = [];
+
+    currentAns.forEach((ans: string, leftIdx: number) => {
+      if (!ans) return;
+      const rightVal = ans.split('|||')[1]?.trim();
+      if (!rightVal) return;
+
+      const leftDot = containerRef.current?.querySelector(`[data-dot-left="${leftIdx}"]`);
+      const rightIdx = shuffledRightItems.indexOf(rightVal);
+      const rightDot = containerRef.current?.querySelector(`[data-dot-right="${rightIdx}"]`);
+
+      if (leftDot && rightDot) {
+        const containerRect = containerRef.current!.getBoundingClientRect();
+        const lRect = leftDot.getBoundingClientRect();
+        const rRect = rightDot.getBoundingClientRect();
+
+        newLines.push({
+          x1: lRect.left - containerRect.left + lRect.width / 2,
+          y1: lRect.top - containerRect.top + lRect.height / 2,
+          x2: rRect.left - containerRect.left + rRect.width / 2,
+          y2: rRect.top - containerRect.top + rRect.height / 2,
+          isCorrect: isSubmitted && viewPassFail && ans === question.options[leftIdx],
+          isWrong: isSubmitted && viewPassFail && ans !== question.options[leftIdx]
+        });
+      }
+    });
+
+    setLines(newLines);
+  }, [currentAns, shuffledRightItems, isSubmitted, viewPassFail, question.options]);
+
+  useEffect(() => {
+    updateLines();
+    window.addEventListener('resize', updateLines);
+    return () => window.removeEventListener('resize', updateLines);
+  }, [updateLines]);
+
+  const handleLeftClick = (idx: number) => {
+    if (isSubmitted) return;
+    setSelectedLeft(idx === selectedLeft ? null : idx);
+  };
+
+  const handleRightClick = (val: string) => {
+    if (isSubmitted || selectedLeft === null) return;
+
+    const newArr = [...currentAns];
+    // Check if this right item is already used elsewhere and clear it
+    newArr.forEach((ans, i) => {
+      if (ans && ans.split('|||')[1]?.trim() === val) {
+        newArr[i] = "";
+      }
+    });
+
+    newArr[selectedLeft] = `${leftItems[selectedLeft]} ||| ${val}`;
+    onSetAnswer(newArr);
+    setSelectedLeft(null);
+  };
+
+  const resetMatch = (idx: number) => {
+    if (isSubmitted) return;
+    const newArr = [...currentAns];
+    newArr[idx] = "";
+    onSetAnswer(newArr);
+  };
+
+  return (
+    <div className="relative select-none max-w-5xl mx-auto p-4" ref={containerRef}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-32 relative z-10">
+        {/* Left Column */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 px-2">Cột vế trái</h4>
+          {leftItems.map((left: string, idx: number) => {
+            const hasMatch = !!currentAns[idx];
+            return (
+              <div key={idx} className="relative group">
+                <div
+                  onClick={() => handleLeftClick(idx)}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between shadow-sm relative pr-10
+                    ${selectedLeft === idx ? 'border-indigo-500 bg-indigo-50 shadow-indigo-100 ring-2 ring-indigo-200' :
+                      hasMatch ? 'border-indigo-200 bg-white' : 'border-gray-100 bg-white hover:border-gray-300'}
+                    ${isSubmitted ? 'cursor-default' : ''}
+                  `}
+                >
+                  <span className="font-bold text-gray-700">{left}</span>
+                  {hasMatch && !isSubmitted && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); resetMatch(idx); }}
+                      className="p-1 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-lg transition-colors"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  )}
+                  {/* Connection Point */}
+                  <div
+                    data-dot-left={idx}
+                    className={`absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 z-20 transition-all
+                      ${hasMatch ? 'bg-indigo-600 border-indigo-200 scale-110' : 'bg-white border-gray-200 group-hover:border-indigo-300'}
+                    `}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 px-2 md:text-right">Cột vế phải</h4>
+          {shuffledRightItems.map((right: string, idx: number) => {
+            const isMatched = currentAns.some((ans: string) => ans && ans.split('|||')[1]?.trim() === right);
+            return (
+              <div key={idx} className="relative group">
+                <div
+                  onClick={() => handleRightClick(right)}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center shadow-sm relative pl-10
+                    ${isMatched ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100 bg-white hover:border-gray-300'}
+                    ${isSubmitted ? 'cursor-default' : ''}
+                  `}
+                >
+                  <span className="font-medium text-gray-700 flex-1">{right}</span>
+                  {/* Connection Point */}
+                  <div
+                    data-dot-right={idx}
+                    className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 z-20 transition-all
+                      ${isMatched ? 'bg-indigo-600 border-indigo-200 scale-110' : 'bg-white border-gray-200 group-hover:border-indigo-300'}
+                    `}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SVG Layer for Lines */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ minHeight: '100%' }}>
+        {lines.map((line, i) => {
+          let color = "#6366f1"; // Indigo-500
+          if (line.isCorrect) color = "#22c55e"; // Green-500
+          if (line.isWrong) color = "#ef4444"; // Red-500
+
+          return (
+            <g key={i}>
+              <path
+                d={`M ${line.x1} ${line.y1} C ${(line.x1 + line.x2) / 2} ${line.y1}, ${(line.x1 + line.x2) / 2} ${line.y2}, ${line.x2} ${line.y2}`}
+                stroke={color}
+                strokeWidth="3"
+                fill="none"
+                strokeLinecap="round"
+                className="animate-dash"
+                style={{
+                  strokeDasharray: '8',
+                  filter: `drop-shadow(0 0 4px ${color}44)`
+                }}
+              />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+});
+
+const OrderingQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail, canViewSolution, shuffledIndices }: any) => {
+  const currentAns = Array.isArray(answer) ? answer : Array(question.options.length).fill("");
+  const availableOptions = shuffledIndices.map((i: number) => question.options[i]);
+
+  const handleOrderChange = (index: number, val: string) => {
+    if (isSubmitted) return;
+    const newArr = [...currentAns];
+    newArr[index] = val;
+    onSetAnswer(newArr);
+  };
+
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3 mb-4">
+        <ListOrdered className="h-5 w-5 text-indigo-600 mt-0.5" />
+        <p className="text-sm text-indigo-800 font-medium italic">Sắp xếp các mục bên dưới theo đúng thứ tự logic từ trên xuống dưới.</p>
+      </div>
+      {question.options.map((_: any, idx: number) => {
+        const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === question.options[idx];
+        const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== question.options[idx] && currentAns[idx];
+        const val = currentAns[idx] || '';
+
+        return (
+          <div key={idx} className={`p-4 rounded-2xl border-2 flex gap-4 items-center transition-all shadow-sm ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
+            <div className="w-12 h-12 flex-shrink-0 bg-gray-900 text-white rounded-xl flex items-center justify-center font-black italic shadow-lg">
+              #{idx + 1}
+            </div>
+            <div className="flex-1">
+              <select
+                disabled={isSubmitted}
+                className={`w-full p-3 border-2 rounded-xl bg-white font-bold transition-all outline-none ${val ? 'border-indigo-300 text-indigo-900' : 'border-gray-200 text-gray-400'}`}
+                value={val}
+                onChange={(e) => handleOrderChange(idx, e.target.value)}
+              >
+                <option value="">--- Chọn nội dung cho vị trí này ---</option>
+                {availableOptions.map((opt: string, i: number) => (
+                  <option key={i} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            {isSubmitted && viewPassFail && canViewSolution && isWrong && (
+              <div className="hidden md:block bg-green-600 text-white text-[10px] font-bold py-1 px-3 rounded-lg shadow-sm">
+                ĐÚNG: {question.options[idx]}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+const DragDropQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail, canViewSolution, shuffledIndices }: any) => {
+  const currentAns = Array.isArray(answer) ? answer : Array(question.options.length).fill("");
+  const availableOptions = shuffledIndices.map((i: number) => question.options[i]);
+
+  const handleDropChange = (index: number, val: string) => {
+    if (isSubmitted) return;
+    const newArr = [...currentAns];
+    newArr[index] = val;
+    onSetAnswer(newArr);
+  };
+
+  return (
+    <div className="bg-gray-50/50 p-6 rounded-3xl border-2 border-dashed border-gray-200 shadow-inner">
+      <div className="flex items-center gap-2 mb-6 text-gray-600">
+        <Sparkles className="h-5 w-5 text-indigo-500" />
+        <p className="text-sm font-bold">Điền lựa chọn vào các ô trống tương ứng:</p>
+      </div>
+      <div className="flex flex-wrap gap-6 justify-center md:justify-start">
+        {Array(question.options.length).fill(0).map((_, idx) => {
+          const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === question.options[idx];
+          const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== question.options[idx] && currentAns[idx];
+          const val = currentAns[idx] || '';
+
+          return (
+            <div key={idx} className={`flex flex-col gap-2 p-4 rounded-2xl border-2 shadow-sm transition-all w-full sm:w-64 ${isCorrect ? 'bg-green-50 border-green-300' : isWrong ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'}`}>
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-tighter">Vị trí [{idx + 1}]</label>
+                {val && !isSubmitted && <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>}
+              </div>
+              <select
+                disabled={isSubmitted}
+                className={`p-2 border-2 rounded-lg bg-transparent font-medium transition-all outline-none ${val ? 'border-indigo-500 text-indigo-900 bg-indigo-50/20' : 'border-gray-200 text-gray-400'}`}
+                value={val}
+                onChange={(e) => handleDropChange(idx, e.target.value)}
+              >
+                <option value="">(Trống)</option>
+                {availableOptions.map((opt: string, i: number) => (
+                  <option key={i} value={opt}>{opt}</option>
+                ))}
+              </select>
+              {isSubmitted && viewPassFail && canViewSolution && isWrong && (
+                <div className="text-[10px] text-green-700 font-black mt-1 p-1 bg-green-100 rounded text-center">
+                  PHẢI LÀ: {question.options[idx]}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 export const ExamTake: React.FC = () => {
   const { id } = useParams();
@@ -36,17 +443,45 @@ export const ExamTake: React.FC = () => {
 
   // Widget State
   const [showDictionary, setShowDictionary] = useState(false);
+  const [viewMode, setViewMode] = useState<'scroll' | 'single'>('scroll');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   // Shuffle State: Map of QuestionId -> Array of Original Indices [2, 0, 3, 1]
   const [shuffledOptionsMap, setShuffledOptionsMap] = useState<Record<string, number[]>>({});
 
+  // NEW STATES FOR ANTI-CHEAT & MOBILE UX
+  const [hasStarted, setHasStarted] = useState(false);
+  const [cheatWarnings, setCheatWarnings] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // --- CAMERA AI STATES ---
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [aiStatusMessage, setAiStatusMessage] = useState<string | null>(null);
+  const landmarkerRef = React.useRef<FaceLandmarker | null>(null);
+  const lastVideoTimeRef = React.useRef(-1);
+  const warningTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isDetectionRunning = React.useRef(false);
+
+  // --- TIME TRACKING STATES ---
+  const [timeSpentPerQuestion, setTimeSpentPerQuestion] = useState<Record<string, number>>({});
+  const [examStartTime, setExamStartTime] = useState<number | null>(null);
+  const activeQuestionTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const observerRef = React.useRef<IntersectionObserver | null>(null);
+
   // VISIBILITY SETTINGS LOGIC
-  const defaultSettings = {
+  const defaultSettings: AssignmentSettings = {
     viewScore: true,
     viewPassFail: true,
     viewSolution: true,
     viewHint: true,
-    maxAttempts: 0
+    maxAttempts: 0,
+    requireCamera: false,
+    requireFullscreen: false,
+    preventTabSwitch: false,
+    preventCopy: false
   };
   const assignmentSettings = assignment?.settings || defaultSettings;
 
@@ -92,11 +527,24 @@ export const ExamTake: React.FC = () => {
     if (!exam) return {};
     const map: Record<string, number[]> = {};
     exam.questions.forEach(q => {
-      const indices = q.options.map((_, i) => i);
-      map[q.id] = shuffleArray(indices);
+      if (q.options && Array.isArray(q.options)) {
+        const indices = q.options.map((_, i) => i);
+        map[q.id] = shuffleArray(indices);
+      } else {
+        map[q.id] = [];
+      }
     });
     return map;
   }, [exam]);
+
+  const requestFullscreen = () => {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(err => {
+        console.log(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    }
+  };
 
   // On mount or new attempt, initialize state
   useEffect(() => {
@@ -122,14 +570,331 @@ export const ExamTake: React.FC = () => {
       setShuffledOptionsMap(standardMap);
 
     } else {
-      // New attempt -> Shuffle!
-      setShuffledOptionsMap(generateShuffles());
+      // New attempt -> check local storage first
+      const saved = localStorage.getItem(`exam_draft_${exam.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.shuffledOptionsMap) setShuffledOptionsMap(parsed.shuffledOptionsMap);
+          else setShuffledOptionsMap(generateShuffles());
 
-      // Timer
-      const duration = assignment?.durationMinutes || exam.durationMinutes;
-      setTimeLeft(duration * 60);
+          setAnswers(parsed.answers || {});
+          if (parsed.cheatWarnings) setCheatWarnings(parsed.cheatWarnings);
+
+          if (parsed.timeLeft !== undefined && parsed.timeLeft !== null) {
+            setTimeLeft(parsed.timeLeft);
+          } else {
+            const duration = assignment?.durationMinutes || exam.durationMinutes;
+            setTimeLeft(duration * 60);
+          }
+
+          if (parsed.timeSpentPerQuestion) {
+            setTimeSpentPerQuestion(parsed.timeSpentPerQuestion);
+          }
+          if (parsed.examStartTime) {
+            setExamStartTime(parsed.examStartTime);
+          } else {
+            setExamStartTime(Date.now());
+          }
+        } catch (e) {
+          setShuffledOptionsMap(generateShuffles());
+          const duration = assignment?.durationMinutes || exam.durationMinutes;
+          setTimeLeft(duration * 60);
+          setExamStartTime(Date.now());
+        }
+      } else {
+        // Shuffle!
+        setShuffledOptionsMap(generateShuffles());
+
+        // Timer
+        const duration = assignment?.durationMinutes || exam.durationMinutes;
+        setTimeLeft(duration * 60);
+        setExamStartTime(Date.now());
+      }
     }
   }, [exam, latestAttempt, assignment, generateShuffles]);
+
+  // Auto-save
+  useEffect(() => {
+    if (!exam || isSubmitted || !hasStarted) return;
+
+    setIsSaving(true);
+    localStorage.setItem(`exam_draft_${exam.id}`, JSON.stringify({
+      answers,
+      timeLeft,
+      shuffledOptionsMap,
+      cheatWarnings,
+      timeSpentPerQuestion,
+      examStartTime
+    }));
+
+    const timer = setTimeout(() => setIsSaving(false), 800);
+    return () => clearTimeout(timer);
+  }, [answers, timeLeft, shuffledOptionsMap, cheatWarnings, timeSpentPerQuestion, examStartTime, exam, isSubmitted, hasStarted]);
+
+  // --- TIME TRACKING HOOK ---
+  useEffect(() => {
+    if (!hasStarted || isSubmitted || !exam) return;
+
+    // Function to increment time for current question
+    const incrementTime = () => {
+      if (exam.questions[currentQuestionIndex]) {
+        const qId = exam.questions[currentQuestionIndex].id;
+        setTimeSpentPerQuestion(prev => ({
+          ...prev,
+          [qId]: (prev[qId] || 0) + 1
+        }));
+      }
+    };
+
+    activeQuestionTimerRef.current = setInterval(incrementTime, 1000);
+
+    return () => {
+      if (activeQuestionTimerRef.current) clearInterval(activeQuestionTimerRef.current);
+    };
+  }, [hasStarted, isSubmitted, exam, currentQuestionIndex]);
+
+  // --- INTERSECTION OBSERVER FOR SCROLL MODE ---
+  useEffect(() => {
+    if (!hasStarted || isSubmitted || viewMode !== 'scroll' || !exam) return;
+
+    const options = {
+      root: null,
+      rootMargin: '-20% 0px -50% 0px', // Detect element when it is in the upper middle part of viewport
+      threshold: 0
+    };
+
+    const handleIntersect = (entries: IntersectionObserverEntry[]) => {
+      let maxRatioEntry = entries[0];
+
+      // Find entry with largest intersection ratio or simply the one currently intersecting
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          maxRatioEntry = entry;
+        }
+      });
+
+      if (maxRatioEntry && maxRatioEntry.isIntersecting) {
+        const indexStr = maxRatioEntry.target.getAttribute('data-index');
+        if (indexStr !== null) {
+          const index = parseInt(indexStr, 10);
+          if (!isNaN(index) && index !== currentQuestionIndex) {
+            setCurrentQuestionIndex(index);
+          }
+        }
+      }
+    };
+
+    observerRef.current = new IntersectionObserver(handleIntersect, options);
+
+    // Attach observer to all question containers
+    exam.questions.forEach((q, idx) => {
+      const el = document.getElementById(`question-container-${idx}`);
+      if (el) observerRef.current?.observe(el);
+    });
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [hasStarted, isSubmitted, viewMode, exam, currentQuestionIndex]);
+
+  // Anti-cheat events based on mode and settings
+  useEffect(() => {
+    if (isSubmitted || accessDenied || !hasStarted) return;
+
+    const enforceFullscreen = assignmentSettings.requireFullscreen !== false && (assignment?.mode === 'exam' || !!assignmentSettings.requireFullscreen);
+    const enforceTabSwitch = assignmentSettings.preventTabSwitch !== false && (assignment?.mode === 'exam' || !!assignmentSettings.preventTabSwitch);
+    const enforceCopy = assignmentSettings.preventCopy !== false && (assignment?.mode === 'exam' || !!assignmentSettings.preventCopy);
+
+    const handleVisibilityChange = () => {
+      if (enforceTabSwitch && document.hidden) {
+        setCheatWarnings(prev => prev + 1);
+        alert("CẢNH BÁO: Không được chuyển tab hoặc thu nhỏ trình duyệt trong lúc thi. Hành vi gian lận sẽ bị ghi nhận!");
+        if (enforceFullscreen) requestFullscreen(); // Cố gắng khôi phục toàn màn hình
+      }
+    };
+
+    const handleBlur = () => {
+      if (enforceTabSwitch) {
+        setCheatWarnings(prev => prev + 1);
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (enforceFullscreen) {
+        if (!document.fullscreenElement) {
+          setIsFullscreen(false);
+          if (!isSubmitted) {
+            setCheatWarnings(prev => prev + 1);
+            alert("CẢNH BÁO: Bắt buộc làm bài ở chế độ toàn màn hình! Vui lòng quay lại toàn màn hình.");
+          }
+        } else {
+          setIsFullscreen(true);
+        }
+      }
+    };
+
+    // Prevent right click
+    const handleContextMenu = (e: MouseEvent) => {
+      if (enforceCopy) {
+        e.preventDefault();
+      }
+    };
+
+    // Prevent copy
+    const handleCopy = (e: ClipboardEvent) => {
+      if (enforceCopy) {
+        e.preventDefault();
+        alert("CẢNH BÁO: Không được phép sao chép nội dung bài thi!");
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("copy", handleCopy);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("copy", handleCopy);
+    };
+  }, [isSubmitted, accessDenied, hasStarted, assignment, assignmentSettings]);
+
+  // --- AI CAMERA PROCTORING LOGIC ---
+  useEffect(() => {
+    // Chỉ kích hoạt khi đã bắt đầu, chưa nộp bài, và assignment yêu cầu Camera
+    const requireCamera = !!assignmentSettings.requireCamera;
+    if (!hasStarted || isSubmitted || !requireCamera) {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        setIsCameraActive(false);
+      }
+      isDetectionRunning.current = false;
+      return;
+    }
+
+    let isComponentMounted = true;
+
+    const setupAI = async () => {
+      try {
+        setAiStatusMessage("Đang khởi tạo AI hệ thống...");
+        // 1. Tải model MediaPipe
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        );
+        const faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+            delegate: "GPU"
+          },
+          outputFaceBlendshapes: false,
+          runningMode: "VIDEO",
+          numFaces: 5 // Detect up to 5 faces to find cheaters
+        });
+
+        if (!isComponentMounted) return;
+        landmarkerRef.current = faceLandmarker;
+
+        // 2. Yêu cầu quyền Camera
+        setAiStatusMessage("Vui lòng cấp quyền Camera để thi...");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+
+        if (!isComponentMounted) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play();
+            setIsCameraActive(true);
+            setAiStatusMessage(null); // Sẵn sàng
+            isDetectionRunning.current = true;
+            detectFaces(); // Bắt đầu vòng lặp phân tích
+          };
+        }
+
+      } catch (err: any) {
+        console.error("Lỗi Camera/AI:", err);
+        setAiStatusMessage(`Lỗi Camera: ${err.message || 'Không thể truy cập camera'}. Vui lòng kiểm tra quyền truy cập.`);
+        setCheatWarnings(prev => prev + 1); // Cảnh báo ngay nếu từ chối quyền
+      }
+    };
+
+    const triggerWarning = (msg: string) => {
+      setAiStatusMessage(msg);
+      if (!warningTimerRef.current) {
+        // Nếu tình trạng kéo dài 3 giây, cộng 1 cảnh báo
+        warningTimerRef.current = setTimeout(() => {
+          setCheatWarnings(prev => prev + 1);
+          alert(`CẢNH BÁO AI: ${msg}`);
+          warningTimerRef.current = null;
+        }, 3000);
+      }
+    };
+
+    const clearWarning = () => {
+      setAiStatusMessage(null);
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+        warningTimerRef.current = null;
+      }
+    };
+
+    const detectFaces = async () => {
+      if (!videoRef.current || !landmarkerRef.current || !isDetectionRunning.current) return;
+
+      const video = videoRef.current;
+      const startTimeMs = performance.now();
+
+      if (video.currentTime !== lastVideoTimeRef.current && video.readyState >= 2) {
+        lastVideoTimeRef.current = video.currentTime;
+        try {
+          const results = landmarkerRef.current.detectForVideo(video, startTimeMs);
+
+          if (results.faceLandmarks) {
+            const numFaces = results.faceLandmarks.length;
+            if (numFaces === 0) {
+              triggerWarning("Không tìm thấy khuôn mặt! Vui lòng ngồi ngay ngắn trước Camera.");
+            } else if (numFaces > 1) {
+              triggerWarning(`Phát hiện ${numFaces} người trong khung hình! Chỉ được phép 1 người thi.`);
+            } else {
+              clearWarning(); // Bình thường
+            }
+          }
+        } catch (e) { /* ignore frame errors */ }
+      }
+
+      // Lặp lại (Chạy khoảng 10-15 fps là đủ để tiết kiệm pin)
+      setTimeout(() => {
+        if (isDetectionRunning.current) {
+          requestAnimationFrame(detectFaces);
+        }
+      }, 100);
+    };
+
+    setupAI();
+
+    return () => {
+      isComponentMounted = false;
+      isDetectionRunning.current = false;
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+      if (landmarkerRef.current) {
+        landmarkerRef.current.close();
+        landmarkerRef.current = null;
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [hasStarted, isSubmitted, assignmentSettings.requireCamera]);
 
   // Handle Retake
   const handleRetake = () => {
@@ -138,6 +903,10 @@ export const ExamTake: React.FC = () => {
     setScore(null);
     setAnswers({});
     setAiAnalysis(null);
+    setCheatWarnings(0);
+    setHasStarted(false); // require to enter fullscreen again
+    localStorage.removeItem(`exam_draft_${exam!.id}`);
+
     // Re-shuffle for new attempt
     setShuffledOptionsMap(generateShuffles());
     // Reset Timer
@@ -223,6 +992,90 @@ export const ExamTake: React.FC = () => {
     );
   }
 
+  // Pre-Start Screen
+  if (!hasStarted && !isSubmitted && !latestAttempt) {
+    const isContinuing = !!localStorage.getItem(`exam_draft_${exam.id}`);
+    const isExamMode = assignment?.mode === 'exam';
+    const requireFullscreen = assignmentSettings.requireFullscreen !== false && (isExamMode || !!assignmentSettings.requireFullscreen);
+    const requireCamera = !!assignmentSettings.requireCamera;
+    const preventTabSwitch = assignmentSettings.preventTabSwitch !== false && (isExamMode || !!assignmentSettings.preventTabSwitch);
+
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 relative z-50"> {/* Add higher z-index for start screen */}
+        <div className="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100 text-center max-w-xl w-full animate-fade-in relative overflow-hidden">
+          {/* Header Graphic */}
+          <div className={`absolute top-0 left-0 w-full h-32 ${isExamMode ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-indigo-500 to-blue-600'} opacity-10`} />
+
+          <div className="relative z-10 flex flex-col items-center">
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${isExamMode ? 'bg-red-100' : 'bg-indigo-100'} shadow-inner`}>
+              <ShieldAlert className={`h-10 w-10 ${isExamMode ? 'text-red-600' : 'text-indigo-600'}`} />
+            </div>
+
+            <div className="bg-gray-100 rounded-full px-4 py-1.5 text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
+              {isExamMode ? 'CHẾ ĐỘ KIỂM TRA (EXAM)' : 'CHẾ ĐỘ LUYỆN TẬP (PRACTICE)'}
+            </div>
+
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-6 tracking-tight">
+              {isContinuing ? 'Tiếp Tục Bài Làm' : 'Sẵn Sàng Chưa?'}
+            </h2>
+
+            {/* Rules Section based on settings */}
+            <div className={`w-full text-left p-6 rounded-2xl mb-8 border ${isExamMode ? 'bg-red-50/50 border-red-100 text-red-900' : 'bg-indigo-50/50 border-indigo-100 text-indigo-900'}`}>
+              <p className="font-bold flex items-center gap-2 mb-4 text-lg">
+                <AlertTriangle className={`h-5 w-5 ${isExamMode ? 'text-red-500' : 'text-indigo-500'}`} />
+                Quy Định Phải Biết:
+              </p>
+              <ul className="space-y-3 text-sm font-medium">
+                {requireFullscreen && (
+                  <li className="flex items-start gap-3">
+                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isExamMode ? 'bg-red-500' : 'bg-indigo-500'}`}></div>
+                    <span>Phải làm bài ở trạng thái <b>Toàn Màn Hình</b> (Fullscreen). Rời khỏi toàn màn hình sẽ tính là vi phạm.</span>
+                  </li>
+                )}
+                {preventTabSwitch && (
+                  <li className="flex items-start gap-3">
+                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isExamMode ? 'bg-red-500' : 'bg-indigo-500'}`}></div>
+                    <span>Nghiêm cấm chuyển qua Tab khác hoặc thu nhỏ trình duyệt. Vi phạm nhiều lần sẽ bị hệ thống lưu vết điểm trừ.</span>
+                  </li>
+                )}
+                {requireCamera && (
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0"></div>
+                    <span className="text-purple-800"><b>Cảnh báo Camera AI:</b> Hệ thống sẽ liên tục dùng AI trên trình duyệt để nhận diện khuôn mặt. Vui lòng ngồi ngay ngắn, đủ sáng và không nhờ người thi hộ.</span>
+                  </li>
+                )}
+                {(!requireFullscreen && !preventTabSwitch && !requireCamera) && (
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></div>
+                    <span className="text-green-700">Chế độ tự do, không áp dụng giới hạn vi phạm tab hay màn hình. Bạn có thể thoải mái tra cứu tài liệu!</span>
+                  </li>
+                )}
+                <li className="flex items-start gap-3">
+                  <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isExamMode ? 'bg-red-500' : 'bg-indigo-500'}`}></div>
+                  <span>Bài làm tự động nộp khi hết thời gian quy định đếm ngược.</span>
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                if (requireFullscreen) requestFullscreen();
+                setHasStarted(true);
+              }}
+              className={`w-full py-4 rounded-xl font-black text-white transition-all shadow-xl active:scale-[0.98] text-lg flex justify-center items-center gap-3 overflow-hidden group relative
+                 ${isExamMode ? 'bg-red-600 hover:bg-red-700 shadow-red-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}
+               `}
+            >
+              <span className="absolute inset-0 w-full h-full bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out skew-x-12"></span>
+              <CheckCircle className="h-6 w-6 z-10" />
+              <span className="z-10 tracking-wide">{isContinuing ? 'TIẾP TỤC KIỂM TRA' : 'VÀO PHÒNG THI NGAY'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const formatTime = (seconds: number | null) => {
     if (seconds === null) return "--:--";
     const m = Math.floor(seconds / 60);
@@ -237,6 +1090,14 @@ export const ExamTake: React.FC = () => {
 
   const handleSubmit = async () => {
     if (isSubmitted) return;
+
+    // Remove draft and exit fullscreen
+    if (exam) {
+      localStorage.removeItem(`exam_draft_${exam.id}`);
+    }
+    if (document.exitFullscreen && document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.log(err));
+    }
 
     // Calculate Score
     let correctCount = 0;
@@ -278,6 +1139,16 @@ export const ExamTake: React.FC = () => {
       });
     }
 
+    // Calculate total time
+    let totalTime = 0;
+    if (examStartTime) {
+      totalTime = Math.floor((Date.now() - examStartTime) / 1000);
+    } else {
+      // fallback if starting time lost: deduce from original duration
+      const originalDuration = assignment?.durationMinutes || exam.durationMinutes;
+      totalTime = Math.max(0, (originalDuration * 60) - (timeLeft || 0));
+    }
+
     // Save Attempt
     const attempt: Attempt = {
       id: `att_${Date.now()}`,
@@ -286,7 +1157,10 @@ export const ExamTake: React.FC = () => {
       studentId: user?.id || 'guest',
       answers,
       score: finalScore,
-      submittedAt: new Date().toISOString()
+      submittedAt: new Date().toISOString(),
+      cheatWarnings: cheatWarnings,
+      totalTimeSpentSec: totalTime,
+      timeSpentPerQuestion: timeSpentPerQuestion
     };
     addAttempt(attempt);
 
@@ -305,6 +1179,11 @@ export const ExamTake: React.FC = () => {
       } else {
         pointsToGive = 1;
         reasonText = "Có làm bài online";
+      }
+
+      if (cheatWarnings > 0) {
+        pointsToGive = Math.max(0, pointsToGive - 2); // Trừ điểm nếu có vi phạm
+        reasonText += ` (Cảnh báo gian lận ${cheatWarnings} lần)`;
       }
 
       try {
@@ -356,7 +1235,7 @@ export const ExamTake: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-20 relative">
+    <div className="max-w-5xl mx-auto pb-20 relative select-none">
       {/* External Widget Button */}
       <button
         onClick={() => setShowDictionary(!showDictionary)}
@@ -371,6 +1250,104 @@ export const ExamTake: React.FC = () => {
 
       <DictionaryWidget isOpen={showDictionary} onClose={() => setShowDictionary(false)} />
 
+      {/* Camera PIP View */}
+      {!!assignmentSettings.requireCamera && !isSubmitted && hasStarted && (
+        <div className="fixed bottom-4 left-4 z-40 bg-white p-1 rounded-xl shadow-2xl border-2 border-indigo-100 flex flex-col items-center">
+          <div className="relative w-32 h-24 bg-gray-900 rounded-lg overflow-hidden border border-gray-800">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''} ${aiStatusMessage ? 'grayscale blur-[2px]' : ''}`}
+            />
+            {!isCameraActive && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-gray-400">
+                <span className="text-[10px] animate-pulse">Đang tải...</span>
+              </div>
+            )}
+            {aiStatusMessage && (
+              <div className="absolute inset-0 flex items-center justify-center p-2 bg-red-900/40 backdrop-blur-sm">
+                <AlertTriangle className="h-6 w-6 text-red-500 animate-bounce" />
+              </div>
+            )}
+          </div>
+          {aiStatusMessage ? (
+            <div className="text-[10px] font-bold text-red-600 mt-1 max-w-[128px] text-center leading-tight">
+              {aiStatusMessage}
+            </div>
+          ) : (
+            <div className="text-[10px] font-bold text-green-600 mt-1 flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Giám sát AI trực tuyến
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mobile Nav Toggle */}
+      {!isSubmitted && hasStarted && (
+        <button
+          onClick={() => setIsMobileNavOpen(true)}
+          className="lg:hidden fixed bottom-20 right-4 bg-indigo-600 p-4 rounded-full shadow-lg text-white z-40 hover:bg-indigo-700 transition-all border-2 border-white ring-2 ring-indigo-200"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* Mobile Nav Drawer */}
+      {isMobileNavOpen && !isSubmitted && hasStarted && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex justify-end transition-opacity">
+          <div className="w-[85vw] max-w-sm bg-white h-full shadow-2xl p-5 flex flex-col animate-slide-in-right">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <div className="font-bold text-gray-800 flex items-center gap-2 text-lg">
+                <ListOrdered className="h-6 w-6 text-indigo-600" /> Danh sách câu hỏi
+              </div>
+              <button onClick={() => setIsMobileNavOpen(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X className="h-5 w-5 text-gray-500" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="grid grid-cols-5 sm:grid-cols-6 gap-3">
+                {exam.questions.map((q, idx) => {
+                  const ans = answers[q.id];
+                  let isAnswered = false;
+                  if (ans !== undefined && ans !== null && ans !== '') {
+                    if (Array.isArray(ans)) {
+                      isAnswered = ans.some(a => a !== undefined && a !== null && a !== '');
+                    } else {
+                      isAnswered = true;
+                    }
+                  }
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (viewMode === 'single') {
+                          setCurrentQuestionIndex(idx);
+                        } else {
+                          const element = document.getElementById(`question-${q.id}`);
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }
+                        }
+                        setIsMobileNavOpen(false); // Close drawer after clicking
+                      }}
+                      className={`
+                          h-12 w-full flex items-center justify-center rounded-lg font-bold text-sm transition-all
+                          active:scale-95
+                          ${isAnswered
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 border-transparent'
+                          : 'bg-gray-100 text-gray-500 border border-gray-200'}
+                        `}
+                    >
+                      {idx + 1}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Live Mode Indicator */}
       {liveSessionId && !isSubmitted && (
         <div className="mb-4 bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center justify-between animate-fade-in shadow-md">
@@ -383,7 +1360,10 @@ export const ExamTake: React.FC = () => {
       <div className="sticky top-0 z-10 bg-white border-b shadow-sm mb-6 -mx-4 px-4 md:-mx-8 md:px-8 py-3 flex justify-between items-center">
         <div>
           <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{exam.title}</h1>
-          <div className="text-xs text-gray-500">Thí sinh: {user?.name}</div>
+          <div className="text-xs text-gray-500 flex items-center gap-2">
+            Thí sinh: {user?.name}
+            {isSaving && <span className="flex items-center gap-1 text-indigo-500 italic animate-pulse"><RotateCcw className="h-3 w-3 animate-spin" /> Đang lưu...</span>}
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className={`flex items-center gap-2 font-mono text-lg font-bold ${(timeLeft || 0) < 300 ? 'text-red-600' : 'text-indigo-600'}`}>
@@ -458,8 +1438,8 @@ export const ExamTake: React.FC = () => {
 
         {/* Navigation Sidebar (Desktop Left) */}
         {!isSubmitted && (
-          <div className="hidden lg:block w-64 flex-shrink-0">
-            <div className="sticky top-[100px] bg-white p-5 rounded-2xl shadow-lg border border-indigo-100 flex flex-col max-h-[calc(100vh-120px)]">
+          <div className="hidden lg:block w-56 flex-shrink-0 relative">
+            <div className="sticky top-[120px] bg-white p-5 rounded-2xl shadow-xl border border-indigo-100 flex flex-col max-h-[calc(100vh-160px)] transition-all">
               <div className="flex items-center gap-3 mb-4 border-b pb-4">
                 <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
                   <Clock className="h-5 w-5 text-indigo-600" />
@@ -494,9 +1474,13 @@ export const ExamTake: React.FC = () => {
                       <button
                         key={idx}
                         onClick={() => {
-                          const element = document.getElementById(`question-${q.id}`);
-                          if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          if (viewMode === 'single') {
+                            setCurrentQuestionIndex(idx);
+                          } else {
+                            const element = document.getElementById(`question-${q.id}`);
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
                           }
                         }}
                         className={`
@@ -521,6 +1505,15 @@ export const ExamTake: React.FC = () => {
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <div className="w-4 h-4 rounded bg-gray-100 border border-gray-200"></div> Chưa làm
                 </div>
+
+                <div className="mt-3 pt-3 border-t">
+                  <button
+                    onClick={() => setViewMode(prev => prev === 'scroll' ? 'single' : 'scroll')}
+                    className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'single' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    <Sparkles className="h-3 w-3" /> {viewMode === 'scroll' ? 'Chế độ từng câu' : 'Chế độ danh sách'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -528,15 +1521,38 @@ export const ExamTake: React.FC = () => {
 
         {/* Questions List */}
         <div className="flex-1 space-y-6">
-          {exam.questions.map((q, index) => {
+          {viewMode === 'single' && !isSubmitted && (
+            <div className="mb-4 bg-white p-4 rounded-xl border flex items-center justify-between text-sm shadow-sm">
+              <span className="font-bold text-gray-600">Câu hỏi {currentQuestionIndex + 1} / {exam.questions.length}</span>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentQuestionIndex === 0}
+                  onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                  className="px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all font-medium"
+                >
+                  Trước
+                </button>
+                <button
+                  disabled={currentQuestionIndex === exam.questions.length - 1}
+                  onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all font-medium"
+                >
+                  Tiếp theo
+                </button>
+              </div>
+            </div>
+          )}
+
+          {exam.questions.filter((_, i) => viewMode === 'scroll' || isSubmitted || i === currentQuestionIndex).map((q, index) => {
+            const actualIndex = viewMode === 'scroll' || isSubmitted ? index : currentQuestionIndex;
             // Get the shuffled indices for this question
             const shuffledIndices = shuffledOptionsMap[q.id] || q.options.map((_, i) => i);
 
             return (
-              <div id={`question-${q.id}`} key={q.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm scroll-mt-24">
-                <div className="flex gap-3 mb-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-600 text-sm">
-                    {index + 1}
+              <div id={`question-container-${actualIndex}`} data-index={actualIndex} key={q.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm scroll-mt-24">
+                <div id={`question-${q.id}`} className="flex gap-3 mb-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-4 ring-indigo-50">
+                    {actualIndex + 1}
                   </span>
                   <div className="flex-1">
                     <div className="text-gray-900 font-medium text-lg leading-relaxed prose prose-p:my-0">
@@ -554,239 +1570,64 @@ export const ExamTake: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pl-11 mt-4">
+                <div className="pl-0 md:pl-11 mt-4">
                   {q.type === 'MCQ' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {shuffledIndices.map((originalIndex, displayIndex) => {
-                        const optContent = q.options[originalIndex];
-                        let optionClass = "border-gray-200 hover:bg-gray-50 bg-white";
-
-                        // Visual Logic
-                        if (isSubmitted) {
-                          // Logic check for Pass/Fail View
-                          if (viewPassFail) {
-                            if (originalIndex === q.correctOptionIndex) {
-                              // Correct Option
-                              if (canViewSolution) {
-                                optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
-                              } else if (answers[q.id] === originalIndex) {
-                                optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
-                              } else {
-                                optionClass = "opacity-50 bg-white";
-                              }
-                            } else if (answers[q.id] === originalIndex) {
-                              optionClass = "bg-red-50 border-red-500 text-red-700";
-                            } else {
-                              optionClass = "opacity-50 bg-white";
-                            }
-                          } else {
-                            // Pass/Fail OFF -> Neutral
-                            if (answers[q.id] === originalIndex) {
-                              optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
-                            } else {
-                              optionClass = "opacity-50 bg-white";
-                            }
-                          }
-                        } else if (answers[q.id] === originalIndex) {
-                          optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
-                        }
-
-                        if (isSubmitted && !viewPassFail && answers[q.id] === originalIndex) {
-                          optionClass = "bg-gray-100 border-gray-400 text-gray-800 font-bold";
-                        }
-
-                        return (
-                          <button
-                            key={originalIndex}
-                            onClick={() => handleSetAnswer(q.id, originalIndex)}
-                            disabled={isSubmitted}
-                            className={`w-full text-left p-4 rounded-lg border transition-all flex items-center gap-3 ${optionClass}`}
-                          >
-                            <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs flex-shrink-0 ${answers[q.id] === originalIndex ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-500'
-                              } ${isSubmitted && viewPassFail && originalIndex === q.correctOptionIndex && canViewSolution ? '!bg-green-500 !border-green-500 !text-white' : ''}
-                            ${isSubmitted && !viewPassFail && answers[q.id] === originalIndex ? '!bg-gray-600 !border-gray-600 !text-white' : ''}
-                          `}>
-                              {String.fromCharCode(65 + displayIndex)}
-                            </div>
-                            <span className="text-gray-800 prose prose-p:my-0">
-                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                {optContent}
-                              </ReactMarkdown>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <MCQQuestion
+                      question={q}
+                      answer={answers[q.id]}
+                      onSetAnswer={(val: any) => handleSetAnswer(q.id, val)}
+                      isSubmitted={isSubmitted}
+                      viewPassFail={viewPassFail}
+                      canViewSolution={canViewSolution}
+                      shuffledIndices={shuffledIndices}
+                    />
                   )}
 
-                  {q.type === 'SHORT_ANSWER' && (() => {
-                    const sAns = String(answers[q.id] || '').trim().toLowerCase();
-                    const isCorrect = q.options && q.options.length > 0
-                      ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
-                      : sAns === String(q.solution || '').trim().toLowerCase();
-                    return (
-                      <div>
-                        <textarea
-                          disabled={isSubmitted}
-                          value={answers[q.id] || ''}
-                          onChange={(e) => handleSetAnswer(q.id, e.target.value)}
-                          placeholder="Nhập câu trả lời của bạn vào đây..."
-                          className={`w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] ${isSubmitted ? 'bg-gray-50 text-gray-700 border-gray-300 relative' : 'bg-white border-gray-300 text-gray-900'} ${isSubmitted && viewPassFail ? (isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : ''}`}
-                        />
-                        {isSubmitted && viewPassFail && (
-                          <div className="mt-2 text-sm text-gray-600">
-                            {isCorrect
-                              ? <span className="text-green-600 font-bold">✓ Hệ thống tự chấm khớp đáp án</span>
-                              : <span className="text-red-600 font-bold">✗ Sai (Không khớp với đáp án)</span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  {q.type === 'SHORT_ANSWER' && (
+                    <ShortAnswerQuestion
+                      question={q}
+                      answer={answers[q.id]}
+                      onSetAnswer={(val: any) => handleSetAnswer(q.id, val)}
+                      isSubmitted={isSubmitted}
+                      viewPassFail={viewPassFail}
+                    />
+                  )}
 
-                  {q.type === 'MATCHING' && (() => {
-                    const leftItems = q.options.map(o => o.split('|||')[0]?.trim() || o);
-                    const rightItems = q.options.map(o => o.split('|||')[1]?.trim() || o);
+                  {q.type === 'MATCHING' && (
+                    <MatchingQuestion
+                      question={q}
+                      answer={answers[q.id]}
+                      onSetAnswer={(val: any) => handleSetAnswer(q.id, val)}
+                      isSubmitted={isSubmitted}
+                      viewPassFail={viewPassFail}
+                      canViewSolution={canViewSolution}
+                      shuffledIndices={shuffledIndices}
+                    />
+                  )}
 
-                    // Create a consistent shuffled version of right items for the dropdowns
-                    // We use shuffledIndices as a seed to ensure stable shuffle per question per attempt
-                    const shuffledRightItems = shuffledIndices.map(i => rightItems[i]);
+                  {q.type === 'ORDERING' && (
+                    <OrderingQuestion
+                      question={q}
+                      answer={answers[q.id]}
+                      onSetAnswer={(val: any) => handleSetAnswer(q.id, val)}
+                      isSubmitted={isSubmitted}
+                      viewPassFail={viewPassFail}
+                      canViewSolution={canViewSolution}
+                      shuffledIndices={shuffledIndices}
+                    />
+                  )}
 
-                    const currentAns = Array.isArray(answers[q.id]) ? answers[q.id] : Array(q.options.length).fill("");
-
-                    const handleMatchChange = (index: number, val: string) => {
-                      if (isSubmitted) return;
-                      const newArr = [...currentAns];
-                      newArr[index] = `${leftItems[index]} ||| ${val}`;
-                      handleSetAnswer(q.id, newArr);
-                    };
-
-                    return (
-                      <div className="space-y-3">
-                        {leftItems.map((left, idx) => {
-                          const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === q.options[idx];
-                          const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== q.options[idx] && currentAns[idx];
-
-                          return (
-                            <div key={idx} className={`p-4 rounded-lg border flex flex-col md:flex-row gap-4 items-center ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-                              <div className="flex-1 font-medium text-gray-800 text-center md:text-left">{left}</div>
-                              <div className="mx-2 text-gray-400 hidden md:block">→</div>
-                              <div className="flex-1 w-full">
-                                <select
-                                  disabled={isSubmitted}
-                                  className="w-full p-2 border rounded border-gray-300 bg-white"
-                                  value={currentAns[idx]?.split('|||')[1]?.trim() || ''}
-                                  onChange={(e) => handleMatchChange(idx, e.target.value)}
-                                >
-                                  <option value="">--- Chọn đáp án nối ---</option>
-                                  {shuffledRightItems.map((r, i) => (
-                                    <option key={i} value={r}>{r}</option>
-                                  ))}
-                                </select>
-                              </div>
-                              {isSubmitted && viewPassFail && canViewSolution && isWrong && (
-                                <div className="text-xs text-green-700 font-bold mt-2 md:mt-0 w-full md:w-auto text-center md:text-left">
-                                  (Đúng: {q.options[idx].split('|||')[1]?.trim()})
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {q.type === 'ORDERING' && (() => {
-                    // For ORDERING, we just let them pick positions from dropdowns 1 to N
-                    const currentAns = Array.isArray(answers[q.id]) ? answers[q.id] : Array(q.options.length).fill("");
-                    // Provide options to pick from (the shuffled ones)
-                    const availableOptions = shuffledIndices.map(i => q.options[i]);
-
-                    const handleOrderChange = (index: number, val: string) => {
-                      if (isSubmitted) return;
-                      const newArr = [...currentAns];
-                      newArr[index] = val;
-                      handleSetAnswer(q.id, newArr);
-                    };
-
-                    return (
-                      <div className="space-y-3">
-                        <p className="text-sm text-gray-500 mb-2 italic">Chọn mục tương ứng cho từng vị trí theo đúng thứ tự (từ Trên xuống Dưới):</p>
-                        {q.options.map((_, idx) => {
-                          const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === q.options[idx];
-                          const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== q.options[idx] && currentAns[idx];
-
-                          return (
-                            <div key={idx} className={`p-3 rounded-lg border flex gap-4 items-center ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
-                              <div className="w-20 font-bold text-gray-600 text-sm">Vị trí {idx + 1}:</div>
-                              <select
-                                disabled={isSubmitted}
-                                className="flex-1 p-2 border rounded border-gray-300 bg-white"
-                                value={currentAns[idx] || ''}
-                                onChange={(e) => handleOrderChange(idx, e.target.value)}
-                              >
-                                <option value="">--- Chọn nội dung ---</option>
-                                {availableOptions.map((opt, i) => (
-                                  <option key={i} value={opt}>{opt}</option>
-                                ))}
-                              </select>
-                              {isSubmitted && viewPassFail && canViewSolution && isWrong && (
-                                <div className="text-xs text-green-700 font-bold mt-2 md:mt-0 w-full md:w-auto">
-                                  (Đúng: {q.options[idx]})
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {q.type === 'DRAG_DROP' && (() => {
-                    const currentAns = Array.isArray(answers[q.id]) ? answers[q.id] : Array(q.options.length).fill("");
-                    const availableOptions = shuffledIndices.map(i => q.options[i]);
-
-                    const handleDropChange = (index: number, val: string) => {
-                      if (isSubmitted) return;
-                      const newArr = [...currentAns];
-                      newArr[index] = val;
-                      handleSetAnswer(q.id, newArr);
-                    };
-
-                    // Parse content to replace [__] with selects
-                    // We do this visually by just providing a list of dropdowns for each blank
-                    return (
-                      <div className="space-y-4 bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
-                        <p className="text-sm text-gray-700 font-medium">Bên dưới là các ô trống xuất hiện trong đề bài. Hãy chọn đáp án để điền vào:</p>
-                        <div className="flex flex-wrap gap-4">
-                          {Array(q.options.length).fill(0).map((_, idx) => {
-                            const isCorrect = isSubmitted && viewPassFail && currentAns[idx] === q.options[idx];
-                            const isWrong = isSubmitted && viewPassFail && currentAns[idx] !== q.options[idx] && currentAns[idx];
-
-                            return (
-                              <div key={idx} className={`flex flex-col gap-1 p-2 rounded border ${isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-                                <label className="text-xs font-bold text-gray-500">Ô trống {idx + 1}</label>
-                                <select
-                                  disabled={isSubmitted}
-                                  className="p-1 border rounded min-w-[120px]"
-                                  value={currentAns[idx] || ''}
-                                  onChange={(e) => handleDropChange(idx, e.target.value)}
-                                >
-                                  <option value=""></option>
-                                  {availableOptions.map((opt, i) => (
-                                    <option key={i} value={opt}>{opt}</option>
-                                  ))}
-                                </select>
-                                {isSubmitted && viewPassFail && canViewSolution && isWrong && (
-                                  <div className="text-[10px] text-green-700 font-bold mt-1">Đúng: {q.options[idx]}</div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {q.type === 'DRAG_DROP' && (
+                    <DragDropQuestion
+                      question={q}
+                      answer={answers[q.id]}
+                      onSetAnswer={(val: any) => handleSetAnswer(q.id, val)}
+                      isSubmitted={isSubmitted}
+                      viewPassFail={viewPassFail}
+                      canViewSolution={canViewSolution}
+                      shuffledIndices={shuffledIndices}
+                    />
+                  )}
                 </div>
 
                 {/* HINT BOX: Check viewHint setting */}
@@ -832,7 +1673,7 @@ export const ExamTake: React.FC = () => {
             className="bg-indigo-600 text-white px-10 py-4 rounded-xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 flex items-center gap-3 animate-bounce-subtle"
           >
             <Send className="h-6 w-6" />
-            Nộp bài tập
+            Nộp bài
           </button>
         </div>
       )}

@@ -449,6 +449,8 @@ export const ExamResults: React.FC = () => {
                         <thead className="bg-white text-gray-600 border-b">
                            <tr>
                               <th className="px-6 py-3 font-medium">Học sinh</th>
+                              <th className="px-6 py-3 font-medium text-center">Thời gian</th>
+                              <th className="px-6 py-3 font-medium text-center">Cảnh báo AI</th>
                               <th className="px-6 py-3 font-medium text-center">Số câu đúng</th>
                               <th className="px-6 py-3 font-medium text-right">Điểm số</th>
                               <th className="px-6 py-3 font-medium text-center">Trạng thái</th>
@@ -471,6 +473,25 @@ export const ExamResults: React.FC = () => {
                                           <div className="font-bold">{student?.name || 'Khách'}</div>
                                           <div className="text-[10px] text-gray-500">{new Date(att.submittedAt).toLocaleString('vi-VN')}</div>
                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                                       {att.totalTimeSpentSec ? (
+                                          <span className="text-gray-600 bg-gray-100 px-2 py-1 rounded text-sm font-medium flex items-center justify-center gap-1">
+                                             <Clock className="h-3 w-3" />
+                                             {Math.floor(att.totalTimeSpentSec / 60)}p {att.totalTimeSpentSec % 60}s
+                                          </span>
+                                       ) : (
+                                          <span className="text-gray-400 text-xs">-</span>
+                                       )}
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                       {(att.cheatWarnings || 0) > 0 ? (
+                                          <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-bold flex items-center justify-center gap-1 w-max mx-auto">
+                                             <XCircle className="h-3 w-3" /> {att.cheatWarnings} lần
+                                          </span>
+                                       ) : (
+                                          <span className="text-xs text-gray-400">-</span>
+                                       )}
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                        <span className="font-bold text-green-600">{correctCount}</span> / {exam.questions.length}
@@ -665,7 +686,14 @@ export const ExamResults: React.FC = () => {
                                     </div>
                                     <div className="flex-1">
                                        <div className="font-medium text-gray-900 mb-2">
-                                          <span className="font-bold text-gray-500 mr-2">Câu {idx + 1}:</span>
+                                          <div className="flex justify-between items-center mb-1">
+                                             <span className="font-bold text-gray-500 mr-2">Câu {idx + 1}:</span>
+                                             {selectedAttempt.timeSpentPerQuestion && selectedAttempt.timeSpentPerQuestion[q.id] ? (
+                                                <span className="text-xs text-gray-500 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
+                                                   <Clock className="h-3 w-3" /> {selectedAttempt.timeSpentPerQuestion[q.id]}s
+                                                </span>
+                                             ) : null}
+                                          </div>
                                           <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.content}</ReactMarkdown>
                                        </div>
 

@@ -85,6 +85,10 @@ export interface AssignmentSettings {
   viewSolution: boolean;
   viewHint: boolean;
   maxAttempts: number;
+  requireCamera?: boolean;
+  requireFullscreen?: boolean;
+  preventTabSwitch?: boolean;
+  preventCopy?: boolean;
 }
 
 export interface Assignment {
@@ -97,6 +101,7 @@ export interface Assignment {
   endTime?: string;
   durationMinutes: number;
   settings: AssignmentSettings;
+  mode?: 'exam' | 'practice';
 }
 
 export interface Attempt {
@@ -109,6 +114,9 @@ export interface Attempt {
   submittedAt: string;
   teacherFeedback?: string;
   feedbackAllowViewSolution?: boolean;
+  totalTimeSpentSec?: number;
+  timeSpentPerQuestion?: Record<string, number>;
+  cheatWarnings?: number;
 }
 
 export interface Notification {
@@ -413,6 +421,7 @@ export interface AppState {
   addArenaQuestion: (q: Omit<ArenaQuestion, 'id'>) => Promise<boolean>;
   updateArenaQuestion: (q: ArenaQuestion) => Promise<boolean>;
   deleteArenaQuestion: (id: string) => Promise<boolean>;
+  bulkDeleteArenaQuestions: (ids: string[]) => Promise<boolean>;
 
   // New Matchmaking logic
   fetchWaitingMatches: () => Promise<ArenaMatch[]>;

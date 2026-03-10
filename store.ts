@@ -17,6 +17,16 @@ const SEED_USERS: User[] = [
 
 export const useStore = create<AppState>((set, get) => ({
   isDataLoading: false,
+  users: [],
+  exams: [],
+  assignments: [],
+  academicYears: [],
+  classes: [],
+  attempts: [],
+  notifications: [],
+  resources: [],
+  discussionSessions: [],
+  questionBank: [],
 
   // --- INITIAL DATA FETCHING ---
   fetchInitialData: async () => {
@@ -173,7 +183,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Users
-  users: [],
   addUser: async (user: User, assignedClassId?: string) => {
     // 1. Dùng Transaction giả lập bằng cách Insert User rồi Update Class
     // Cố gắng chèn với camelCase trước, nếu lỗi thì thử lại với snake_case cho class_name thay vì className
@@ -339,7 +348,6 @@ export const useStore = create<AppState>((set, get) => ({
   }),
 
   // Academic Years
-  academicYears: [],
   addAcademicYear: async (year) => {
     const { error } = await supabase.from('academic_years').insert(year);
     if (!error) set((state) => ({ academicYears: [...state.academicYears, year] }));
@@ -352,7 +360,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Classes
-  classes: [],
   addClass: async (cls) => {
     // Map camelCase to potential snake_case for robust insertion
     const dbCls = {
@@ -412,7 +419,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Exams
-  exams: [],
   addExam: async (exam) => {
     // Optimistic: add to local state immediately so user sees it
     set((state) => ({ exams: [exam, ...state.exams] }));
@@ -443,7 +449,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Question Bank
-  questionBank: [],
   fetchQuestionBank: async () => {
     const { data } = await supabase.from('question_bank').select('*');
     if (data) set({ questionBank: data as QuestionBankItem[] });
@@ -470,7 +475,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Assignments
-  assignments: [],
   addAssignment: async (assign) => {
     // Optimistic: add to local state immediately
     set((state) => ({ assignments: [assign, ...state.assignments] }));
@@ -533,7 +537,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Attempts
-  attempts: [],
   addAttempt: async (attempt) => {
     const { error } = await supabase.from('attempts').insert(attempt);
     if (!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
@@ -575,7 +578,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Notifications
-  notifications: [],
   addNotification: async (notif) => {
     // Add fallback properties for Supabase auto-lowercase and snake_case tables
     const dbNotif = {
@@ -611,7 +613,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Resources - Force Update
-  resources: [],
   addResource: async (res) => {
     set(state => ({ resources: [res, ...state.resources] }));
     const dbResCamel = {
@@ -654,8 +655,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // --- DISCUSSION ROOM (SUPABASE) ---
-
-  discussionSessions: [],
 
   // Create Session
   createDiscussion: async (session) => {
@@ -1016,6 +1015,16 @@ export const useStore = create<AppState>((set, get) => ({
     const { error } = await supabase.from('arena_questions').delete().eq('id', id);
     if (error) return false;
     set(state => ({ arenaQuestions: state.arenaQuestions.filter(x => x.id !== id) }));
+    return true;
+  },
+
+  bulkDeleteArenaQuestions: async (ids: string[]) => {
+    const { error } = await supabase.from('arena_questions').delete().in('id', ids);
+    if (error) {
+      console.error('Bulk delete error:', error);
+      return false;
+    }
+    set(state => ({ arenaQuestions: state.arenaQuestions.filter(x => !ids.includes(x.id)) }));
     return true;
   },
 
