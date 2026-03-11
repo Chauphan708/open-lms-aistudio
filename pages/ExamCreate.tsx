@@ -719,17 +719,26 @@ export const ExamCreate: React.FC = () => {
                           <span className="ml-2 text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded border uppercase whitespace-nowrap">
                             {getTypeLabel(q.type)}
                           </span>
-                          {q.level && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded border uppercase whitespace-nowrap font-medium ${q.level === 'NHAN_BIET' ? 'bg-green-100 text-green-700 border-green-200' :
-                              q.level === 'THONG_HIEU' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                          <select
+                            value={q.level || ''}
+                            onChange={(e) => {
+                              const newLevel = e.target.value as any;
+                              setQuestions(prev => prev.map(item => 
+                                item.id === q.id ? { ...item, level: newLevel || undefined } : item
+                              ));
+                            }}
+                            className={`text-[10px] px-2 py-0.5 rounded border uppercase font-medium outline-none cursor-pointer appearance-none ${
+                                q.level === 'NHAN_BIET' ? 'bg-green-100 text-green-700 border-green-200' :
+                                q.level === 'THONG_HIEU' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
                                 q.level === 'VAN_DUNG' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                  'bg-red-100 text-red-700 border-red-200'
-                              }`}>
-                              {q.level === 'NHAN_BIET' ? 'Nhận biết' :
-                                q.level === 'THONG_HIEU' ? 'Thông hiểu' :
-                                  q.level === 'VAN_DUNG' ? 'Vận dụng' : ''}
-                            </span>
-                          )}
+                                'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                            }`}
+                          >
+                            <option value="">-- Mức độ --</option>
+                            <option value="NHAN_BIET">Nhận biết</option>
+                            <option value="THONG_HIEU">Thông hiểu</option>
+                            <option value="VAN_DUNG">Vận dụng</option>
+                          </select>
                         </div>
                       </div>
 
