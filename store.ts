@@ -71,12 +71,41 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Assignments
-      const { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
-      if (assignments) set({ assignments: assignments as Assignment[] });
+      let { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
+      if (!assignments) {
+        // Fallback for snake_case db
+        const { data: fallbackAssignments } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+        assignments = fallbackAssignments;
+      }
+      if (assignments) {
+        const mappedAssignments = assignments.map((a: any) => ({
+          ...a,
+          examId: a.examId || a.exam_id,
+          classId: a.classId || a.class_id,
+          teacherId: a.teacherId || a.teacher_id,
+          durationMinutes: a.durationMinutes || a.duration_minutes,
+          createdAt: a.createdAt || a.created_at
+        }));
+        set({ assignments: mappedAssignments as Assignment[] });
+      }
 
       // 5. Fetch Attempts
-      const { data: attempts } = await supabase.from('attempts').select('*');
-      if (attempts) set({ attempts: attempts as Attempt[] });
+      let { data: attempts } = await supabase.from('attempts').select('*');
+      if (attempts) {
+        const mappedAttempts = attempts.map((a: any) => ({
+          ...a,
+          examId: a.examId || a.exam_id,
+          assignmentId: a.assignmentId || a.assignment_id,
+          studentId: a.studentId || a.student_id,
+          submittedAt: a.submittedAt || a.submitted_at,
+          teacherFeedback: a.teacherFeedback || a.teacher_feedback,
+          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution,
+          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? 0,
+          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || {},
+          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? 0
+        }));
+        set({ attempts: mappedAttempts as Attempt[] });
+      }
 
       // 6. Fetch Years
       const { data: years } = await supabase.from('academic_years').select('*');

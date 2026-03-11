@@ -483,7 +483,19 @@ export const ExamTake: React.FC = () => {
     preventTabSwitch: false,
     preventCopy: false
   };
-  const assignmentSettings = assignment?.settings || defaultSettings;
+
+  const assignmentSettings = useMemo(() => {
+    if (!assignment?.settings) return defaultSettings;
+    try {
+      if (typeof assignment.settings === 'string') {
+        const parsed = JSON.parse(assignment.settings);
+        return { ...defaultSettings, ...parsed };
+      }
+      return { ...defaultSettings, ...assignment.settings };
+    } catch (e) {
+      return defaultSettings;
+    }
+  }, [assignment]);
 
   // Check for existing attempts
   const myAttempts = user ? attempts.filter(a => a.examId === id && a.studentId === user.id) : [];
