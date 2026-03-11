@@ -1562,11 +1562,14 @@ export const ExamTake: React.FC = () => {
 
             return (
               <div id={`question-container-${actualIndex}`} data-index={actualIndex} key={q.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm scroll-mt-24">
-                <div id={`question-${q.id}`} className="flex gap-3 mb-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-4 ring-indigo-50">
-                    {actualIndex + 1}
-                  </span>
-                  <div className="flex-1">
+                <div id={`question-${q.id}`} className="flex flex-col gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-4 ring-indigo-50">
+                      {actualIndex + 1}
+                    </span>
+                    <span className="text-gray-500 font-bold text-sm uppercase tracking-wider">Câu {actualIndex + 1}</span>
+                  </div>
+                  <div className="flex-1 mt-1">
                     <div className="text-gray-900 font-medium text-lg leading-relaxed prose prose-p:my-0">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                         {q.content.replace(/\s*Đáp án:\s*[^\n]*$/i, '').trim()}
@@ -1582,7 +1585,7 @@ export const ExamTake: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pl-0 md:pl-11 mt-4">
+                <div className="mt-4">
                   {q.type === 'MCQ' && (
                     <MCQQuestion
                       question={q}
@@ -1644,7 +1647,7 @@ export const ExamTake: React.FC = () => {
 
                 {/* HINT BOX: Check viewHint setting */}
                 {isSubmitted && q.hint && assignmentSettings.viewHint && (
-                  <div className="mt-4 ml-11 p-4 bg-orange-50 rounded-lg border border-orange-200 text-orange-900 text-sm shadow-sm animate-fade-in flex gap-2 items-start">
+                  <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200 text-orange-900 text-sm shadow-sm animate-fade-in flex gap-2 items-start">
                     <Lightbulb className="h-5 w-5 flex-shrink-0 text-orange-500" />
                     <div>
                       <strong className="block mb-1 text-orange-700">Gợi ý làm bài:</strong>
@@ -1659,7 +1662,7 @@ export const ExamTake: React.FC = () => {
 
                 {/* SOLUTION BOX: STRICTLY Check calculated canViewSolution setting */}
                 {isSubmitted && q.solution && canViewSolution && (
-                  <div className="mt-4 ml-11 p-4 bg-blue-50 rounded-lg border border-blue-200 text-blue-900 text-sm shadow-sm animate-fade-in flex gap-2 items-start">
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 text-blue-900 text-sm shadow-sm animate-fade-in flex gap-2 items-start">
                     <BrainCircuit className="h-5 w-5 flex-shrink-0 text-blue-500" />
                     <div className="flex-1">
                       <strong className="block mb-1 text-blue-700">Lời giải chi tiết:</strong>
