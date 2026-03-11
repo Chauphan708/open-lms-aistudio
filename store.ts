@@ -508,11 +508,19 @@ export const useStore = create<AppState>((set, get) => ({
     // Optimistic: add to local state immediately
     set((state) => ({ assignments: [assign, ...state.assignments] }));
 
-    const { error } = await supabase.from('assignments').insert(assign);
+    let { error } = await supabase.from('assignments').insert(assign);
     if (error) {
-      console.error("addAssignment Supabase error:", error);
-      alert(`⚠️ Lỗi giao bài tập lên server: ${error.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
-      return;
+      // Fallback: try inserting without the new 'mode' column
+      const fallbackAssign: any = { ...assign };
+      delete fallbackAssign.mode;
+      const { error: err2 } = await supabase.from('assignments').insert(fallbackAssign);
+      
+      if (err2) {
+        console.error("addAssignment Supabase error:", error, err2);
+        alert(`⚠️ Lỗi giao bài tập lên server: ${err2.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+        return;
+      }
+      error = null;
     }
 
     const state = get();
@@ -567,7 +575,16 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Attempts
   addAttempt: async (attempt) => {
-    const { error } = await supabase.from('attempts').insert(attempt);
+    let { error } = await supabase.from('attempts').insert(attempt);
+    if (error) {
+      // Fallback: try inserting without the new columns
+      const fallbackAttempt: any = { ...attempt };
+      delete fallbackAttempt.totalTimeSpentSec;
+      delete fallbackAttempt.timeSpentPerQuestion;
+      delete fallbackAttempt.cheatWarnings;
+      const { error: err2 } = await supabase.from('attempts').insert(fallbackAttempt);
+      if (!err2) error = null;
+    }
     if (!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
   },
   updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
