@@ -89,7 +89,7 @@ export const ExamCreate: React.FC = () => {
   const getDifficultyDescription = (diff: ExamDifficulty) => {
     switch (diff) {
       case 'NHAN_BIET': return 'Mức 1 (Nhận biết - Nhắc lại)';
-      case 'THONG_HIEU': return 'Mức 2 (Hiểu - Kết nối)';
+      case 'THONG_HIEU': return 'Mức 2 (Kết nối)';
       case 'VAN_DUNG': return 'Mức 3 (Vận dụng - Giải quyết vấn đề)';
       default: return 'Mức 1 (Nhận biết)';
     }
@@ -545,7 +545,7 @@ export const ExamCreate: React.FC = () => {
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2 text-xs text-blue-700 space-y-1">
                   <p className="font-bold">📋 Hướng dẫn format nhập liệu:</p>
                   <p>• Mỗi câu bắt đầu bằng: <code className="bg-blue-100 px-1 rounded">Câu 1:</code> hoặc <code className="bg-blue-100 px-1 rounded">Bài 1:</code></p>
-                  <p>• Mức độ (tùy chọn): <code className="bg-blue-100 px-1 rounded">Mức độ: Nhận biết</code>, <code className="bg-blue-100 px-1 rounded">Thông hiểu</code>, <code>Vận dụng</code></p>
+                  <p>• Mức độ (tùy chọn): <code className="bg-blue-100 px-1 rounded">Mức độ: Nhận biết</code>, <code className="bg-blue-100 px-1 rounded">Kết nối</code>, <code>Vận dụng</code></p>
                   <p>• Đáp án: <code className="bg-blue-100 px-1 rounded">A.</code> <code className="bg-blue-100 px-1 rounded">B.</code> <code className="bg-blue-100 px-1 rounded">C.</code> <code className="bg-blue-100 px-1 rounded">D.</code> (mỗi đáp án 1 dòng)</p>
                   <p>• Đáp án đúng: <code className="bg-blue-100 px-1 rounded">Đáp án: B</code></p>
                   <p>• Lời giải: <code className="bg-blue-100 px-1 rounded">Giải thích:</code> hoặc <code className="bg-blue-100 px-1 rounded">Hướng dẫn:</code></p>
@@ -736,7 +736,7 @@ export const ExamCreate: React.FC = () => {
                           >
                             <option value="">-- Mức độ --</option>
                             <option value="NHAN_BIET">Nhận biết</option>
-                            <option value="THONG_HIEU">Thông hiểu</option>
+                            <option value="THONG_HIEU">Kết nối</option>
                             <option value="VAN_DUNG">Vận dụng</option>
                           </select>
                         </div>

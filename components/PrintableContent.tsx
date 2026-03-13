@@ -166,7 +166,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                         </tr>
                         <tr>
                             <th className="border border-black p-2">Nhận biết</th>
-                            <th className="border border-black p-2">Thông hiểu</th>
+                            <th className="border border-black p-2">Kết nối</th>
                             <th className="border border-black p-2">Vận dụng</th>
                         </tr>
                     </thead>

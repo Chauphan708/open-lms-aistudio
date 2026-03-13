@@ -8,7 +8,7 @@ interface MatrixRow {
     id: string;
     topic: string;
     level1Percent: number; // Nhận biết
-    level2Percent: number; // Thông hiểu
+    level2Percent: number; // Kết nối
     level3Percent: number; // Vận dụng
     mcqPercent: number;    // % Trắc nghiệm (phần còn lại là tự luận)
 }
@@ -137,7 +137,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
             for (const missing of missingInfo) {
                 const levelMap: Record<string, string> = {
                     'NHAN_BIET': 'Mức 1 (Nhận biết - Nhắc lại)',
-                    'THONG_HIEU': 'Mức 2 (Hiểu - Kết nối)',
+                    'THONG_HIEU': 'Mức 2 (Kết nối)',
                     'VAN_DUNG': 'Mức 3 (Vận dụng - Giải quyết vấn đề)'
                 };
 
@@ -205,7 +205,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                             <th className="px-3 py-2 border-b whitespace-nowrap">Chủ đề</th>
                             <th className="px-3 py-2 border-b text-center text-blue-700 whitespace-nowrap" title="Nhận biết">N.Biết (%)</th>
                             <th className="px-2 py-2 border-b text-center text-blue-500 whitespace-nowrap text-xs">Câu</th>
-                            <th className="px-3 py-2 border-b text-center text-orange-700 whitespace-nowrap" title="Thông hiểu">T.Hiểu (%)</th>
+                            <th className="px-3 py-2 border-b text-center text-orange-700 whitespace-nowrap" title="Kết nối">Kết nối (%)</th>
                             <th className="px-2 py-2 border-b text-center text-orange-500 whitespace-nowrap text-xs">Câu</th>
                             <th className="px-3 py-2 border-b text-center text-red-700 whitespace-nowrap" title="Vận dụng">V.Dụng (%)</th>
                             <th className="px-2 py-2 border-b text-center text-red-500 whitespace-nowrap text-xs">Câu</th>
