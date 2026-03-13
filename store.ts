@@ -457,6 +457,7 @@ export const useStore = create<AppState>((set, get) => ({
       createdAt: exam.createdAt,
       status: exam.status,
       classId: exam.classId,
+      description: (exam as any).description,
       questions: exam.questions,
       deletedAt: exam.deletedAt
     };
@@ -477,6 +478,7 @@ export const useStore = create<AppState>((set, get) => ({
       questionCount: updatedExam.questionCount,
       status: updatedExam.status,
       classId: updatedExam.classId,
+      description: (updatedExam as any).description,
       questions: updatedExam.questions,
       deletedAt: updatedExam.deletedAt
     };
