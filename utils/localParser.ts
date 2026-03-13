@@ -26,7 +26,7 @@ const SOLUTION_REGEX = /(?:Lời\s*giải(?:\s*chi\s*tiết)?|Giải\s*thích|H�
 const HINT_REGEX = /(?:Gợi\s*ý(?:\s*\([^)]*\))?|Hint)\s*[:.]?\s*([\s\S]*?)$/i;
 
 // Regex for difficulty level
-const LEVEL_REGEX = /(?:Mức\s*độ|Độ\s*khó)\s*[:.]?\s*(Nhận\s*biết|Thông\s*hiểu|Vận\s*dụng(?: cao)?|NB|TH|VD(?:C)?)/i;
+const LEVEL_REGEX = /(?:Mức\s*độ|Độ\s*khó)\s*[:.]?\s*(Nhận\s*biết|Kết\s*nối|Thông\s*hiểu|Vận\s*dụng(?: cao)?|NB|KN|TH|VD(?:C)?)/i;
 
 /**
  * Parse questions from raw text using regex (no AI needed).
@@ -149,7 +149,7 @@ function parseOneBlock(block: string, index: number): Question | null {
         if (levelMatch && !parsedLevel) {
             const rawLevel = levelMatch[1].toLowerCase().replace(/\s+/g, '');
             if (rawLevel.includes('nhậnbiết') || rawLevel === 'nb') parsedLevel = 'NHAN_BIET';
-            else if (rawLevel.includes('thônghiểu') || rawLevel === 'th') parsedLevel = 'THONG_HIEU';
+            else if (rawLevel.includes('thônghiểu') || rawLevel.includes('kếtnối') || rawLevel === 'th' || rawLevel === 'kn') parsedLevel = 'THONG_HIEU';
             else if (rawLevel.includes('vậndụng') || rawLevel.includes('vd')) parsedLevel = 'VAN_DUNG';
             continue;
         }
