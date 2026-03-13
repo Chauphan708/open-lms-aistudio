@@ -80,6 +80,26 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                                 </div>
                             )}
 
+                            {/* Options if MATCHING */}
+                            {q.type === 'MATCHING' && q.options && q.options.length > 0 && (
+                                <div className="space-y-2 ml-4 mt-2 mb-4">
+                                    {q.options.map((opt, oIdx) => {
+                                        const [left, right] = opt.split('|||');
+                                        return (
+                                            <div key={oIdx} className="flex gap-4 items-center break-inside-avoid text-gray-800">
+                                                <div className="flex-1 p-2 border border-gray-300 rounded text-center">
+                                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{left?.trim() || ''}</ReactMarkdown>
+                                                </div>
+                                                <div className="font-bold">... nối với ...</div>
+                                                <div className="flex-1 p-2 border border-gray-300 rounded text-center">
+                                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{right?.trim() || ''}</ReactMarkdown>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
                             {/* Essay spacing */}
                             {(q.type === 'SHORT_ANSWER' || isEssayOnly) && (
                                 <div className="h-32 border-b border-dotted border-gray-400 mt-4"></div>

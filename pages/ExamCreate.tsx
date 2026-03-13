@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { parseQuestionsFromText, generateQuestionsByTopic } from '../services/geminiService';
 import { parseQuestionsLocal } from '../utils/localParser';
 import { Question, QuestionType, ExamDifficulty } from '../types';
-import { Wand2, Save, Trash2, Plus, AlertCircle, FilePlus, BrainCircuit, FileText, Settings, Sparkles, Users, MessageSquarePlus, Edit2, X, GraduationCap, BarChart3, Image as ImageIcon, Lightbulb, Printer, ChevronDown } from 'lucide-react';
+import { Wand2, Save, Trash2, Plus, AlertCircle, FilePlus, BrainCircuit, FileText, Settings, Sparkles, Users, MessageSquarePlus, Edit2, X, GraduationCap, BarChart3, Image as ImageIcon, Lightbulb, Printer, ChevronDown, ArrowRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -765,7 +765,33 @@ export const ExamCreate: React.FC = () => {
                         </div>
                       )}
 
-                      {['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type) && (
+                      {q.type === 'MATCHING' && (
+                        <div className="mt-3 space-y-2">
+                          {q.options.map((opt, i) => {
+                            const [left, right] = opt.split('|||');
+                            return (
+                                <div key={i} className="p-2.5 rounded-lg border bg-blue-50/30 border-blue-100 text-sm flex items-center gap-3">
+                                  <span className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded bg-blue-100 text-blue-700 text-xs font-bold">
+                                    {i + 1}
+                                  </span>
+                                  <div className="flex-1 flex items-center gap-4">
+                                    <div className="flex-1 text-gray-800">
+                                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{left?.trim() || ''}</ReactMarkdown>
+                                    </div>
+                                    <div className="text-blue-400">
+                                        <ArrowRight className="h-4 w-4" />
+                                    </div>
+                                    <div className="flex-1 text-gray-800">
+                                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{right?.trim() || ''}</ReactMarkdown>
+                                    </div>
+                                  </div>
+                                </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {['ORDERING', 'DRAG_DROP'].includes(q.type) && (
                         <div className="mt-3 space-y-2">
                           {q.options.map((opt, i) => (
                             <div key={i} className="p-2.5 rounded-lg border bg-gray-50 border-gray-200 text-sm flex items-center gap-3">
