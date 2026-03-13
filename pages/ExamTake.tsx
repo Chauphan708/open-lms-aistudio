@@ -1143,16 +1143,34 @@ export const ExamTake: React.FC = () => {
 
     // Calculate Score
     let correctCount = 0;
-    exam.questions.forEach(q => {
+    exam.questions.forEach((q, idx) => {
       const userAns = answers[q.id];
+      console.log(`DEBUG: Scoring Question ${idx + 1} (${q.type}):`, {
+         questionId: q.id,
+         userAnswer: userAns,
+         correctOption: q.correctOptionIndex,
+         solution: q.solution,
+         options: q.options
+      });
+
       if (q.type === 'MCQ') {
-        if (userAns === q.correctOptionIndex) correctCount++;
+        if (userAns === q.correctOptionIndex) {
+           correctCount++;
+           console.log(`DEBUG: Q${idx + 1} CORRECT`);
+        } else {
+           console.log(`DEBUG: Q${idx + 1} INCORRECT`);
+        }
       } else if (q.type === 'SHORT_ANSWER') {
         const sAns = String(userAns || '').trim().toLowerCase();
         const isCorrect = q.options && q.options.length > 0
           ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
           : sAns === String(q.solution || '').trim().toLowerCase();
-        if (isCorrect) correctCount++;
+        if (isCorrect) {
+           correctCount++;
+           console.log(`DEBUG: Q${idx + 1} CORRECT`);
+        } else {
+           console.log(`DEBUG: Q${idx + 1} INCORRECT`);
+        }
       } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
         if (Array.isArray(userAns) && userAns.length === q.options.length) {
           let isAllCorrect = true;
@@ -1162,7 +1180,14 @@ export const ExamTake: React.FC = () => {
               break;
             }
           }
-          if (isAllCorrect) correctCount++;
+          if (isAllCorrect) {
+             correctCount++;
+             console.log(`DEBUG: Q${idx + 1} CORRECT`);
+          } else {
+             console.log(`DEBUG: Q${idx + 1} INCORRECT`);
+          }
+        } else {
+           console.log(`DEBUG: Q${idx + 1} INCORRECT (Format mismatch or empty)`);
         }
       }
     });
