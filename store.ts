@@ -656,29 +656,50 @@ export const useStore = create<AppState>((set, get) => ({
     const payload = {
       id: attempt.id,
       examId: attempt.examId,
-      assignmentId: attempt.assignmentId,
+      assignmentId: attempt.assignmentId || null,
       studentId: attempt.studentId,
       answers: attempt.answers,
       score: attempt.score,
       submittedAt: attempt.submittedAt,
-      teacherFeedback: attempt.teacherFeedback,
-      feedbackAllowViewSolution: attempt.feedbackAllowViewSolution,
-      totalTimeSpentSec: attempt.totalTimeSpentSec,
-      timeSpentPerQuestion: attempt.timeSpentPerQuestion,
-      cheatWarnings: attempt.cheatWarnings
+      teacherFeedback: attempt.teacherFeedback || null,
+      feedbackAllowViewSolution: attempt.feedbackAllowViewSolution || null,
+      totalTimeSpentSec: attempt.totalTimeSpentSec || null,
+      timeSpentPerQuestion: attempt.timeSpentPerQuestion || null,
+      cheatWarnings: attempt.cheatWarnings || null
     };
 
     let { error } = await supabase.from('attempts').insert(payload);
+    
     if (error) {
+      console.error("DEBUG: addAttempt Supabase error details:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        payload
+      });
+
       // Fallback: try inserting without the new columns (compatibility with old schema)
       const fallbackPayload: any = { ...payload };
       delete fallbackPayload.totalTimeSpentSec;
       delete fallbackPayload.timeSpentPerQuestion;
       delete fallbackPayload.cheatWarnings;
+      
       const { error: err2 } = await supabase.from('attempts').insert(fallbackPayload);
-      if (!err2) error = null;
+      if (!err2) {
+        error = null;
+      } else {
+        console.error("DEBUG: addAttempt Fallback error:", err2);
+        alert(`❌ LỖI NỘP BÀI: ${err2.message}\n\nVui lòng CHỤP ẢNH MÀN HÌNH kết quả này và gửi cho giáo viên ngay để được ghi nhận điểm!`);
+        return false;
+      }
     }
-    if (!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
+
+    if (!error) {
+      set((state) => ({ attempts: [...state.attempts, attempt] }));
+      return true;
+    }
+    return false;
   },
   updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
     const { error } = await supabase.from('attempts').update({

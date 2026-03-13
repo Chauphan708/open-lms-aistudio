@@ -4,6 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { ArenaQuestion, ArenaMatchFilters } from '../../types';
 import { ArrowLeft, Heart, HeartOff, Star, Zap, GraduationCap, CheckCircle, XCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+const MathText: React.FC<{ children: string; className?: string }> = ({ children, className }) => (
+    <span className={className}>
+        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}
+            components={{ p: ({ children }) => <span>{children}</span> }}>
+            {children}
+        </ReactMarkdown>
+    </span>
+);
 
 const TOWER_FLOORS = [
     { range: [1, 5], name: 'Sân Trường', emoji: '🏫', color: '#10b981' },
@@ -310,7 +322,9 @@ export const TowerMode: React.FC = () => {
                                 {currentQ.difficulty === 1 ? 'Dễ' : currentQ.difficulty === 2 ? 'TB' : 'Khó'}
                             </span>
                         </div>
-                        <h2 className="text-lg font-bold text-gray-900 mt-3 leading-relaxed">{currentQ.content}</h2>
+                        <div className="text-lg font-bold text-gray-900 mt-3 leading-relaxed">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{currentQ.content}</ReactMarkdown>
+                        </div>
                     </div>
 
                     {/* Answers */}
@@ -329,7 +343,7 @@ export const TowerMode: React.FC = () => {
                                     <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${showResult && idx === currentQ.correct_index ? 'bg-emerald-500 text-white' : showResult && idx === selected && !isCorrect ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
                                         {showResult && idx === currentQ.correct_index ? <CheckCircle className="h-4 w-4" /> : showResult && idx === selected && !isCorrect ? <XCircle className="h-4 w-4" /> : String.fromCharCode(65 + idx)}
                                     </span>
-                                    <span>{answer}</span>
+                                    <MathText>{answer}</MathText>
                                 </button>
                             );
                         })}

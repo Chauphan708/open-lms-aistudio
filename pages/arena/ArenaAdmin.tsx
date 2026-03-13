@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { ArenaQuestion } from '../../types';
@@ -21,7 +21,7 @@ const DIFFICULTIES = [
 ];
 
 export const ArenaAdmin: React.FC = () => {
-    const { arenaQuestions, arenaQuestionsHasMore, fetchArenaQuestions, loadMoreArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkDeleteArenaQuestions, bulkAddArenaQuestions, questionBank } = useStore();
+    const { arenaQuestions, arenaQuestionsHasMore, fetchArenaQuestions, loadMoreArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkDeleteArenaQuestions, bulkAddArenaQuestions, questionBank, exams } = useStore();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
@@ -72,11 +72,38 @@ export const ArenaAdmin: React.FC = () => {
         (!filterDifficulty || q.difficulty === filterDifficulty)
     );
 
-    // Ngân hàng đề: lọc MCQ có đủ 4 options
-    const bankMCQs = questionBank.filter(q =>
-        q.type === 'MCQ' && q.options && q.options.length === 4 && q.correctOptionIndex !== undefined &&
-        (!bankFilterSubject || q.subject === bankFilterSubject)
-    );
+    // Ngân hàng đề: gộp MCQ từ cả questionBank VÀ exams
+    const bankMCQs = useMemo(() => {
+        // Nguồn 1: từ bảng question_bank
+        const fromBank = questionBank.filter(q =>
+            q.type === 'MCQ' && q.options && q.options.length === 4 && q.correctOptionIndex !== undefined
+        ).map(q => ({ ...q, _source: 'bank' as const }));
+
+        // Nguồn 2: từ các bài tập (exams) - trích xuất câu hỏi MCQ
+        const fromExams: (typeof fromBank[number])[] = [];
+        const seenIds = new Set(fromBank.map(q => q.id));
+        for (const exam of exams) {
+            if (exam.deletedAt || !exam.questions) continue;
+            for (const q of exam.questions) {
+                if (q.type === 'MCQ' && q.options && q.options.length === 4 && q.correctOptionIndex !== undefined && !seenIds.has(q.id)) {
+                    seenIds.add(q.id);
+                    fromExams.push({
+                        ...q,
+                        subject: exam.subject || '',
+                        grade: exam.grade || '',
+                        _source: 'bank' as const,
+                    } as any);
+                }
+            }
+        }
+
+        const all = [...fromBank, ...fromExams];
+        // Lọc theo môn nếu có
+        if (bankFilterSubject) {
+            return all.filter(q => q.subject === bankFilterSubject);
+        }
+        return all;
+    }, [questionBank, exams, bankFilterSubject]);
 
     const subjectMap: Record<string, string> = {
         'Toán': 'math', 'Khoa học': 'science', 'Công nghệ': 'technology',

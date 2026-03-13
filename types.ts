@@ -404,7 +404,7 @@ export interface AppState {
   updateAssignment: (updated: Assignment) => Promise<boolean>;
 
   attempts: Attempt[];
-  addAttempt: (attempt: Attempt) => void;
+  addAttempt: (attempt: Attempt) => Promise<boolean>;
   updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void;
 
   notifications: Notification[];

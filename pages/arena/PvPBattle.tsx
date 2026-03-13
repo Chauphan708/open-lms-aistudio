@@ -4,7 +4,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { supabase } from '../../services/supabaseClient';
 import { ArenaQuestion, ArenaMatch } from '../../types';
-import { Brain, Clock, Zap, BookOpen, CheckCircle, XCircle } from 'lucide-react';
+import { Brain, Clock, Zap, BookOpen, CheckCircle, XCircle, Shield, Wand2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+const MathText: React.FC<{ children: string; className?: string }> = ({ children, className }) => (
+    <span className={className}>
+        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}
+            components={{ p: ({ children }) => <span>{children}</span> }}>
+            {children}
+        </ReactMarkdown>
+    </span>
+);
 
 const AVATAR_EMOJIS: Record<string, string> = {
     scholar: '📖', scientist: '🔬', artist: '🎨', explorer: '🌍'
@@ -43,6 +55,15 @@ export const PvPBattle: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [answeredThisQ, setAnsweredThisQ] = useState(false);
     const [battleLore] = useState(() => BATTLE_LORE[Math.floor(Math.random() * BATTLE_LORE.length)]);
+
+    // Combat Mechanics
+    const [streak, setStreak] = useState(0);
+    const [streakLabel, setStreakLabel] = useState('');
+    const [speedLabel, setSpeedLabel] = useState('');
+    const [skillUsed, setSkillUsed] = useState(false);
+    const [shieldActive, setShieldActive] = useState(false);
+    const [hiddenAnswers, setHiddenAnswers] = useState<Set<number>>(new Set());
+    const [skillAnim, setSkillAnim] = useState('');
 
     const channelRef = useRef<any>(null);
     const isPlayer1 = useRef(false);
@@ -148,6 +169,7 @@ export const PvPBattle: React.FC = () => {
     const handleTimeout = async () => {
         if (answeredThisQ || !matchId || !user) return;
         setAnsweredThisQ(true);
+        setStreak(0); setStreakLabel(''); setSpeedLabel('');
         await submitArenaAnswer(matchId, user.id, currentQIdx, -1, TIME_PER_QUESTION, false);
         advanceQuestion();
     };
@@ -162,10 +184,32 @@ export const PvPBattle: React.FC = () => {
         setShowResult(true);
 
         const timeTaken = TIME_PER_QUESTION - timer;
-        const damage = correct ? 20 + Math.max(0, Math.round((TIME_PER_QUESTION - timeTaken) * 0.7)) : 0;
-        setLastDamage(damage);
 
-        if (correct && damage > 0) {
+        if (correct) {
+            // Update streak
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+
+            // Base damage
+            let baseDmg = 20;
+
+            // Speed Bonus
+            let speedMult = 1;
+            if (timeTaken <= 3) { speedMult = 2.0; setSpeedLabel('⚡ Tia Chớp! x2'); }
+            else if (timeTaken <= 5) { speedMult = 1.5; setSpeedLabel('🏃 Nhanh Trí! x1.5'); }
+            else if (timeTaken > 10) { speedMult = 0.8; setSpeedLabel('🐢 Chậm -20%'); }
+            else { setSpeedLabel(''); }
+
+            // Streak Combo
+            let streakMult = 1;
+            if (newStreak >= 4) { streakMult = 3; setStreakLabel('⚡ ULTIMATE x3!'); }
+            else if (newStreak >= 3) { streakMult = 2; setStreakLabel('🔥🔥 Combo x2'); }
+            else if (newStreak >= 2) { streakMult = 1.5; setStreakLabel('🔥 Combo x1.5'); }
+            else { setStreakLabel(''); }
+
+            const damage = Math.round(baseDmg * speedMult * streakMult);
+            setLastDamage(damage);
+
             setOpHp(prev => Math.max(0, prev - damage));
             setOpDamageAnim(true);
             setTimeout(() => setOpDamageAnim(false), 600);
@@ -177,19 +221,27 @@ export const PvPBattle: React.FC = () => {
                     payload: { targetId, amount: damage }
                 });
             }
-        }
 
-        await submitArenaAnswer(matchId, user.id, currentQIdx, idx, timeTaken, correct);
-
-        if (correct) {
             const newOpHp = Math.max(0, (isPlayer1.current ? (match?.player2_hp || 100) : (match?.player1_hp || 100)) - damage);
             if (isPlayer1.current) {
                 await updateMatchHp(matchId, myHp, newOpHp);
             } else {
                 await updateMatchHp(matchId, newOpHp, myHp);
             }
+        } else {
+            // Wrong answer
+            setStreak(0);
+            setStreakLabel('');
+            setSpeedLabel('');
+            setLastDamage(0);
+
+            // Shield (Artist skill) protects from opponent damage effect
+            if (shieldActive) {
+                setShieldActive(false);
+            }
         }
 
+        await submitArenaAnswer(matchId, user.id, currentQIdx, idx, timeTaken, correct);
         setTimeout(() => advanceQuestion(), 1500);
     };
 
@@ -203,9 +255,58 @@ export const PvPBattle: React.FC = () => {
             setShowResult(false);
             setTimer(TIME_PER_QUESTION);
             setAnsweredThisQ(false);
+            setHiddenAnswers(new Set());
             timerStartRef.current = Date.now();
         }
     };
+
+    // ====== SKILL SYSTEM ======
+    const getSkillInfo = () => {
+        const cls = arenaProfile?.avatar_class || 'scholar';
+        switch (cls) {
+            case 'scholar': return { name: '50/50', emoji: '📖', desc: 'Loại 2 đáp án sai', color: 'bg-indigo-500' };
+            case 'scientist': return { name: '+5 Giây', emoji: '🔬', desc: 'Thêm 5 giây', color: 'bg-purple-500' };
+            case 'artist': return { name: 'Lá Chắn', emoji: '🎨', desc: 'Sai không mất HP', color: 'bg-emerald-500' };
+            case 'explorer': return { name: 'Hồi HP', emoji: '🌍', desc: 'Hồi 15 HP', color: 'bg-amber-500' };
+            default: return { name: 'Skill', emoji: '✨', desc: '', color: 'bg-gray-500' };
+        }
+    };
+
+    const handleUseSkill = () => {
+        if (skillUsed || showResult || !currentQuestion) return;
+        setSkillUsed(true);
+        setSkillAnim('skill-activate');
+        setTimeout(() => setSkillAnim(''), 1000);
+
+        const cls = arenaProfile?.avatar_class || 'scholar';
+        switch (cls) {
+            case 'scholar': {
+                // 50/50: hide 2 wrong answers
+                const correctIdx = currentQuestion.correct_index;
+                const wrongIdxs = [0, 1, 2, 3].filter(i => i !== correctIdx);
+                const shuffled = wrongIdxs.sort(() => Math.random() - 0.5);
+                setHiddenAnswers(new Set([shuffled[0], shuffled[1]]));
+                break;
+            }
+            case 'scientist': {
+                // +5s
+                setTimer(prev => prev + 5);
+                break;
+            }
+            case 'artist': {
+                // Shield
+                setShieldActive(true);
+                break;
+            }
+            case 'explorer': {
+                // Heal 15 HP
+                setMyHp(prev => Math.min(100, prev + 15));
+                break;
+            }
+        }
+    };
+
+    const skillInfo = getSkillInfo();
 
     const endMatch = async () => {
         if (!matchId || !user || !match) return;
@@ -248,6 +349,8 @@ export const PvPBattle: React.FC = () => {
         @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes hp-glow { 0%, 100% { box-shadow: 0 0 5px rgba(239,68,68,0.3); } 50% { box-shadow: 0 0 15px rgba(239,68,68,0.6); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes skill-activate { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139,92,246,0.7); } 50% { transform: scale(1.1); box-shadow: 0 0 20px 10px rgba(139,92,246,0); } 100% { transform: scale(1); } }
+        @keyframes streak-fire { 0% { text-shadow: 0 0 5px #f59e0b; } 50% { text-shadow: 0 0 20px #ef4444, 0 0 40px #f59e0b; } 100% { text-shadow: 0 0 5px #f59e0b; } }
       `}</style>
 
             {/* Lore Banner */}
@@ -286,6 +389,12 @@ export const PvPBattle: React.FC = () => {
                         {timer}s
                     </div>
                     <p className="text-xs text-gray-400 mt-2">Câu {currentQIdx + 1}/{Math.min(QUESTIONS_PER_MATCH, questions.length)}</p>
+                    {/* Streak indicator */}
+                    {streak >= 2 && (
+                        <div className="mt-1 text-xs font-black" style={{ animation: 'streak-fire 1s ease-in-out infinite', color: streak >= 4 ? '#ef4444' : '#f59e0b' }}>
+                            {streak >= 4 ? '⚡ ULTIMATE' : streak >= 3 ? '🔥🔥 x2' : '🔥 x1.5'}
+                        </div>
+                    )}
                 </div>
 
                 {/* Opponent Avatar */}
@@ -325,6 +434,25 @@ export const PvPBattle: React.FC = () => {
                 </div>
             )}
 
+            {/* Skill Button */}
+            {currentQuestion && !finished && (
+                <div className="flex items-center justify-center gap-3 mb-4" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                    <button
+                        onClick={handleUseSkill}
+                        disabled={skillUsed || showResult}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${skillUsed ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${skillInfo.color} text-white hover:shadow-lg hover:scale-105 active:scale-95`}`}
+                        style={skillAnim ? { animation: 'skill-activate 0.5s ease-out' } : {}}
+                    >
+                        <Wand2 className="h-4 w-4" />
+                        {skillInfo.emoji} {skillInfo.name}
+                        {!skillUsed && <span className="text-xs opacity-75">({skillInfo.desc})</span>}
+                        {skillUsed && <span className="text-xs">Đã dùng</span>}
+                    </button>
+                    {shieldActive && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">🛡️ Lá Chắn ON</span>}
+                    {streakLabel && <span className="text-xs font-black" style={{ animation: 'streak-fire 1s ease-in-out infinite', color: streak >= 4 ? '#ef4444' : '#f59e0b' }}>{streakLabel}</span>}
+                </div>
+            )}
+
             {/* Question */}
             {currentQuestion && (
                 <>
@@ -334,32 +462,45 @@ export const PvPBattle: React.FC = () => {
                                 {currentQuestion.subject === 'math' ? '📐 Toán' : currentQuestion.subject === 'science' ? '🔬 Khoa học' : currentQuestion.subject === 'technology' ? '💻 Công nghệ' : '📋 ' + currentQuestion.subject}
                             </span>
                         </div>
-                        <h2 className="text-lg font-bold text-gray-900 leading-relaxed">{currentQuestion.content}</h2>
+                        <div className="text-lg font-bold text-gray-900 leading-relaxed">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{currentQuestion.content}</ReactMarkdown>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         {currentQuestion.answers.map((answer, idx) => {
+                            const isHidden = hiddenAnswers.has(idx);
                             let btnClass = 'bg-white border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 text-gray-700';
-                            if (showResult) {
+                            if (isHidden) btnClass = 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed';
+                            else if (showResult) {
                                 if (idx === currentQuestion.correct_index) btnClass = 'bg-emerald-50 border-emerald-500 text-emerald-700';
                                 else if (idx === selected && !isCorrect) btnClass = 'bg-red-50 border-red-500 text-red-700';
                                 else btnClass = 'bg-gray-50 border-gray-200 text-gray-400';
                             }
                             const colors = ['bg-blue-500', 'bg-orange-500', 'bg-green-500', 'bg-purple-500'];
                             return (
-                                <button key={idx} onClick={() => handleAnswer(idx)} disabled={showResult || answeredThisQ}
-                                    className={`p-4 rounded-xl border-2 text-left font-medium transition-all duration-200 ${btnClass} ${!showResult && !answeredThisQ ? 'hover:shadow-md active:scale-95' : ''}`}
-                                    style={{ animation: `fadeIn 0.3s ease-out ${idx * 0.05}s both` }}>
+                                <button key={idx} onClick={() => !isHidden && handleAnswer(idx)} disabled={showResult || answeredThisQ || isHidden}
+                                    className={`p-4 rounded-xl border-2 text-left font-medium transition-all duration-200 ${btnClass} ${!showResult && !answeredThisQ && !isHidden ? 'hover:shadow-md active:scale-95' : ''}`}
+                                    style={{ animation: `fadeIn 0.3s ease-out ${idx * 0.05}s both`, opacity: isHidden ? 0.4 : 1 }}>
                                     <div className="flex items-start gap-2">
-                                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${showResult && idx === currentQuestion.correct_index ? 'bg-emerald-500' : showResult && idx === selected && !isCorrect ? 'bg-red-500' : colors[idx]}`}>
-                                            {showResult && idx === currentQuestion.correct_index ? '✓' : showResult && idx === selected && !isCorrect ? '✗' : String.fromCharCode(65 + idx)}
+                                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${showResult && idx === currentQuestion.correct_index ? 'bg-emerald-500' : showResult && idx === selected && !isCorrect ? 'bg-red-500' : isHidden ? 'bg-gray-300' : colors[idx]}`}>
+                                            {isHidden ? '✗' : showResult && idx === currentQuestion.correct_index ? '✓' : showResult && idx === selected && !isCorrect ? '✗' : String.fromCharCode(65 + idx)}
                                         </span>
-                                        <span className="text-sm leading-relaxed">{answer}</span>
+                                        <span className="text-sm leading-relaxed">{isHidden ? <span className="line-through">Đã loại</span> : <MathText>{answer}</MathText>}</span>
                                     </div>
                                 </button>
                             );
                         })}
                     </div>
+
+                    {/* Damage / Speed feedback */}
+                    {showResult && isCorrect && (speedLabel || streakLabel) && (
+                        <div className="mt-3 flex items-center justify-center gap-3" style={{ animation: 'pop 0.3s ease-out' }}>
+                            {speedLabel && <span className="text-sm font-bold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full">{speedLabel}</span>}
+                            {streakLabel && <span className="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">{streakLabel}</span>}
+                            <span className="text-sm font-black text-red-500">-{lastDamage} HP!</span>
+                        </div>
+                    )}
                 </>
             )}
         </div>

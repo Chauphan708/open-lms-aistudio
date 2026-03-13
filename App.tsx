@@ -41,6 +41,8 @@ import { PvPBattle } from './pages/arena/PvPBattle';
 import { MatchResult } from './pages/arena/MatchResult';
 import { Leaderboard } from './pages/arena/Leaderboard';
 import { ArenaAdmin } from './pages/arena/ArenaAdmin';
+import { TournamentHost } from './pages/arena/TournamentHost';
+import { TournamentLobby } from './pages/arena/TournamentLobby';
 
 // Tools
 import { CountdownTimer } from './pages/tools/CountdownTimer';
@@ -375,6 +377,23 @@ function App() {
         <Route path="/arena/admin" element={
           <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
             <ArenaAdmin />
+          </ProtectedRoute>
+        } />
+
+        {/* TOURNAMENT ROUTES */}
+        <Route path="/arena/tournament/host" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <TournamentHost />
+          </ProtectedRoute>
+        } />
+        <Route path="/arena/tournament/host/:id" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <TournamentHost />
+          </ProtectedRoute>
+        } />
+        <Route path="/arena/tournament/:id" element={
+          <ProtectedRoute roles={['STUDENT']}>
+            <TournamentLobby />
           </ProtectedRoute>
         } />
 

@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
-  const { classes, user, addAssignment } = useStore();
+  const { classes, users, user, addAssignment } = useStore();
 
   // Form State
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -32,16 +32,18 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
       setViewPassFail(true);
       setViewSolution(true);
       setViewHint(true);
-      setMaxAttempts(1);
+      setMaxAttempts(10);
+      setSelectedStudentIds([]); // Reset student selection
     }
   }, [isOpen, exam]);
 
   // Settings
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [viewScore, setViewScore] = useState(true);
   const [viewPassFail, setViewPassFail] = useState(true);
   const [viewSolution, setViewSolution] = useState(true);
   const [viewHint, setViewHint] = useState(true); // New Hint Setting
-  const [maxAttempts, setMaxAttempts] = useState(1); // Default 1 attempt
+  const [maxAttempts, setMaxAttempts] = useState(10); // Default 10 attempts
 
   // Security Settings
   const [mode, setMode] = useState<'practice' | 'exam'>('practice');
@@ -80,6 +82,7 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
       startTime: startTime ? new Date(startTime).toISOString() : undefined,
       endTime: endTime ? new Date(endTime).toISOString() : undefined,
       durationMinutes: duration,
+      studentIds: selectedStudentIds.length > 0 ? selectedStudentIds : undefined,
       mode: mode,
       settings: {
         viewScore,
@@ -99,15 +102,6 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
     const link = `${window.location.origin}/exam/${exam.id}/take?assign=${newAssignment.id}`;
     setSuccessLink(link);
   };
-
-  const attemptOptions = [
-    { label: '1 lần', value: 1 },
-    { label: '2 lần', value: 2 },
-    { label: '3 lần', value: 3 },
-    { label: '5 lần', value: 5 },
-    { label: '10 lần', value: 10 },
-    { label: 'Không giới hạn', value: 0 },
-  ];
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -162,6 +156,63 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+
+              {/* Student Selection (Appears only when a class is selected) */}
+              {selectedClassId && (
+                <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-bold text-gray-800">Chọn học sinh (Tùy chọn)</label>
+                    <button 
+                      onClick={() => {
+                        const cls = classes.find(c => c.id === selectedClassId);
+                        if (cls && selectedStudentIds.length === cls.studentIds.length) {
+                          setSelectedStudentIds([]); // Deselect all
+                        } else if (cls) {
+                          setSelectedStudentIds(cls.studentIds); // Select all
+                        }
+                      }}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                    >
+                      {classes.find(c => c.id === selectedClassId)?.studentIds.length === selectedStudentIds.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                    </button>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {classes.find(c => c.id === selectedClassId)?.studentIds.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic">Lớp học này chưa có học sinh nào.</p>
+                    ) : (
+                      classes.find(c => c.id === selectedClassId)?.studentIds.map(sid => {
+                        const studentUser = users.find(u => u.id === sid);
+                        const isChecked = selectedStudentIds.includes(sid);
+                        
+                        return (
+                          <label key={sid} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-100 rounded-md transition-colors">
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedStudentIds(prev => [...prev, sid]);
+                                } else {
+                                  setSelectedStudentIds(prev => prev.filter(id => id !== sid));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+                            />
+                            <div className="flex items-center gap-2">
+                              {studentUser?.avatar && <img src={studentUser.avatar} alt="" className="w-6 h-6 rounded-full border border-gray-200" />}
+                              <span className="text-sm font-medium text-gray-700">{studentUser?.name || 'Học sinh ẩn danh'}</span>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-center bg-white py-1 rounded border border-gray-100">
+                    <Lightbulb className="inline-block w-3 h-3 text-orange-500 mr-1" />
+                    <strong>Ghi chú:</strong> Nếu không chọn ai, hệ thống sẽ tự động giao cho <strong>toàn bộ lớp học</strong>.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Chế độ Giao bài (Mode) */}
@@ -238,15 +289,18 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                 <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
                   <Repeat className="h-4 w-4 text-indigo-600" /> Số lần làm bài
                 </label>
-                <select
-                  value={maxAttempts}
-                  onChange={e => setMaxAttempts(Number(e.target.value))}
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0 = Không giới hạn"
+                  title="Nhập 0 để cho phép làm không giới hạn"
                   className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 outline-none focus:border-indigo-500"
-                >
-                  {attemptOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  value={maxAttempts}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    if (val >= 0) setMaxAttempts(val);
+                  }}
+                />
               </div>
             </div>
 

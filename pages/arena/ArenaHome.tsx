@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { AvatarClass } from '../../types';
-import { Brain, Trophy, GraduationCap, BookOpen, Sparkles, Target, Heart, ArrowLeft, Star, Zap } from 'lucide-react';
+import { Brain, Trophy, GraduationCap, BookOpen, Sparkles, Target, Heart, ArrowLeft, Star, Zap, HelpCircle, X } from 'lucide-react';
 
 const AVATAR_CLASSES: { id: AvatarClass; name: string; icon: any; color: string; desc: string; emoji: string; lore: string }[] = [
     { id: 'scholar', name: 'Nhà Thông Thái', icon: BookOpen, color: '#6366f1', desc: 'Trí tuệ uyên bác', emoji: '📖', lore: '"Đọc vạn quyển sách, hiểu vạn lẽ đời"' },
@@ -18,6 +18,7 @@ export const ArenaHome: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [selecting, setSelecting] = useState(false);
     const [selectedClass, setSelectedClass] = useState<AvatarClass | null>(null);
+    const [showHelp, setShowHelp] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -136,6 +137,11 @@ export const ArenaHome: React.FC = () => {
                     backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.2) 0%, transparent 40%)'
                 }}></div>
 
+                {/* Help button */}
+                <button onClick={() => setShowHelp(true)} className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-all" title="Hướng dẫn">
+                    <HelpCircle className="h-5 w-5 text-white/80" />
+                </button>
+
                 <div className="relative flex items-center gap-6">
                     <div
                         className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-lg"
@@ -220,6 +226,119 @@ export const ArenaHome: React.FC = () => {
                     </div>
                 </button>
             </div>
+
+            {/* Help Modal */}
+            {showHelp && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowHelp(false)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                        <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-2xl">
+                            <h3 className="font-bold text-lg flex items-center gap-2"><HelpCircle className="h-5 w-5 text-purple-500" /> Hướng dẫn Đấu Trí</h3>
+                            <button onClick={() => setShowHelp(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {/* Elo */}
+                            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Trophy className="h-5 w-5 text-yellow-500" />
+                                    <h4 className="font-bold text-gray-900">Elo — Điểm Xếp Hạng</h4>
+                                </div>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                    <li>• Bắt đầu với <strong className="text-yellow-600">1000 Elo</strong></li>
+                                    <li>• <span className="text-emerald-600 font-bold">Thắng PvP</span> → Elo tăng · <span className="text-red-500 font-bold">Thua</span> → Elo giảm</li>
+                                    <li className="text-xs text-gray-400 italic">💡 Thắng đối thủ Elo cao hơn → nhận nhiều điểm hơn!</li>
+                                </ul>
+                            </div>
+
+                            {/* XP */}
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Star className="h-5 w-5 text-emerald-500" />
+                                    <h4 className="font-bold text-gray-900">XP — Điểm Kinh Nghiệm</h4>
+                                </div>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                    <li>• Trả lời đúng → +XP · Chỉ <strong>tăng, không giảm</strong></li>
+                                    <li>• Leo Cấp: +10 XP + bonus tầng · PvP: thắng trận → +XP</li>
+                                </ul>
+                            </div>
+
+                            {/* W/L */}
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Zap className="h-5 w-5 text-blue-500" />
+                                    <h4 className="font-bold text-gray-900">W / L — Thắng / Thua</h4>
+                                </div>
+                                <p className="text-sm text-gray-600"><strong className="text-emerald-600">W</strong> = Số trận thắng · <strong className="text-red-500">L</strong> = Số trận thua PvP 1v1</p>
+                            </div>
+
+                            {/* Streak Combo */}
+                            <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-lg">🔥</span>
+                                    <h4 className="font-bold text-gray-900">Streak Combo — Chuỗi đúng</h4>
+                                </div>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                    <li>• 2 câu đúng liên tiếp → 🔥 <strong className="text-orange-600">Combo x1.5</strong> sát thương</li>
+                                    <li>• 3 câu đúng liên tiếp → 🔥🔥 <strong className="text-orange-700">Combo x2</strong></li>
+                                    <li>• 4+ câu đúng liên tiếp → ⚡ <strong className="text-red-600">ULTIMATE x3!</strong></li>
+                                    <li className="text-xs text-gray-400 italic">💡 Tập trung trả lời đúng liên tiếp để gây sát thương khủng!</li>
+                                </ul>
+                            </div>
+
+                            {/* Speed Bonus */}
+                            <div className="bg-cyan-50 border border-cyan-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-lg">⚡</span>
+                                    <h4 className="font-bold text-gray-900">Speed Bonus — Tốc độ</h4>
+                                </div>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                    <li>• Trả lời dưới 3s → ⚡ <strong className="text-cyan-700">"Tia Chớp!" x2.0</strong></li>
+                                    <li>• Trả lời dưới 5s → 🏃 <strong>"Nhanh Trí!" x1.5</strong></li>
+                                    <li>• Trả lời sau 10s → sát thương <strong className="text-red-500">giảm 20%</strong></li>
+                                </ul>
+                            </div>
+
+                            {/* Skill theo vai trò */}
+                            <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-lg">🃏</span>
+                                    <h4 className="font-bold text-gray-900">Kỹ năng đặc biệt (1 lần/trận)</h4>
+                                </div>
+                                <div className="text-sm text-gray-600 space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span>📖</span>
+                                        <span><strong>Nhà Thông Thái</strong> → <span className="text-indigo-600 font-bold">50/50</span>: Loại 2 đáp án sai</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span>🔬</span>
+                                        <span><strong>Nhà Khoa Học</strong> → <span className="text-purple-600 font-bold">+5 giây</span>: Thêm thời gian</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span>🎨</span>
+                                        <span><strong>Nghệ Sĩ</strong> → <span className="text-emerald-600 font-bold">Lá Chắn</span>: Sai không mất HP</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span>🌍</span>
+                                        <span><strong>Nhà Thám Hiểm</strong> → <span className="text-amber-600 font-bold">Hồi HP</span>: Hồi 15 HP</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Game Modes */}
+                            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Brain className="h-5 w-5 text-purple-500" />
+                                    <h4 className="font-bold text-gray-900">Các chế độ chơi</h4>
+                                </div>
+                                <div className="text-sm text-gray-600 space-y-1.5">
+                                    <p><strong className="text-indigo-700">🧠 Đấu Trí 1v1</strong> — Thách đấu trực tiếp, gây sát thương bằng trí tuệ!</p>
+                                    <p><strong className="text-amber-700">🎓 Leo Cấp</strong> — 3 mạng ❤️, sai mất mạng, hết mạng quay tầng 1</p>
+                                    <p><strong className="text-emerald-700">🏆 Bảng Xếp Hạng</strong> — Xem top học giả có Elo cao nhất</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
