@@ -265,8 +265,8 @@ export const useStore = create<AppState>((set, get) => ({
 
     // 2. Cascade delete dependent data manually as fallback
     await Promise.all([
-      supabase.from('attempts').delete().eq('student_id', userId),
-      supabase.from('notifications').delete().eq('user_id', userId),
+      supabase.from('attempts').delete().eq('studentId', userId),
+      supabase.from('notifications').delete().eq('userId', userId),
       supabase.from('arena_matches').delete().eq('player1_id', userId),
       supabase.from('arena_matches').delete().eq('player2_id', userId),
       supabase.from('arena_match_events').delete().eq('player_id', userId),
@@ -354,63 +354,81 @@ export const useStore = create<AppState>((set, get) => ({
   // Classes
   classes: [],
   addClass: async (cls) => {
-    const payload = {
-      id: cls.id,
-      name: cls.name,
-      academic_year_id: cls.academicYearId,
-      teacher_id: cls.teacherId,
-      student_ids: cls.studentIds
-    };
-
-    const { error } = await supabase.from('classes').insert(payload);
-    if (error) {
-      console.error("addClass error", error);
-      alert("Lỗi tạo lớp học: " + error.message);
-    } else {
+    // Try camelCase first, but include snake_case fallbacks in one object if DB allows
+    // Actually best to try one, then the other if needed.
+    const { error } = await supabase.from('classes').insert(cls);
+    if (!error) {
       set((state) => ({ classes: [...state.classes, cls] }));
+    } else {
+      console.warn("addClass primary failed, trying secondary", error);
+      const snakeCls = {
+        id: cls.id,
+        name: cls.name,
+        academic_year_id: cls.academicYearId,
+        teacher_id: cls.teacherId,
+        student_ids: cls.studentIds
+      };
+      const { error: error2 } = await supabase.from('classes').insert(snakeCls);
+      if (error2) {
+        console.error("addClass ultimate error", error2);
+        alert("Lỗi tạo lớp học: " + error2.message);
+      } else {
+        set((state) => ({ classes: [...state.classes, cls] }));
+      }
     }
   },
   updateClass: async (updatedClass) => {
-    const payload = {
+    let { error } = await supabase.from('classes').update({
       name: updatedClass.name,
-      academic_year_id: updatedClass.academicYearId,
-      teacher_id: updatedClass.teacherId,
-      student_ids: updatedClass.studentIds
-    };
+      academicYearId: updatedClass.academicYearId,
+      teacherId: updatedClass.teacherId,
+      studentIds: updatedClass.studentIds
+    }).eq('id', updatedClass.id);
 
-    const { error } = await supabase.from('classes').update(payload).eq('id', updatedClass.id);
     if (error) {
-      console.error("updateClass error", error);
-      alert("Lỗi cập nhật lớp học: " + error.message);
-    } else {
+      console.warn("updateClass camelCase failed, trying snake_case", error);
+      const res = await supabase.from('classes').update({
+        name: updatedClass.name,
+        academic_year_id: updatedClass.academicYearId,
+        teacher_id: updatedClass.teacherId,
+        student_ids: updatedClass.studentIds
+      }).eq('id', updatedClass.id);
+      error = res.error;
+    }
+
+    if (!error) {
       set((state) => ({
         classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
       }));
+    } else {
+      console.error("updateClass error", error);
+      alert("Lỗi cập nhật lớp học: " + error.message);
     }
   },
 
   // Exams
   exams: [],
   addExam: async (exam) => {
-    const payload = {
-      id: exam.id,
-      teacher_id: exam.teacherId,
-      title: exam.title,
-      description: exam.description,
-      subject: exam.subject,
-      grade: exam.grade,
-      status: exam.status,
-      question_ids: exam.questionIds,
-      settings: exam.settings,
-      created_at: exam.createdAt,
-      updated_at: exam.updatedAt,
-      deleted_at: exam.deletedAt
-    };
-
-    const { error } = await supabase.from('exams').insert(payload);
+    // Revert to inserting the object directly (camelCase)
+    const { error } = await supabase.from('exams').insert(exam);
     if (error) {
       console.error("addExam Supabase error:", error);
-      alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+      // Try fallback to snake_case just in case
+      const snakeExam = {
+        id: exam.id,
+        title: exam.title,
+        subject: exam.subject,
+        grade: exam.grade,
+        question_count: exam.questionCount,
+        created_at: exam.createdAt,
+        status: exam.status,
+        questions: exam.questions,
+        teacher_id: exam.teacherId
+      };
+      const { error: error2 } = await supabase.from('exams').insert(snakeExam);
+      if (error2) {
+        alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+      }
     }
     set((state) => ({ exams: [exam, ...state.exams] }));
   },
@@ -464,24 +482,27 @@ export const useStore = create<AppState>((set, get) => ({
   // Assignments
   assignments: [],
   addAssignment: async (assign) => {
-    const payload = {
-      id: assign.id,
-      class_id: assign.classId,
-      exam_id: assign.examId,
-      start_time: assign.startTime,
-      end_time: assign.endTime,
-      duration_minutes: assign.durationMinutes,
-      status: assign.status,
-      settings: assign.settings,
-      mode: assign.mode,
-      student_ids: assign.studentIds
-    };
-
-    const { error } = await supabase.from('assignments').insert(payload);
+    // Revert to camelCase keys for assignments
+    const { error } = await supabase.from('assignments').insert(assign);
     if (error) {
       console.error("addAssignment error:", error);
-      alert(`⚠️ Lỗi giao bài tập: ${error.message}`);
-      return;
+      // Fallback try
+      const snakeAssign = {
+        id: assign.id,
+        class_id: assign.classId,
+        exam_id: assign.examId,
+        start_time: assign.startTime,
+        end_time: assign.endTime,
+        duration_minutes: assign.durationMinutes,
+        settings: assign.settings,
+        mode: assign.mode,
+        student_ids: assign.studentIds
+      };
+      const { error: error2 } = await supabase.from('assignments').insert(snakeAssign);
+      if (error2) {
+        alert(`⚠️ Lỗi giao bài tập: ${error.message}`);
+        return;
+      }
     }
 
     set((state) => ({ assignments: [assign, ...state.assignments] }));
@@ -551,26 +572,30 @@ export const useStore = create<AppState>((set, get) => ({
   // Attempts
   attempts: [],
   addAttempt: async (attempt) => {
-    const payload = {
-      id: attempt.id,
-      exam_id: attempt.examId,
-      student_id: attempt.studentId,
-      answers: attempt.answers,
-      score: attempt.score,
-      max_score: attempt.maxScore,
-      submitted_at: attempt.submittedAt,
-      feedback: attempt.feedback,
-      teacher_feedback: attempt.teacherFeedback,
-      feedback_allow_view_solution: attempt.feedbackAllowViewSolution,
-      status: attempt.status,
-      cheat_warnings: attempt.cheatWarnings,
-      total_time_spent_sec: attempt.totalTimeSpentSec,
-      time_spent_per_question: attempt.timeSpentPerQuestion
-    };
-
-    const { error } = await supabase.from('attempts').insert(payload);
+    // Revert to camelCase, which is what worked mostly
+    const { error } = await supabase.from('attempts').insert(attempt);
     if (error) {
-      console.error("addAttempt error:", error);
+      console.warn("addAttempt primary failed, trying snake_case", error);
+      const snakeAttempt = {
+        id: attempt.id,
+        exam_id: attempt.examId,
+        student_id: attempt.studentId,
+        assignment_id: attempt.assignmentId,
+        answers: attempt.answers,
+        score: attempt.score,
+        submitted_at: attempt.submittedAt,
+        teacher_feedback: attempt.teacherFeedback,
+        feedback_allow_view_solution: attempt.feedbackAllowViewSolution,
+        total_time_spent_sec: attempt.totalTimeSpentSec,
+        time_spent_per_question: attempt.timeSpentPerQuestion,
+        cheat_warnings: attempt.cheatWarnings
+      };
+      const { error: error2 } = await supabase.from('attempts').insert(snakeAttempt);
+      if (error2) {
+         console.error("addAttempt ultimate error:", error2);
+      } else {
+         set((state) => ({ attempts: [...state.attempts, attempt] }));
+      }
     } else {
       set((state) => ({ attempts: [...state.attempts, attempt] }));
     }
@@ -661,7 +686,13 @@ export const useStore = create<AppState>((set, get) => ({
       created_at: res.createdAt
     };
 
-    const { error } = await supabase.from('resources').insert(payload);
+    let { error } = await supabase.from('resources').insert(payload);
+    if (error) {
+      console.warn("addResource snake_case failed, trying camelCase", error);
+      const { error: error2 } = await supabase.from('resources').insert(res);
+      error = error2;
+    }
+
     if (error) {
       console.error("Lỗi khi thêm resource:", error);
       return false;
