@@ -638,9 +638,9 @@ export const useStore = create<AppState>((set, get) => ({
     if (error) {
       // Fallback: try inserting without the new columns (compatibility with old schema)
       const fallbackPayload: any = { ...payload };
-      delete fallbackPayload.total_time_spent_sec;
-      delete fallbackPayload.time_spent_per_question;
-      delete fallbackPayload.cheat_warnings;
+      delete fallbackPayload.totalTimeSpentSec;
+      delete fallbackPayload.timeSpentPerQuestion;
+      delete fallbackPayload.cheatWarnings;
       const { error: err2 } = await supabase.from('attempts').insert(fallbackPayload);
       if (!err2) error = null;
     }
@@ -648,8 +648,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
   updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
     const { error } = await supabase.from('attempts').update({
-      teacher_feedback: feedback,
-      feedback_allow_view_solution: allowViewSolution
+      teacherFeedback: feedback,
+      feedbackAllowViewSolution: allowViewSolution
     }).eq('id', attemptId);
 
     if (error) return;
