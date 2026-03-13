@@ -732,11 +732,22 @@ export const ExamResults: React.FC = () => {
                                           <div className="space-y-2 mt-3 text-sm">
                                              <div className={`p-3 rounded border ${isCorrect ? 'bg-green-50 border-green-500 text-green-800' : 'bg-red-50 border-red-500 text-red-800'} font-medium`}>
                                                 <span className="text-gray-500 mr-2 text-xs uppercase tracking-wider">Học sinh trả lời:</span>
-                                                <div className="mt-1 font-bold text-base">{(userAns === undefined || userAns === null || userAns === '') ? <span className="text-gray-400 italic font-normal">Chưa trả lời</span> : Array.isArray(userAns) ? userAns.join(' | ') : String(userAns)}</div>
+                                                <div className="mt-1 font-bold text-base">
+                                                   {(userAns === undefined || userAns === null || userAns === '') ? 
+                                                      <span className="text-gray-400 italic font-normal">Chưa trả lời</span> : 
+                                                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                                         {Array.isArray(userAns) ? userAns.join(' | ') : String(userAns)}
+                                                      </ReactMarkdown>
+                                                   }
+                                                </div>
                                              </div>
                                              <div className="p-3 rounded border bg-blue-50 border-blue-500 text-blue-800 font-medium">
                                                 <span className="text-gray-500 mr-2 text-xs uppercase tracking-wider">Đáp án đúng:</span>
-                                                <div className="mt-1 font-bold text-base">{q.options ? q.options.join(' | ') : ''}</div>
+                                                <div className="mt-1 font-bold text-base">
+                                                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                                      {q.options ? q.options.join(' | ') : ''}
+                                                   </ReactMarkdown>
+                                                </div>
                                              </div>
                                           </div>
                                        )}
