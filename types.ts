@@ -65,18 +65,23 @@ export interface QuestionBankItem extends Question {
 
 export interface Exam {
   id: string;
+  teacherId: string;
   title: string;
+  description?: string;
   subject: string;
   topic?: string;
   grade: string;
   difficulty: ExamDifficulty;
   durationMinutes: number;
   questionCount: number;
+  questionIds?: string[];
+  settings?: any;
   createdAt: string;
+  updatedAt?: string;
   status: 'DRAFT' | 'PUBLISHED';
-  classId?: string; // If assigned to a specific class directly (or null for bank)
+  classId?: string;
   questions: Question[];
-  deletedAt?: string; // Soft delete timestamp (thùng rác)
+  deletedAt?: string;
 }
 
 export interface AssignmentSettings {
@@ -97,6 +102,9 @@ export interface Assignment {
   endTime?: string;
   durationMinutes: number;
   settings: AssignmentSettings;
+  mode?: 'class' | 'individual';
+  studentIds?: string[];
+  status?: 'active' | 'closed';
 }
 
 export interface Attempt {
@@ -104,11 +112,17 @@ export interface Attempt {
   examId: string;
   assignmentId?: string;
   studentId: string;
-  answers: Record<string, any>; // Sửa thành any để hỗ trợ mảng (Matching/Ordering), chuỗi (Short Answer)
+  answers: Record<string, any>;
   score: number | null;
+  maxScore?: number;
   submittedAt: string;
+  feedback?: string;
   teacherFeedback?: string;
   feedbackAllowViewSolution?: boolean;
+  status?: 'submitted' | 'graded';
+  cheatWarnings?: number;
+  totalTimeSpentSec?: number;
+  timeSpentPerQuestion?: Record<string, number>;
 }
 
 export interface Notification {

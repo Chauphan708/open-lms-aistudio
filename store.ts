@@ -265,8 +265,8 @@ export const useStore = create<AppState>((set, get) => ({
 
     // 2. Cascade delete dependent data manually as fallback
     await Promise.all([
-      supabase.from('attempts').delete().eq('studentId', userId),
-      supabase.from('notifications').delete().eq('userId', userId),
+      supabase.from('attempts').delete().eq('student_id', userId),
+      supabase.from('notifications').delete().eq('user_id', userId),
       supabase.from('arena_matches').delete().eq('player1_id', userId),
       supabase.from('arena_matches').delete().eq('player2_id', userId),
       supabase.from('arena_match_events').delete().eq('player_id', userId),
@@ -354,73 +354,65 @@ export const useStore = create<AppState>((set, get) => ({
   // Classes
   classes: [],
   addClass: async (cls) => {
-    // Map camelCase to potential snake_case for robust insertion
-    const dbCls = {
+    const payload = {
       id: cls.id,
       name: cls.name,
-      academicYearId: cls.academicYearId,
-      teacherId: cls.teacherId,
-      studentIds: cls.studentIds,
-      academic_year_id: cls.academicYearId, // Fallback if DB expects snake
+      academic_year_id: cls.academicYearId,
       teacher_id: cls.teacherId,
       student_ids: cls.studentIds
     };
 
-    // First try insert with camelCase, if it fails try snake_case
-    let { error } = await supabase.from('classes').insert(cls);
+    const { error } = await supabase.from('classes').insert(payload);
     if (error) {
-      console.warn("addClass camelCase failed, trying snake_case", error);
-      const { id, name, academic_year_id, teacher_id, student_ids } = dbCls;
-      const res = await supabase.from('classes').insert({ id, name, academic_year_id, teacher_id, student_ids });
-      error = res.error;
-    }
-
-    if (!error) {
-      set((state) => ({ classes: [...state.classes, cls] }));
-    } else {
-      console.error("addClass ultimate error", error);
+      console.error("addClass error", error);
       alert("Lỗi tạo lớp học: " + error.message);
+    } else {
+      set((state) => ({ classes: [...state.classes, cls] }));
     }
   },
   updateClass: async (updatedClass) => {
-    let { error } = await supabase.from('classes').update({
+    const payload = {
       name: updatedClass.name,
-      academicYearId: updatedClass.academicYearId,
-      teacherId: updatedClass.teacherId,
-      studentIds: updatedClass.studentIds
-    }).eq('id', updatedClass.id);
+      academic_year_id: updatedClass.academicYearId,
+      teacher_id: updatedClass.teacherId,
+      student_ids: updatedClass.studentIds
+    };
 
+    const { error } = await supabase.from('classes').update(payload).eq('id', updatedClass.id);
     if (error) {
-      console.warn("updateClass camelCase failed, trying snake_case", error);
-      const res = await supabase.from('classes').update({
-        name: updatedClass.name,
-        academic_year_id: updatedClass.academicYearId,
-        teacher_id: updatedClass.teacherId,
-        student_ids: updatedClass.studentIds
-      }).eq('id', updatedClass.id);
-      error = res.error;
-    }
-
-    if (!error) {
+      console.error("updateClass error", error);
+      alert("Lỗi cập nhật lớp học: " + error.message);
+    } else {
       set((state) => ({
         classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
       }));
-    } else {
-      console.error("updateClass ultimate error", error);
-      alert("Lỗi cập nhật lớp học: " + error.message);
     }
   },
 
   // Exams
   exams: [],
   addExam: async (exam) => {
-    // Optimistic: add to local state immediately so user sees it
-    set((state) => ({ exams: [exam, ...state.exams] }));
-    const { error } = await supabase.from('exams').insert(exam);
+    const payload = {
+      id: exam.id,
+      teacher_id: exam.teacherId,
+      title: exam.title,
+      description: exam.description,
+      subject: exam.subject,
+      grade: exam.grade,
+      status: exam.status,
+      question_ids: exam.questionIds,
+      settings: exam.settings,
+      created_at: exam.createdAt,
+      updated_at: exam.updatedAt,
+      deleted_at: exam.deletedAt
+    };
+
+    const { error } = await supabase.from('exams').insert(payload);
     if (error) {
       console.error("addExam Supabase error:", error);
       alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
     }
+    set((state) => ({ exams: [exam, ...state.exams] }));
   },
   updateExam: async (updatedExam) => {
     const { error } = await supabase.from('exams').update(updatedExam).eq('id', updatedExam.id);
@@ -472,22 +464,35 @@ export const useStore = create<AppState>((set, get) => ({
   // Assignments
   assignments: [],
   addAssignment: async (assign) => {
-    // Optimistic: add to local state immediately
-    set((state) => ({ assignments: [assign, ...state.assignments] }));
+    const payload = {
+      id: assign.id,
+      class_id: assign.classId,
+      exam_id: assign.examId,
+      start_time: assign.startTime,
+      end_time: assign.endTime,
+      duration_minutes: assign.durationMinutes,
+      status: assign.status,
+      settings: assign.settings,
+      mode: assign.mode,
+      student_ids: assign.studentIds
+    };
 
-    const { error } = await supabase.from('assignments').insert(assign);
+    const { error } = await supabase.from('assignments').insert(payload);
     if (error) {
-      console.error("addAssignment Supabase error:", error);
-      alert(`⚠️ Lỗi giao bài tập lên server: ${error.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+      console.error("addAssignment error:", error);
+      alert(`⚠️ Lỗi giao bài tập: ${error.message}`);
       return;
     }
+
+    set((state) => ({ assignments: [assign, ...state.assignments] }));
 
     const state = get();
     const targetClass = state.classes.find(c => c.id === assign.classId);
     const exam = state.exams.find(e => e.id === assign.examId);
 
     if (targetClass && exam) {
-      const newNotifs: Notification[] = targetClass.studentIds.map(sid => ({
+      const studentList = assign.mode === 'individual' ? (assign.studentIds || []) : targetClass.studentIds;
+      const newNotifs: Notification[] = studentList.map(sid => ({
         id: `notif_${Date.now()}_${sid}`,
         userId: sid,
         type: 'INFO',
@@ -498,8 +503,19 @@ export const useStore = create<AppState>((set, get) => ({
         link: `/exam/${exam.id}/take?assign=${assign.id}`
       }));
 
-      await supabase.from('notifications').insert(newNotifs);
-      set(state => ({ notifications: [...newNotifs, ...state.notifications] }));
+      const payloadNotifs = newNotifs.map(n => ({
+        id: n.id,
+        user_id: n.userId,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        is_read: n.isRead,
+        created_at: n.createdAt,
+        link: n.link
+      }));
+
+      await supabase.from('notifications').insert(payloadNotifs);
+      set(s => ({ notifications: [...newNotifs, ...s.notifications] }));
     }
   },
 
@@ -535,8 +551,29 @@ export const useStore = create<AppState>((set, get) => ({
   // Attempts
   attempts: [],
   addAttempt: async (attempt) => {
-    const { error } = await supabase.from('attempts').insert(attempt);
-    if (!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
+    const payload = {
+      id: attempt.id,
+      exam_id: attempt.examId,
+      student_id: attempt.studentId,
+      answers: attempt.answers,
+      score: attempt.score,
+      max_score: attempt.maxScore,
+      submitted_at: attempt.submittedAt,
+      feedback: attempt.feedback,
+      teacher_feedback: attempt.teacherFeedback,
+      feedback_allow_view_solution: attempt.feedbackAllowViewSolution,
+      status: attempt.status,
+      cheat_warnings: attempt.cheatWarnings,
+      total_time_spent_sec: attempt.totalTimeSpentSec,
+      time_spent_per_question: attempt.timeSpentPerQuestion
+    };
+
+    const { error } = await supabase.from('attempts').insert(payload);
+    if (error) {
+      console.error("addAttempt error:", error);
+    } else {
+      set((state) => ({ attempts: [...state.attempts, attempt] }));
+    }
   },
   updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
     const { error } = await supabase.from('attempts').update({
@@ -613,38 +650,23 @@ export const useStore = create<AppState>((set, get) => ({
   // Resources - Force Update
   resources: [],
   addResource: async (res) => {
-    set(state => ({ resources: [res, ...state.resources] }));
-    const dbResCamel = {
-      id: res.id, title: res.title, url: res.url, type: res.type, topic: res.topic, description: res.description,
-      addedBy: res.addedBy,
-      createdAt: res.createdAt
+    const payload = {
+      id: res.id,
+      title: res.title,
+      url: res.url,
+      type: res.type,
+      topic: res.topic,
+      description: res.description,
+      added_by: res.addedBy,
+      created_at: res.createdAt
     };
 
-    let { error } = await supabase.from('resources').insert(dbResCamel);
-    if (error) {
-      console.warn("addResource camelCase failed, trying snake_case", error);
-      const dbResSnake = {
-        id: res.id, title: res.title, url: res.url, type: res.type, topic: res.topic, description: res.description,
-        added_by: res.addedBy, created_at: res.createdAt
-      };
-      const res2 = await supabase.from('resources').insert(dbResSnake);
-      error = res2.error;
-
-      if (error) {
-        console.warn("addResource snake_case failed, trying lowercase", error);
-        const dbResLower = {
-          id: res.id, title: res.title, url: res.url, type: res.type, topic: res.topic, description: res.description,
-          addedby: res.addedBy, createdat: res.createdAt
-        };
-        const res3 = await supabase.from('resources').insert(dbResLower);
-        error = res3.error;
-      }
-    }
-
+    const { error } = await supabase.from('resources').insert(payload);
     if (error) {
       console.error("Lỗi khi thêm resource:", error);
       return false;
     }
+    set(state => ({ resources: [res, ...state.resources] }));
     return true;
   },
   deleteResource: async (id) => {
