@@ -158,14 +158,6 @@ function App() {
   // Load data once when app starts
   useEffect(() => {
     fetchInitialData();
-    // Safety fallback for dev environment without actual DB keys
-    const fallbackTimer = setTimeout(() => {
-      if (useStore.getState().isDataLoading) {
-        console.log("Supabase taking too long - forcing app open with mock state.");
-        useStore.setState({ isDataLoading: false, users: useStore.getState().users.length ? useStore.getState().users : [{ id: 'admin1', name: 'Quản Trị Viên', email: 'admin@school.edu', role: 'ADMIN', avatar: 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff', password: '123456' }, { id: 'teacher1', name: 'Giáo Viên 1', email: 'gv@test.com', role: 'TEACHER', password: '123456' }, { id: 'student1', name: 'Học Sinh', email: 'hs@test.com', role: 'STUDENT', password: '123456' }] });
-      }
-    }, 4000);
-    return () => clearTimeout(fallbackTimer);
   }, [fetchInitialData]);
 
   if (isDataLoading) {

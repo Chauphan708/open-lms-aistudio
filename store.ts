@@ -17,6 +17,16 @@ const SEED_USERS: User[] = [
 
 export const useStore = create<AppState>((set, get) => ({
   isDataLoading: false,
+  users: [],
+  exams: [],
+  assignments: [],
+  academicYears: [],
+  classes: [],
+  attempts: [],
+  notifications: [],
+  resources: [],
+  discussionSessions: [],
+  questionBank: [],
 
   // --- INITIAL DATA FETCHING ---
   fetchInitialData: async () => {
@@ -37,13 +47,23 @@ export const useStore = create<AppState>((set, get) => ({
 
       // 2. Fetch Exams
       const { data: exams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
-      if (exams) set({ exams: exams as Exam[] });
+      if (exams) {
+        const mappedExams = exams.map((e: any) => ({
+          ...e,
+          teacherId: e.teacherId || e.teacher_id || e.teacherid,
+          createdAt: e.createdAt || e.created_at || e.createdat,
+          updatedAt: e.updatedAt || e.updated_at || e.updatedat,
+          questionCount: e.questionCount || e.question_count || e.questioncount,
+          classId: e.classId || e.class_id || e.classid
+        }));
+        set({ exams: mappedExams as Exam[] });
+      }
 
       // 3. Fetch Classes
       const { data: rawClasses } = await supabase.from('classes').select('*');
       if (rawClasses) {
         const classes = rawClasses.map(c => {
-          let ids = c.studentIds || c.student_ids || [];
+          let ids = c.studentIds || c.student_ids || c.studentids || [];
           if (typeof ids === 'string') {
             try { ids = JSON.parse(ids); } catch (e) { ids = []; }
           }
@@ -52,8 +72,8 @@ export const useStore = create<AppState>((set, get) => ({
           return {
             id: c.id,
             name: c.name,
-            academicYearId: c.academicYearId || c.academic_year_id,
-            teacherId: c.teacherId || c.teacher_id,
+            academicYearId: c.academicYearId || c.academic_year_id || c.academicyearid,
+            teacherId: c.teacherId || c.teacher_id || c.teacherid,
             studentIds: ids
           };
         });
@@ -61,12 +81,45 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Assignments
-      const { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
-      if (assignments) set({ assignments: assignments as Assignment[] });
+      let { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
+      if (!assignments) {
+        const { data: fallbackAssignments } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+        assignments = fallbackAssignments;
+      }
+      if (assignments) {
+        const mappedAssignments = assignments.map((a: any) => ({
+          ...a,
+          examId: a.examId || a.exam_id || a.examid,
+          classId: a.classId || a.class_id || a.classid,
+          teacherId: a.teacherId || a.teacher_id || a.teacherid,
+          durationMinutes: a.durationMinutes || a.duration_minutes || a.durationminutes,
+          studentIds: a.studentIds || a.student_ids || a.studentids,
+          createdAt: a.createdAt || a.created_at || a.createdat,
+          startTime: a.startTime || a.start_time || a.starttime,
+          endTime: a.endTime || a.end_time || a.endtime,
+          status: a.status || 'active'
+        }));
+        set({ assignments: mappedAssignments as Assignment[] });
+      }
 
       // 5. Fetch Attempts
-      const { data: attempts } = await supabase.from('attempts').select('*');
-      if (attempts) set({ attempts: attempts as Attempt[] });
+      let { data: attempts } = await supabase.from('attempts').select('*');
+      if (attempts) {
+        const mappedAttempts = attempts.map((a: any) => ({
+          ...a,
+          examId: a.examId || a.exam_id || a.examid,
+          assignmentId: a.assignmentId || a.assignment_id || a.assignmentid,
+          studentId: a.studentId || a.student_id || a.studentid,
+          submittedAt: a.submittedAt || a.submitted_at || a.submittedat,
+          score: a.score !== undefined ? a.score : a.score, // score usually stays score
+          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution,
+          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0,
+          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {},
+          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0
+        }));
+        set({ attempts: mappedAttempts as Attempt[] });
+      }
 
       // 6. Fetch Years
       const { data: years } = await supabase.from('academic_years').select('*');
@@ -173,18 +226,22 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Users
-  users: [],
   addUser: async (user: User, assignedClassId?: string) => {
     // 1. Dùng Transaction giả lập bằng cách Insert User rồi Update Class
     // Cố gắng chèn với camelCase trước, nếu lỗi thì thử lại với snake_case cho class_name thay vì className
-    let { error } = await supabase.from('profiles').insert(user);
-    if (error) {
-      console.warn("addUser camelCase failed, trying snake_case", error);
-      const dbUser = { ...user, class_name: user.className };
-      delete dbUser.className;
-      const res = await supabase.from('profiles').insert(dbUser);
-      error = res.error;
-    }
+    const payload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      password: user.password,
+      class_name: user.className,
+      gender: user.gender,
+      saved_prompts: user.savedPrompts,
+      custom_tools: user.customTools
+    };
+    let { error } = await supabase.from('profiles').insert(payload);
 
     if (error) {
       console.error("Error creating user ultimate:", error);
@@ -227,7 +284,18 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   updateUser: async (updatedUser) => {
-    const { error } = await supabase.from('profiles').update(updatedUser).eq('id', updatedUser.id);
+    const payload = {
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      avatar: updatedUser.avatar,
+      password: updatedUser.password,
+      class_name: updatedUser.className,
+      gender: updatedUser.gender,
+      saved_prompts: updatedUser.savedPrompts,
+      custom_tools: updatedUser.customTools
+    };
+    const { error } = await supabase.from('profiles').update(payload).eq('id', updatedUser.id);
     if (!error) {
       set((state) => ({
         users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
@@ -265,8 +333,8 @@ export const useStore = create<AppState>((set, get) => ({
 
     // 2. Cascade delete dependent data manually as fallback
     await Promise.all([
-      supabase.from('attempts').delete().eq('studentId', userId),
-      supabase.from('notifications').delete().eq('userId', userId),
+      supabase.from('attempts').delete().eq('student_id', userId),
+      supabase.from('notifications').delete().eq('user_id', userId),
       supabase.from('arena_matches').delete().eq('player1_id', userId),
       supabase.from('arena_matches').delete().eq('player2_id', userId),
       supabase.from('arena_match_events').delete().eq('player_id', userId),
@@ -339,7 +407,6 @@ export const useStore = create<AppState>((set, get) => ({
   }),
 
   // Academic Years
-  academicYears: [],
   addAcademicYear: async (year) => {
     const { error } = await supabase.from('academic_years').insert(year);
     if (!error) set((state) => ({ academicYears: [...state.academicYears, year] }));
@@ -352,88 +419,84 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Classes
-  classes: [],
   addClass: async (cls) => {
-    // Try camelCase first, but include snake_case fallbacks in one object if DB allows
-    // Actually best to try one, then the other if needed.
-    const { error } = await supabase.from('classes').insert(cls);
+    // Map camelCase to potential snake_case for robust insertion
+    const payload = {
+      id: cls.id,
+      name: cls.name,
+      academic_year_id: cls.academicYearId,
+      teacher_id: cls.teacherId,
+      student_ids: cls.studentIds
+    };
+
+    const { error } = await supabase.from('classes').insert(payload);
+
     if (!error) {
       set((state) => ({ classes: [...state.classes, cls] }));
     } else {
-      console.warn("addClass primary failed, trying secondary", error);
-      const snakeCls = {
-        id: cls.id,
-        name: cls.name,
-        academic_year_id: cls.academicYearId,
-        teacher_id: cls.teacherId,
-        student_ids: cls.studentIds
-      };
-      const { error: error2 } = await supabase.from('classes').insert(snakeCls);
-      if (error2) {
-        console.error("addClass ultimate error", error2);
-        alert("Lỗi tạo lớp học: " + error2.message);
-      } else {
-        set((state) => ({ classes: [...state.classes, cls] }));
-      }
+      console.error("addClass ultimate error", error);
+      alert("Lỗi tạo lớp học: " + error.message);
     }
   },
   updateClass: async (updatedClass) => {
-    let { error } = await supabase.from('classes').update({
+    const payload = {
       name: updatedClass.name,
-      academicYearId: updatedClass.academicYearId,
-      teacherId: updatedClass.teacherId,
-      studentIds: updatedClass.studentIds
-    }).eq('id', updatedClass.id);
-
-    if (error) {
-      console.warn("updateClass camelCase failed, trying snake_case", error);
-      const res = await supabase.from('classes').update({
-        name: updatedClass.name,
-        academic_year_id: updatedClass.academicYearId,
-        teacher_id: updatedClass.teacherId,
-        student_ids: updatedClass.studentIds
-      }).eq('id', updatedClass.id);
-      error = res.error;
-    }
+      academic_year_id: updatedClass.academicYearId,
+      teacher_id: updatedClass.teacherId,
+      student_ids: updatedClass.studentIds
+    };
+    const { error } = await supabase.from('classes').update(payload).eq('id', updatedClass.id);
 
     if (!error) {
       set((state) => ({
         classes: state.classes.map(c => c.id === updatedClass.id ? updatedClass : c)
       }));
     } else {
-      console.error("updateClass error", error);
+      console.error("updateClass ultimate error", error);
       alert("Lỗi cập nhật lớp học: " + error.message);
     }
   },
 
   // Exams
-  exams: [],
   addExam: async (exam) => {
-    // Revert to inserting the object directly (camelCase)
-    const { error } = await supabase.from('exams').insert(exam);
+    // Optimistic: add to local state immediately so user sees it
+    set((state) => ({ exams: [exam, ...state.exams] }));
+    const payload = {
+      id: exam.id,
+      title: exam.title,
+      subject: exam.subject,
+      topic: exam.topic,
+      grade: exam.grade,
+      difficulty: exam.difficulty,
+      duration_minutes: exam.durationMinutes,
+      question_count: exam.questionCount,
+      created_at: exam.createdAt,
+      status: exam.status,
+      class_id: exam.classId,
+      questions: exam.questions,
+      deleted_at: exam.deletedAt
+    };
+    const { error } = await supabase.from('exams').insert(payload);
     if (error) {
       console.error("addExam Supabase error:", error);
-      // Try fallback to snake_case just in case
-      const snakeExam = {
-        id: exam.id,
-        title: exam.title,
-        subject: exam.subject,
-        grade: exam.grade,
-        question_count: exam.questionCount,
-        created_at: exam.createdAt,
-        status: exam.status,
-        questions: exam.questions,
-        teacher_id: exam.teacherId
-      };
-      const { error: error2 } = await supabase.from('exams').insert(snakeExam);
-      if (error2) {
-        alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
-      }
+      alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
     }
-    set((state) => ({ exams: [exam, ...state.exams] }));
   },
   updateExam: async (updatedExam) => {
-    const { error } = await supabase.from('exams').update(updatedExam).eq('id', updatedExam.id);
+    const payload = {
+      title: updatedExam.title,
+      subject: updatedExam.subject,
+      topic: updatedExam.topic,
+      grade: updatedExam.grade,
+      difficulty: updatedExam.difficulty,
+      duration_minutes: updatedExam.durationMinutes,
+      question_count: updatedExam.questionCount,
+      status: updatedExam.status,
+      class_id: updatedExam.classId,
+      questions: updatedExam.questions,
+      deleted_at: updatedExam.deletedAt
+    };
+    const { error } = await supabase.from('exams').update(payload).eq('id', updatedExam.id);
     if (!error) set((state) => ({
       exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
     }));
@@ -453,19 +516,29 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Question Bank
-  questionBank: [],
   fetchQuestionBank: async () => {
     const { data } = await supabase.from('question_bank').select('*');
     if (data) set({ questionBank: data as QuestionBankItem[] });
   },
   addQuestionToBank: async (q) => {
-    const { error } = await supabase.from('question_bank').insert(q);
+    const { id, ...rest } = q;
+    const payload = {
+      ...rest,
+      correct_option_index: q.correctOptionIndex,
+      is_arena_eligible: q.isArenaEligible
+    };
+    const { error } = await supabase.from('question_bank').insert(payload);
     if (error) return false;
     set((state) => ({ questionBank: [q, ...state.questionBank] }));
     return true;
   },
   updateQuestionInBank: async (q) => {
-    const { error } = await supabase.from('question_bank').update(q).eq('id', q.id);
+    const payload = {
+      ...q,
+      correct_option_index: q.correctOptionIndex,
+      is_arena_eligible: q.isArenaEligible
+    };
+    const { error } = await supabase.from('question_bank').update(payload).eq('id', q.id);
     if (error) return false;
     set((state) => ({
       questionBank: state.questionBank.map((item) => item.id === q.id ? q : item)
@@ -480,40 +553,46 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Assignments
-  assignments: [],
   addAssignment: async (assign) => {
-    // Revert to camelCase keys for assignments
-    const { error } = await supabase.from('assignments').insert(assign);
+    // Optimistic: add to local state immediately
+    set((state) => ({ assignments: [assign, ...state.assignments] }));
+
+    const payload = {
+      id: assign.id,
+      exam_id: assign.examId,
+      class_id: assign.classId,
+      teacher_id: assign.teacherId,
+      duration_minutes: assign.durationMinutes,
+      start_time: assign.startTime,
+      end_time: assign.endTime,
+      settings: assign.settings,
+      mode: assign.mode,
+      student_ids: assign.studentIds
+    };
+
+    let { error } = await supabase.from('assignments').insert(payload);
     if (error) {
-      console.error("addAssignment error:", error);
-      // Fallback try
-      const snakeAssign = {
-        id: assign.id,
-        class_id: assign.classId,
-        exam_id: assign.examId,
-        start_time: assign.startTime,
-        end_time: assign.endTime,
-        duration_minutes: assign.durationMinutes,
-        settings: assign.settings,
-        mode: assign.mode,
-        student_ids: assign.studentIds
-      };
-      const { error: error2 } = await supabase.from('assignments').insert(snakeAssign);
-      if (error2) {
-        alert(`⚠️ Lỗi giao bài tập: ${error.message}`);
+      // Fallback: try inserting without the new columns
+      const fallbackPayload: any = { ...payload };
+      delete fallbackPayload.mode;
+      delete fallbackPayload.student_ids;
+      const { error: err2 } = await supabase.from('assignments').insert(fallbackPayload);
+      
+      if (err2) {
+        console.error("addAssignment Supabase error:", error, err2);
+        alert(`⚠️ Lỗi giao bài tập lên server: ${err2.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
         return;
       }
+      error = null;
     }
-
-    set((state) => ({ assignments: [assign, ...state.assignments] }));
 
     const state = get();
     const targetClass = state.classes.find(c => c.id === assign.classId);
     const exam = state.exams.find(e => e.id === assign.examId);
 
     if (targetClass && exam) {
-      const studentList = assign.mode === 'individual' ? (assign.studentIds || []) : targetClass.studentIds;
-      const newNotifs: Notification[] = studentList.map(sid => ({
+      const notifyIds = assign.studentIds && assign.studentIds.length > 0 ? assign.studentIds : targetClass.studentIds;
+      const newNotifs: Notification[] = notifyIds.map(sid => ({
         id: `notif_${Date.now()}_${sid}`,
         userId: sid,
         type: 'INFO',
@@ -524,19 +603,8 @@ export const useStore = create<AppState>((set, get) => ({
         link: `/exam/${exam.id}/take?assign=${assign.id}`
       }));
 
-      const payloadNotifs = newNotifs.map(n => ({
-        id: n.id,
-        user_id: n.userId,
-        type: n.type,
-        title: n.title,
-        message: n.message,
-        is_read: n.isRead,
-        created_at: n.createdAt,
-        link: n.link
-      }));
-
-      await supabase.from('notifications').insert(payloadNotifs);
-      set(s => ({ notifications: [...newNotifs, ...s.notifications] }));
+      await supabase.from('notifications').insert(newNotifs);
+      set(state => ({ notifications: [...newNotifs, ...state.notifications] }));
     }
   },
 
@@ -554,10 +622,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   updateAssignment: async (updated) => {
     const { error } = await supabase.from('assignments').update({
-      startTime: updated.startTime,
-      endTime: updated.endTime,
-      durationMinutes: updated.durationMinutes,
-      settings: updated.settings
+      start_time: updated.startTime,
+      end_time: updated.endTime,
+      duration_minutes: updated.durationMinutes,
+      settings: updated.settings,
+      student_ids: updated.studentIds,
+      mode: updated.mode
     }).eq('id', updated.id);
     if (error) {
       console.error("Update assignment error:", error);
@@ -570,40 +640,38 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Attempts
-  attempts: [],
   addAttempt: async (attempt) => {
-    // Revert to camelCase, which is what worked mostly
-    const { error } = await supabase.from('attempts').insert(attempt);
+    const payload = {
+      id: attempt.id,
+      exam_id: attempt.examId,
+      assignment_id: attempt.assignmentId,
+      student_id: attempt.studentId,
+      answers: attempt.answers,
+      score: attempt.score,
+      submitted_at: attempt.submittedAt,
+      teacher_feedback: attempt.teacherFeedback,
+      feedback_allow_view_solution: attempt.feedbackAllowViewSolution,
+      total_time_spent_sec: attempt.totalTimeSpentSec,
+      time_spent_per_question: attempt.timeSpentPerQuestion,
+      cheat_warnings: attempt.cheatWarnings
+    };
+
+    let { error } = await supabase.from('attempts').insert(payload);
     if (error) {
-      console.warn("addAttempt primary failed, trying snake_case", error);
-      const snakeAttempt = {
-        id: attempt.id,
-        exam_id: attempt.examId,
-        student_id: attempt.studentId,
-        assignment_id: attempt.assignmentId,
-        answers: attempt.answers,
-        score: attempt.score,
-        submitted_at: attempt.submittedAt,
-        teacher_feedback: attempt.teacherFeedback,
-        feedback_allow_view_solution: attempt.feedbackAllowViewSolution,
-        total_time_spent_sec: attempt.totalTimeSpentSec,
-        time_spent_per_question: attempt.timeSpentPerQuestion,
-        cheat_warnings: attempt.cheatWarnings
-      };
-      const { error: error2 } = await supabase.from('attempts').insert(snakeAttempt);
-      if (error2) {
-         console.error("addAttempt ultimate error:", error2);
-      } else {
-         set((state) => ({ attempts: [...state.attempts, attempt] }));
-      }
-    } else {
-      set((state) => ({ attempts: [...state.attempts, attempt] }));
+      // Fallback: try inserting without the new columns (compatibility with old schema)
+      const fallbackPayload: any = { ...payload };
+      delete fallbackPayload.total_time_spent_sec;
+      delete fallbackPayload.time_spent_per_question;
+      delete fallbackPayload.cheat_warnings;
+      const { error: err2 } = await supabase.from('attempts').insert(fallbackPayload);
+      if (!err2) error = null;
     }
+    if (!error) set((state) => ({ attempts: [...state.attempts, attempt] }));
   },
   updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
     const { error } = await supabase.from('attempts').update({
-      teacherFeedback: feedback,
-      feedbackAllowViewSolution: allowViewSolution
+      teacher_feedback: feedback,
+      feedback_allow_view_solution: allowViewSolution
     }).eq('id', attemptId);
 
     if (error) return;
@@ -637,43 +705,36 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Notifications
-  notifications: [],
   addNotification: async (notif) => {
-    // Add fallback properties for Supabase auto-lowercase and snake_case tables
-    const dbNotif = {
-      ...notif,
-      user_id: notif.userId, userid: notif.userId,
-      is_read: notif.isRead, isread: notif.isRead,
-      created_at: notif.createdAt, createdat: notif.createdAt
+    const payload = {
+      id: notif.id,
+      user_id: notif.userId,
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      is_read: notif.isRead,
+      created_at: notif.createdAt,
+      link: notif.link
     };
 
-    let { error } = await supabase.from('notifications').insert(dbNotif);
-    if (error) {
-      console.warn('fallback notification insert', error);
-      // minimal fallback
-      await supabase.from('notifications').insert(notif);
-    }
+    const { error } = await supabase.from('notifications').insert(payload);
+    if (error) console.error('Error inserting notification:', error);
     set((state) => ({ notifications: [notif, ...state.notifications] }));
   },
   markNotificationRead: async (id) => {
-    await supabase.from('notifications').update({ isRead: true, is_read: true, isread: true }).eq('id', id);
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     set((state) => ({
       notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
     }));
   },
   markAllNotificationsRead: async (userId) => {
-    await supabase.from('notifications').update({ isRead: true, is_read: true, isread: true }).filter('userId', 'eq', userId);
-    // Also try the other columns just in case
-    await supabase.from('notifications').update({ is_read: true }).filter('user_id', 'eq', userId);
-    await supabase.from('notifications').update({ isread: true }).filter('userid', 'eq', userId);
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId);
 
     set((state) => ({
       notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
     }));
   },
 
-  // Resources - Force Update
-  resources: [],
   addResource: async (res) => {
     const payload = {
       id: res.id,
@@ -686,13 +747,7 @@ export const useStore = create<AppState>((set, get) => ({
       created_at: res.createdAt
     };
 
-    let { error } = await supabase.from('resources').insert(payload);
-    if (error) {
-      console.warn("addResource snake_case failed, trying camelCase", error);
-      const { error: error2 } = await supabase.from('resources').insert(res);
-      error = error2;
-    }
-
+    const { error } = await supabase.from('resources').insert(payload);
     if (error) {
       console.error("Lỗi khi thêm resource:", error);
       return false;
@@ -707,8 +762,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // --- DISCUSSION ROOM (SUPABASE) ---
-
-  discussionSessions: [],
 
   // Create Session
   createDiscussion: async (session) => {
@@ -1072,6 +1125,16 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
 
+  bulkDeleteArenaQuestions: async (ids: string[]) => {
+    const { error } = await supabase.from('arena_questions').delete().in('id', ids);
+    if (error) {
+      console.error('Bulk delete error:', error);
+      return false;
+    }
+    set(state => ({ arenaQuestions: state.arenaQuestions.filter(x => !ids.includes(x.id)) }));
+    return true;
+  },
+
   fetchWaitingMatches: async () => {
     const { data } = await supabase
       .from('arena_matches')
@@ -1312,6 +1375,71 @@ export const useStore = create<AppState>((set, get) => ({
     const parsed = rows.map(r => ({ ...r, answers: typeof r.answers === 'string' ? JSON.parse(r.answers as any) : r.answers }));
     set(state => ({ arenaQuestions: [...state.arenaQuestions, ...parsed as any[]] }));
     return rows.length;
+  },
+
+  // ============================================
+  // TOURNAMENT ACTIONS
+  // ============================================
+  tournaments: [],
+
+  fetchTournaments: async () => {
+    const { data } = await supabase.from('arena_tournaments').select('*').order('created_at', { ascending: false });
+    set({ tournaments: (data || []) as any[] });
+  },
+
+  createTournament: async (t) => {
+    const id = `tour_${Date.now()}`;
+    const row = { id, ...t, status: 'waiting' };
+    const { error } = await supabase.from('arena_tournaments').insert(row);
+    if (error) { console.error('Create tournament error:', error); return null; }
+    set(state => ({ tournaments: [row as any, ...state.tournaments] }));
+    return row as any;
+  },
+
+  updateTournament: async (id, updates) => {
+    await supabase.from('arena_tournaments').update(updates).eq('id', id);
+    set(state => ({ tournaments: state.tournaments.map(t => t.id === id ? { ...t, ...updates } : t) }));
+  },
+
+  joinTournament: async (tournamentId, studentId) => {
+    // Generate alias
+    const ADJECTIVES = ['Dũng Cảm', 'Nhanh Trí', 'Thông Minh', 'Vui Vẻ', 'Bí Ẩn', 'Siêu Tốc', 'Mạnh Mẽ', 'Lanh Lợi', 'Tài Giỏi', 'Phi Thường', 'Oai Phong', 'Huyền Bí', 'Lẫm Liệt', 'Kiên Cường', 'Sáng Suốt'];
+    const ANIMALS = ['Rồng', 'Phượng Hoàng', 'Sư Tử', 'Đại Bàng', 'Kỳ Lân', 'Ninja', 'Hổ', 'Sói', 'Cáo', 'Gấu Trúc', 'Cá Mập', 'Bạch Tuộc', 'Diều Hâu', 'Báo Đen', 'Rắn Hổ Mang'];
+    const EMOJIS = ['🐉', '🦁', '🦅', '🦄', '🐯', '🐺', '🦊', '🐼', '🦈', '🐙', '🦅', '🐆', '🦇', '🐲', '🦂'];
+    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+    const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+    const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    const alias = `${animal} ${adj}`;
+
+    const row = {
+      id: `tp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      tournament_id: tournamentId,
+      student_id: studentId,
+      alias,
+      alias_emoji: emoji,
+      status: 'active',
+      wins: 0,
+    };
+    const { error } = await supabase.from('arena_tournament_participants').insert(row);
+    if (error) {
+      if (error.code === '23505') return null; // Already joined
+      console.error('Join tournament error:', error);
+      return null;
+    }
+    return row as any;
+  },
+
+  fetchTournamentParticipants: async (tournamentId) => {
+    const { data } = await supabase.from('arena_tournament_participants').select('*').eq('tournament_id', tournamentId).order('eliminated_at', { ascending: false, nullsFirst: true });
+    return (data || []) as any[];
+  },
+
+  updateParticipant: async (id, updates) => {
+    await supabase.from('arena_tournament_participants').update(updates).eq('id', id);
+  },
+
+  eliminateParticipant: async (id) => {
+    await supabase.from('arena_tournament_participants').update({ status: 'eliminated', eliminated_at: new Date().toISOString() }).eq('id', id);
   },
 
 }));

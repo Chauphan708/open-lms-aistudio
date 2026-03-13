@@ -21,7 +21,7 @@ const DIFFICULTIES = [
 ];
 
 export const ArenaAdmin: React.FC = () => {
-    const { arenaQuestions, arenaQuestionsHasMore, fetchArenaQuestions, loadMoreArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkAddArenaQuestions, questionBank } = useStore();
+    const { arenaQuestions, arenaQuestionsHasMore, fetchArenaQuestions, loadMoreArenaQuestions, addArenaQuestion, updateArenaQuestion, deleteArenaQuestion, bulkDeleteArenaQuestions, bulkAddArenaQuestions, questionBank } = useStore();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
@@ -31,6 +31,8 @@ export const ArenaAdmin: React.FC = () => {
     const [editing, setEditing] = useState<ArenaQuestion | null>(null);
     const [isNew, setIsNew] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
     // Import state
     const [showImport, setShowImport] = useState(false);
@@ -205,6 +207,35 @@ export const ArenaAdmin: React.FC = () => {
     const handleDelete = async (id: string) => {
         await deleteArenaQuestion(id);
         setDeleteConfirm(null);
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleSelectAll = (visibleQuestions: ArenaQuestion[]) => {
+        if (selectedIds.size === visibleQuestions.length && visibleQuestions.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(visibleQuestions.map(q => q.id)));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        const ids = Array.from(selectedIds);
+        await bulkDeleteArenaQuestions(ids);
+        setSelectedIds(new Set());
+        setBulkDeleteConfirm(false);
     };
 
     // CSV Import
@@ -336,9 +367,17 @@ export const ArenaAdmin: React.FC = () => {
                     <a href="/arena_questions_template.csv" download className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-100 flex items-center gap-2">
                         <Download className="h-4 w-4" /> File mẫu
                     </a>
-                    <button onClick={openNew} className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 flex items-center gap-2">
+                    <button onClick={openNew} className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
                         <Plus className="h-4 w-4" /> Thêm câu hỏi
                     </button>
+                    {selectedIds.size > 0 && (
+                        <button
+                            onClick={() => setBulkDeleteConfirm(true)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 flex items-center gap-2 shadow-md animate-fade-in"
+                        >
+                            <Trash2 className="h-4 w-4" /> Xoá đã chọn ({selectedIds.size})
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -371,41 +410,62 @@ export const ArenaAdmin: React.FC = () => {
                     <option value={0}>Tất cả độ khó</option>
                     {DIFFICULTIES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
+
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors ml-2">
+                    <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={selectedIds.size === filteredQuestions.length && filteredQuestions.length > 0}
+                        onChange={() => handleSelectAll(filteredQuestions)}
+                    />
+                    <span className="text-xs font-bold text-gray-600">Chọn tất cả</span>
+                </label>
+
                 <span className="text-xs text-gray-400 ml-auto">{filteredQuestions.length} câu hỏi</span>
             </div>
 
             {/* Question List */}
             <div className="space-y-3">
                 {filteredQuestions.map(q => (
-                    <div key={q.id} className="bg-white rounded-xl border p-4 hover:border-indigo-200 transition-all group">
-                        <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                                <div className="flex gap-2 mb-1">
-                                    <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold">
-                                        {SUBJECTS.find(s => s.value === q.subject)?.label || q.subject}
-                                    </span>
-                                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
-                                        {DIFFICULTIES.find(d => d.value === q.difficulty)?.label || 'N/A'}
-                                    </span>
-                                    {q.topic && q.topic !== 'general' && (
-                                        <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded text-xs font-bold">
-                                            {q.topic}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="font-medium text-gray-900 text-sm">{q.content}</p>
-                            </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => openEdit(q)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Pencil className="h-4 w-4" /></button>
-                                <button onClick={() => setDeleteConfirm(q.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
-                            </div>
+                    <div key={q.id} className={`bg-white rounded-xl border p-4 hover:border-indigo-200 transition-all group flex gap-3 ${selectedIds.has(q.id) ? 'border-indigo-500 bg-indigo-50/30' : ''}`}>
+                        <div className="flex-shrink-0 pt-1">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                checked={selectedIds.has(q.id)}
+                                onChange={() => toggleSelect(q.id)}
+                            />
                         </div>
-                        <div className="grid grid-cols-2 gap-1.5 mt-2">
-                            {q.answers.map((a, i) => (
-                                <div key={i} className={`text-xs px-2.5 py-1.5 rounded-lg ${i === q.correct_index ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-gray-50 text-gray-600'}`}>
-                                    {String.fromCharCode(65 + i)}. {a}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                    <div className="flex gap-2 mb-1">
+                                        <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold">
+                                            {SUBJECTS.find(s => s.value === q.subject)?.label || q.subject}
+                                        </span>
+                                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                                            {DIFFICULTIES.find(d => d.value === q.difficulty)?.label || 'N/A'}
+                                        </span>
+                                        {q.topic && q.topic !== 'general' && (
+                                            <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded text-xs font-bold">
+                                                {q.topic}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="font-medium text-gray-900 text-sm">{q.content}</p>
                                 </div>
-                            ))}
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => openEdit(q)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Pencil className="h-4 w-4" /></button>
+                                    <button onClick={() => setDeleteConfirm(q.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5 mt-2">
+                                {q.answers.map((a, i) => (
+                                    <div key={i} className={`text-xs px-2.5 py-1.5 rounded-lg ${i === q.correct_index ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-gray-50 text-gray-600'}`}>
+                                        {String.fromCharCode(65 + i)}. {a}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -425,6 +485,21 @@ export const ArenaAdmin: React.FC = () => {
                     >
                         {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang tải...</> : 'Tải thêm tĩnh...'}
                     </button>
+                </div>
+            )}
+
+            {/* Bulk Delete Confirm */}
+            {bulkDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setBulkDeleteConfirm(false)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
+                        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Xoá {selectedIds.size} câu hỏi đã chọn?</h3>
+                        <p className="text-sm text-gray-500 mb-6">Hành động này sẽ xoá vĩnh viễn các câu hỏi này và không thể hoàn tác.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setBulkDeleteConfirm(false)} className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold">Quay lại</button>
+                            <button onClick={handleBulkDelete} className="flex-1 py-2 bg-red-600 text-white rounded-xl font-bold">Xác nhận xoá</button>
+                        </div>
+                    </div>
                 </div>
             )}
 

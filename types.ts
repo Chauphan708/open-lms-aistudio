@@ -65,23 +65,18 @@ export interface QuestionBankItem extends Question {
 
 export interface Exam {
   id: string;
-  teacherId?: string;
   title: string;
-  description?: string;
   subject: string;
   topic?: string;
   grade: string;
   difficulty: ExamDifficulty;
   durationMinutes: number;
   questionCount: number;
-  questionIds?: string[];
-  settings?: any;
   createdAt: string;
-  updatedAt?: string;
   status: 'DRAFT' | 'PUBLISHED';
-  classId?: string;
+  classId?: string; // If assigned to a specific class directly (or null for bank)
   questions: Question[];
-  deletedAt?: string;
+  deletedAt?: string; // Soft delete timestamp (thùng rác)
 }
 
 export interface AssignmentSettings {
@@ -90,6 +85,10 @@ export interface AssignmentSettings {
   viewSolution: boolean;
   viewHint: boolean;
   maxAttempts: number;
+  requireCamera?: boolean;
+  requireFullscreen?: boolean;
+  preventTabSwitch?: boolean;
+  preventCopy?: boolean;
 }
 
 export interface Assignment {
@@ -102,9 +101,7 @@ export interface Assignment {
   endTime?: string;
   durationMinutes: number;
   settings: AssignmentSettings;
-  mode?: 'class' | 'individual';
-  studentIds?: string[];
-  status?: 'active' | 'closed';
+  mode?: 'exam' | 'practice';
 }
 
 export interface Attempt {
@@ -112,17 +109,14 @@ export interface Attempt {
   examId: string;
   assignmentId?: string;
   studentId: string;
-  answers: Record<string, any>;
+  answers: Record<string, any>; // Sửa thành any để hỗ trợ mảng (Matching/Ordering), chuỗi (Short Answer)
   score: number | null;
-  maxScore?: number;
   submittedAt: string;
-  feedback?: string;
   teacherFeedback?: string;
   feedbackAllowViewSolution?: boolean;
-  status?: 'submitted' | 'graded';
-  cheatWarnings?: number;
   totalTimeSpentSec?: number;
   timeSpentPerQuestion?: Record<string, number>;
+  cheatWarnings?: number;
 }
 
 export interface Notification {
@@ -427,6 +421,7 @@ export interface AppState {
   addArenaQuestion: (q: Omit<ArenaQuestion, 'id'>) => Promise<boolean>;
   updateArenaQuestion: (q: ArenaQuestion) => Promise<boolean>;
   deleteArenaQuestion: (id: string) => Promise<boolean>;
+  bulkDeleteArenaQuestions: (ids: string[]) => Promise<boolean>;
 
   // New Matchmaking logic
   fetchWaitingMatches: () => Promise<ArenaMatch[]>;
