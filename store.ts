@@ -236,10 +236,10 @@ export const useStore = create<AppState>((set, get) => ({
       role: user.role,
       avatar: user.avatar,
       password: user.password,
-      class_name: user.className,
+      className: user.className,
       gender: user.gender,
-      saved_prompts: user.savedPrompts,
-      custom_tools: user.customTools
+      savedPrompts: user.savedPrompts,
+      customTools: user.customTools
     };
     let { error } = await supabase.from('profiles').insert(payload);
 
@@ -264,14 +264,6 @@ export const useStore = create<AppState>((set, get) => ({
           .update({ studentIds: updatedStudentIds })
           .eq('id', assignedClassId);
 
-        if (clsError) {
-          console.warn("addUser update class studentIds failed, trying student_ids", clsError);
-          const res = await supabase.from('classes')
-            .update({ student_ids: updatedStudentIds })
-            .eq('id', assignedClassId);
-          clsError = res.error;
-        }
-
         if (!clsError) {
           set(s => ({
             classes: s.classes.map(c => c.id === assignedClassId ? updatedClass : c)
@@ -290,10 +282,10 @@ export const useStore = create<AppState>((set, get) => ({
       role: updatedUser.role,
       avatar: updatedUser.avatar,
       password: updatedUser.password,
-      class_name: updatedUser.className,
+      className: updatedUser.className,
       gender: updatedUser.gender,
-      saved_prompts: updatedUser.savedPrompts,
-      custom_tools: updatedUser.customTools
+      savedPrompts: updatedUser.savedPrompts,
+      customTools: updatedUser.customTools
     };
     const { error } = await supabase.from('profiles').update(payload).eq('id', updatedUser.id);
     if (!error) {
@@ -314,14 +306,6 @@ export const useStore = create<AppState>((set, get) => ({
         .update({ studentIds: updatedStudentIds })
         .eq('id', affectedClass.id);
 
-      if (clsError) {
-        console.warn("deleteUser update class studentIds failed, trying student_ids", clsError);
-        const res = await supabase.from('classes')
-          .update({ student_ids: updatedStudentIds })
-          .eq('id', affectedClass.id);
-        clsError = res.error;
-      }
-
       if (!clsError) {
         set(s => ({
           classes: s.classes.map(c => c.id === affectedClass.id ? { ...c, studentIds: updatedStudentIds } : c)
@@ -333,8 +317,8 @@ export const useStore = create<AppState>((set, get) => ({
 
     // 2. Cascade delete dependent data manually as fallback
     await Promise.all([
-      supabase.from('attempts').delete().eq('student_id', userId),
-      supabase.from('notifications').delete().eq('user_id', userId),
+      supabase.from('attempts').delete().eq('studentId', userId),
+      supabase.from('notifications').delete().eq('userId', userId),
       supabase.from('arena_matches').delete().eq('player1_id', userId),
       supabase.from('arena_matches').delete().eq('player2_id', userId),
       supabase.from('arena_match_events').delete().eq('player_id', userId),
@@ -424,9 +408,9 @@ export const useStore = create<AppState>((set, get) => ({
     const payload = {
       id: cls.id,
       name: cls.name,
-      academic_year_id: cls.academicYearId,
-      teacher_id: cls.teacherId,
-      student_ids: cls.studentIds
+      academicYearId: cls.academicYearId,
+      teacherId: cls.teacherId,
+      studentIds: cls.studentIds
     };
 
     const { error } = await supabase.from('classes').insert(payload);
@@ -441,9 +425,9 @@ export const useStore = create<AppState>((set, get) => ({
   updateClass: async (updatedClass) => {
     const payload = {
       name: updatedClass.name,
-      academic_year_id: updatedClass.academicYearId,
-      teacher_id: updatedClass.teacherId,
-      student_ids: updatedClass.studentIds
+      academicYearId: updatedClass.academicYearId,
+      teacherId: updatedClass.teacherId,
+      studentIds: updatedClass.studentIds
     };
     const { error } = await supabase.from('classes').update(payload).eq('id', updatedClass.id);
 
@@ -468,13 +452,13 @@ export const useStore = create<AppState>((set, get) => ({
       topic: exam.topic,
       grade: exam.grade,
       difficulty: exam.difficulty,
-      duration_minutes: exam.durationMinutes,
-      question_count: exam.questionCount,
-      created_at: exam.createdAt,
+      durationMinutes: exam.durationMinutes,
+      questionCount: exam.questionCount,
+      createdAt: exam.createdAt,
       status: exam.status,
-      class_id: exam.classId,
+      classId: exam.classId,
       questions: exam.questions,
-      deleted_at: exam.deletedAt
+      deletedAt: exam.deletedAt
     };
     const { error } = await supabase.from('exams').insert(payload);
     if (error) {
@@ -489,12 +473,12 @@ export const useStore = create<AppState>((set, get) => ({
       topic: updatedExam.topic,
       grade: updatedExam.grade,
       difficulty: updatedExam.difficulty,
-      duration_minutes: updatedExam.durationMinutes,
-      question_count: updatedExam.questionCount,
+      durationMinutes: updatedExam.durationMinutes,
+      questionCount: updatedExam.questionCount,
       status: updatedExam.status,
-      class_id: updatedExam.classId,
+      classId: updatedExam.classId,
       questions: updatedExam.questions,
-      deleted_at: updatedExam.deletedAt
+      deletedAt: updatedExam.deletedAt
     };
     const { error } = await supabase.from('exams').update(payload).eq('id', updatedExam.id);
     if (!error) set((state) => ({
@@ -559,31 +543,22 @@ export const useStore = create<AppState>((set, get) => ({
 
     const payload = {
       id: assign.id,
-      exam_id: assign.examId,
-      class_id: assign.classId,
-      teacher_id: assign.teacherId,
-      duration_minutes: assign.durationMinutes,
-      start_time: assign.startTime,
-      end_time: assign.endTime,
+      examId: assign.examId,
+      classId: assign.classId,
+      teacherId: assign.teacherId,
+      durationMinutes: assign.durationMinutes,
+      startTime: assign.startTime,
+      endTime: assign.endTime,
       settings: assign.settings,
       mode: assign.mode,
-      student_ids: assign.studentIds
+      studentIds: assign.studentIds
     };
 
-    let { error } = await supabase.from('assignments').insert(payload);
+    const { error } = await supabase.from('assignments').insert(payload);
     if (error) {
-      // Fallback: try inserting without the new columns
-      const fallbackPayload: any = { ...payload };
-      delete fallbackPayload.mode;
-      delete fallbackPayload.student_ids;
-      const { error: err2 } = await supabase.from('assignments').insert(fallbackPayload);
-      
-      if (err2) {
-        console.error("addAssignment Supabase error:", error, err2);
-        alert(`⚠️ Lỗi giao bài tập lên server: ${err2.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
-        return;
-      }
-      error = null;
+      console.error("addAssignment Supabase error:", error);
+      alert(`⚠️ Lỗi giao bài tập lên server: ${error.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+      return;
     }
 
     const state = get();
@@ -623,11 +598,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   updateAssignment: async (updated) => {
     const { error } = await supabase.from('assignments').update({
-      start_time: updated.startTime,
-      end_time: updated.endTime,
-      duration_minutes: updated.durationMinutes,
+      startTime: updated.startTime,
+      endTime: updated.endTime,
+      durationMinutes: updated.durationMinutes,
       settings: updated.settings,
-      student_ids: (updated as any).studentIds,
+      studentIds: (updated as any).studentIds,
       mode: updated.mode
     }).eq('id', updated.id);
     if (error) {
@@ -644,17 +619,17 @@ export const useStore = create<AppState>((set, get) => ({
   addAttempt: async (attempt) => {
     const payload = {
       id: attempt.id,
-      exam_id: attempt.examId,
-      assignment_id: attempt.assignmentId,
-      student_id: attempt.studentId,
+      examId: attempt.examId,
+      assignmentId: attempt.assignmentId,
+      studentId: attempt.studentId,
       answers: attempt.answers,
       score: attempt.score,
-      submitted_at: attempt.submittedAt,
-      teacher_feedback: attempt.teacherFeedback,
-      feedback_allow_view_solution: attempt.feedbackAllowViewSolution,
-      total_time_spent_sec: attempt.totalTimeSpentSec,
-      time_spent_per_question: attempt.timeSpentPerQuestion,
-      cheat_warnings: attempt.cheatWarnings
+      submittedAt: attempt.submittedAt,
+      teacherFeedback: attempt.teacherFeedback,
+      feedbackAllowViewSolution: attempt.feedbackAllowViewSolution,
+      totalTimeSpentSec: attempt.totalTimeSpentSec,
+      timeSpentPerQuestion: attempt.timeSpentPerQuestion,
+      cheatWarnings: attempt.cheatWarnings
     };
 
     let { error } = await supabase.from('attempts').insert(payload);
@@ -723,14 +698,12 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({ notifications: [notif, ...state.notifications] }));
   },
   markNotificationRead: async (id) => {
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     set((state) => ({
-      notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
+      notifications: state.notifications.map((n) => n.id === id ? { ...n, isRead: true } : n)
     }));
+    await supabase.from('notifications').update({ isRead: true }).eq('id', id);
   },
   markAllNotificationsRead: async (userId) => {
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId);
-
     set((state) => ({
       notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
     }));
