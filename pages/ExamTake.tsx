@@ -630,9 +630,11 @@ export const ExamTake: React.FC = () => {
     }
   }, [exam, latestAttempt, assignment, generateShuffles]);
 
-  // Auto-save
   useEffect(() => {
-    if (!exam || isSubmitted || !hasStarted) return;
+    if (!exam || isSubmitted || !hasStarted) {
+      if (isSaving) setIsSaving(false);
+      return;
+    }
 
     setIsSaving(true);
     localStorage.setItem(`exam_draft_${exam.id}`, JSON.stringify({
@@ -1129,6 +1131,7 @@ export const ExamTake: React.FC = () => {
 
   const handleSubmit = async () => {
     if (isSubmitted) return;
+    setIsSaving(false); // Immediate stop saving indicator
 
     // Remove draft and exit fullscreen
     if (exam) {
@@ -1201,12 +1204,14 @@ export const ExamTake: React.FC = () => {
       totalTimeSpentSec: totalTime,
       timeSpentPerQuestion: timeSpentPerQuestion
     };
+    console.log("DEBUG: Final Attempt Payload to send:", attempt);
     
     setIsSubmitted(true); // Show local result first
     const success = await addAttempt(attempt);
     if (!success) {
-       // Handled inside addAttempt with alert, but we can do extra here if needed
-       console.error("Submission failed fatally.");
+       console.error("DEBUG: addAttempt returned false.");
+    } else {
+       console.log("DEBUG: addAttempt SUCCESS.");
     }
 
     // BỔ SUNG LOGIC: Tự động ghi nhận điểm hành vi
