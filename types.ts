@@ -65,7 +65,7 @@ export interface QuestionBankItem extends Question {
 
 export interface Exam {
   id: string;
-  teacherId: string;
+  teacherId?: string;
   title: string;
   description?: string;
   subject: string;
