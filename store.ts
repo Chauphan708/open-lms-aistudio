@@ -46,8 +46,12 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 2. Fetch Exams
-      const { data: exams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
-      if (exams) {
+      const { data: exams, error: examErr } = await supabase.from('exams').select('*').order('created_at', { ascending: false });
+      if (examErr) {
+        // Fallback for older schemas
+        const { data: fallbackExams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
+        if (fallbackExams) set({ exams: fallbackExams });
+      } else if (exams) {
         const mappedExams = exams.map((e: any) => ({
           ...e,
           teacherId: e.teacherId || e.teacher_id || e.teacherid,
@@ -81,9 +85,9 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Assignments
-      let { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
-      if (!assignments) {
-        const { data: fallbackAssignments } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+      let { data: assignments, error: assignErr } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+      if (assignErr) {
+        const { data: fallbackAssignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
         assignments = fallbackAssignments;
       }
       if (assignments) {
