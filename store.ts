@@ -591,8 +591,9 @@ export const useStore = create<AppState>((set, get) => ({
     const exam = state.exams.find(e => e.id === assign.examId);
 
     if (targetClass && exam) {
-      const notifyIds = assign.studentIds && assign.studentIds.length > 0 ? assign.studentIds : targetClass.studentIds;
-      const newNotifs: Notification[] = notifyIds.map(sid => ({
+      const assignAny = assign as any;
+      const notifyIds: string[] = assignAny.studentIds && assignAny.studentIds.length > 0 ? assignAny.studentIds : targetClass.studentIds;
+      const newNotifs: Notification[] = notifyIds.map((sid: string) => ({
         id: `notif_${Date.now()}_${sid}`,
         userId: sid,
         type: 'INFO',
@@ -604,7 +605,7 @@ export const useStore = create<AppState>((set, get) => ({
       }));
 
       await supabase.from('notifications').insert(newNotifs);
-      set(state => ({ notifications: [...newNotifs, ...state.notifications] }));
+      set((state: AppState) => ({ notifications: [...newNotifs, ...state.notifications] }));
     }
   },
 
@@ -626,7 +627,7 @@ export const useStore = create<AppState>((set, get) => ({
       end_time: updated.endTime,
       duration_minutes: updated.durationMinutes,
       settings: updated.settings,
-      student_ids: updated.studentIds,
+      student_ids: (updated as any).studentIds,
       mode: updated.mode
     }).eq('id', updated.id);
     if (error) {
@@ -1384,21 +1385,21 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchTournaments: async () => {
     const { data } = await supabase.from('arena_tournaments').select('*').order('created_at', { ascending: false });
-    set({ tournaments: (data || []) as any[] });
+    set({ tournaments: (data || []) as any[] } as any);
   },
 
-  createTournament: async (t) => {
+  createTournament: async (t: any) => {
     const id = `tour_${Date.now()}`;
     const row = { id, ...t, status: 'waiting' };
     const { error } = await supabase.from('arena_tournaments').insert(row);
     if (error) { console.error('Create tournament error:', error); return null; }
-    set(state => ({ tournaments: [row as any, ...state.tournaments] }));
+    set((state: any) => ({ tournaments: [row as any, ...state.tournaments] }));
     return row as any;
   },
 
-  updateTournament: async (id, updates) => {
+  updateTournament: async (id: string, updates: any) => {
     await supabase.from('arena_tournaments').update(updates).eq('id', id);
-    set(state => ({ tournaments: state.tournaments.map(t => t.id === id ? { ...t, ...updates } : t) }));
+    set((state: any) => ({ tournaments: state.tournaments.map((t: any) => t.id === id ? { ...t, ...updates } : t) }));
   },
 
   joinTournament: async (tournamentId, studentId) => {
@@ -1429,16 +1430,16 @@ export const useStore = create<AppState>((set, get) => ({
     return row as any;
   },
 
-  fetchTournamentParticipants: async (tournamentId) => {
+  fetchTournamentParticipants: async (tournamentId: string) => {
     const { data } = await supabase.from('arena_tournament_participants').select('*').eq('tournament_id', tournamentId).order('eliminated_at', { ascending: false, nullsFirst: true });
     return (data || []) as any[];
   },
 
-  updateParticipant: async (id, updates) => {
+  updateParticipant: async (id: string, updates: any) => {
     await supabase.from('arena_tournament_participants').update(updates).eq('id', id);
   },
 
-  eliminateParticipant: async (id) => {
+  eliminateParticipant: async (id: string) => {
     await supabase.from('arena_tournament_participants').update({ status: 'eliminated', eliminated_at: new Date().toISOString() }).eq('id', id);
   },
 

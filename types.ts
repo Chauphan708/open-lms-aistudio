@@ -102,6 +102,7 @@ export interface Assignment {
   durationMinutes: number;
   settings: AssignmentSettings;
   mode?: 'exam' | 'practice';
+  studentIds?: string[]; // Danh sách HS được giao bài. Nếu rỗng/undefined thì mặc định giao cho cả lớp.
 }
 
 export interface Attempt {
@@ -296,6 +297,36 @@ export interface ArenaMatchFilters {
   topic?: string;
 }
 
+export type TournamentStatus = 'waiting' | 'active' | 'finished';
+export type ParticipantStatus = 'active' | 'fighting' | 'eliminated' | 'champion';
+
+export interface ArenaTournament {
+  id: string;
+  teacher_id: string;
+  title: string;
+  status: TournamentStatus;
+  question_source: 'arena' | 'exam';
+  question_ids: string[];
+  filter_subject?: string;
+  filter_grade?: string;
+  questions_per_match: number;
+  time_per_question: number;
+  created_at: string;
+}
+
+export interface TournamentParticipant {
+  id: string;
+  tournament_id: string;
+  student_id: string;
+  alias: string;
+  alias_emoji: string;
+  status: ParticipantStatus;
+  wins: number;
+  current_match_id?: string;
+  eliminated_at?: string;
+  joined_at: string;
+}
+
 export interface ArenaMatchEvent {
   id: string;
   match_id: string;
@@ -436,9 +467,61 @@ export interface AppState {
   finishMatch: (matchId: string, winnerId: string | null) => Promise<void>;
   updateMatchHp: (matchId: string, player1Hp: number, player2Hp: number) => Promise<void>;
   fetchLeaderboard: () => Promise<ArenaProfile[]>;
+
+  // ============================================
+  // TOURNAMENT STATE & ACTIONS
+  // ============================================
+  tournaments: ArenaTournament[];
+  fetchTournaments: () => Promise<void>;
+  createTournament: (t: Omit<ArenaTournament, 'id' | 'created_at' | 'status'>) => Promise<ArenaTournament | null>;
+  updateTournament: (id: string, updates: Partial<ArenaTournament>) => Promise<void>;
+  joinTournament: (tournamentId: string, studentId: string) => Promise<TournamentParticipant | null>;
+  fetchTournamentParticipants: (tournamentId: string) => Promise<TournamentParticipant[]>;
+  updateParticipant: (id: string, updates: Partial<TournamentParticipant>) => Promise<void>;
+  eliminateParticipant: (id: string) => Promise<void>;
 }
 
-// ============================================
-// AI GRADING & STORAGE EXTENSION
-// ============================================
-export * from './types_ai_grading';
+
+/**
+ * Represent a submission consisting of image/pdf uploaded by Student/Teacher
+ * and stored specifically in the EXTERNAL storage to save the Main DB's space.
+ */
+export interface AISubmission {
+    id: string;                         // UUID
+    student_id: string;                 // Lien ket voi bang students
+    class_id: string;                   // Lien ket voi bang classes
+    teacher_id: string;                 // Giao vien quan ly cham bai
+    exam_id?: string;                   // Optional: Link to a specific exam or assignment
+
+    title: string;                      // Vd: "BTVN Đạo Hàm Tuần 2" (Bắt buộc)
+    category: string;                   // Vd: "Bài Tập Nhà", "Kiểm tra 15p" (Bắt buộc)
+
+    external_file_url: string;          // Duong link anh tu External Supabase
+    file_type: 'image' | 'pdf';         // Loai file
+
+    status: 'pending' | 'graded';       // Trang thai cham (Moi Nop / Da Cham)
+    created_at: string;                 // Thoi gian nop
+}
+
+/**
+ * Represents the AI generated review corresponding to a submission.
+ */
+export interface AIGradingReview {
+    id: string;                         // UUID
+    submission_id: string;              // Lien ket bang submissions
+    teacher_id: string;                 // Giao vien xac nhan vao ban danh gia nay
+
+    // Phan danh gia bang chu
+    advantages: string;                 // Uu diem
+    limitations: string;                // Han che
+    improvements: string;               // Huong cai thien
+
+    // Phan Diem so (Optional)
+    score_optional?: number;            // Diem so de xuat hoac duoc giao vien luu lai (0-100)
+
+    custom_ai_prompt?: string;          // Giao vien da chi dao AI dieu gi (VD: "Tim loi chinh ta")
+    raw_ai_response?: string;           // JSON goc tu tra loi cua AI (de fix loi neu can)
+
+    is_published_to_student: boolean;   // HS da duoc phep xem chua
+    updated_at: string;                 // Thoi gian danh gia
+}
