@@ -11,8 +11,10 @@ import rehypeKatex from 'rehype-katex';
 
 
 export const ExamList: React.FC = () => {
-  const { exams, assignments, user, classes, createLiveSession, updateExam, softDeleteExam, restoreExam } = useStore();
+  const { exams, assignments, user, classes, createLiveSession, updateExam, softDeleteExam, restoreExam, bulkUpdateTopic, bulkDeleteTopic } = useStore();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [topicModalOpen, setTopicModalOpen] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<{ old: string, new: string } | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const navigate = useNavigate();
 
@@ -35,9 +37,9 @@ export const ExamList: React.FC = () => {
   // Delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const subjects = useMemo(() => Array.from(new Set(exams.map(e => e.subject).filter(Boolean))), [exams]);
-  const topics = useMemo(() => Array.from(new Set(exams.map(e => e.topic).filter(Boolean))) as string[], [exams]);
-  const grades = useMemo(() => Array.from(new Set(exams.map(e => e.grade).filter(Boolean))).sort((a, b) => Number(a) - Number(b)), [exams]);
+  const subjects = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.subject).filter(Boolean))), [exams]);
+  const topics = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.topic).filter(Boolean))) as string[], [exams]);
+  const grades = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.grade).filter(Boolean))).sort((a, b) => Number(a) - Number(b)), [exams]);
 
   const handleOpenAssign = (exam: Exam) => {
     setSelectedExam(exam);
@@ -109,9 +111,9 @@ export const ExamList: React.FC = () => {
       .filter(c => c.studentIds.includes(user.id))
       .map(c => c.id);
 
-    // 2. Filter assignments for these classes
+    // 2. Filter assignments for these classes AND specific student
     const myAssignments = assignments
-      .filter(a => myClassIds.includes(a.classId))
+      .filter(a => myClassIds.includes(a.classId) && (!a.studentIds || a.studentIds.length === 0 || a.studentIds.includes(user.id)))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return (
@@ -209,8 +211,16 @@ export const ExamList: React.FC = () => {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2 rounded-lg border transition-colors ${showFilters ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-white hover:bg-gray-50'}`}
+            title="Lọc bài tập"
           >
             <Filter className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setTopicModalOpen(true)}
+            className="p-2 rounded-lg border bg-white hover:bg-gray-50 text-gray-600"
+            title="Quản lý chủ đề"
+          >
+            <Layers className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -483,6 +493,92 @@ export const ExamList: React.FC = () => {
           isOpen={assignModalOpen}
           onClose={() => setAssignModalOpen(false)}
         />
+      )}
+
+      {/* Topic Management Modal */}
+      {topicModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Layers className="h-5 w-5 text-indigo-600" /> Quản lý Chủ đề
+              </h2>
+              <button onClick={() => setTopicModalOpen(false)} className="p-1 hover:bg-gray-200 rounded-lg">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <p className="text-sm text-gray-500 mb-4 italic">* Các thay đổi sẽ áp dụng cho tất cả bài tập thuộc chủ đề đó.</p>
+              <div className="space-y-2">
+                {topics.length === 0 ? (
+                  <p className="text-center py-8 text-gray-400">Chưa có chủ đề nào.</p>
+                ) : (
+                  topics.map(topic => (
+                    <div key={topic} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 group">
+                      {editingTopic?.old === topic ? (
+                        <div className="flex-1 flex gap-2">
+                          <input
+                            type="text"
+                            value={editingTopic.new}
+                            onChange={e => setEditingTopic({ ...editingTopic, new: e.target.value })}
+                            className="flex-1 px-3 py-1 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            autoFocus
+                          />
+                          <button
+                            onClick={async () => {
+                              if (editingTopic.new.trim() && editingTopic.new !== topic) {
+                                await bulkUpdateTopic(topic, editingTopic.new.trim());
+                              }
+                              setEditingTopic(null);
+                            }}
+                            className="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-lg"
+                          >
+                            Lưu
+                          </button>
+                          <button onClick={() => setEditingTopic(null)} className="px-3 py-1 bg-gray-200 text-gray-600 text-xs font-bold rounded-lg">
+                            Hủy
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-gray-700">{topic}</span>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setEditingTopic({ old: topic, new: topic })}
+                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                              title="Sửa tên chủ đề"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Bạn có chắc chắn muốn xóa chủ đề "${topic}"? (Chủ đề sẽ bị gỡ khỏi tất cả bài thi)`)) {
+                                  await bulkDeleteTopic(topic);
+                                }
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                              title="Xóa chủ đề"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t bg-gray-50 text-right">
+              <button
+                onClick={() => setTopicModalOpen(false)}
+                className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
 

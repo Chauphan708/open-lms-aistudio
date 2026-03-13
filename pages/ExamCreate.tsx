@@ -67,7 +67,8 @@ export const ExamCreate: React.FC = () => {
   const availableTopics = React.useMemo(() => {
     const topics = new Set<string>();
     exams.forEach(exam => {
-      if (exam.topic && exam.topic.trim() !== '') {
+      // Chỉ lấy chủ đề từ các bài thi chưa bị xóa (soft-delete)
+      if (!exam.deletedAt && exam.topic && exam.topic.trim() !== '') {
         topics.add(exam.topic.trim());
       }
     });

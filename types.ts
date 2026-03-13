@@ -389,6 +389,8 @@ export interface AppState {
   updateExam: (exam: Exam) => void;
   softDeleteExam: (id: string) => void;
   restoreExam: (id: string) => void;
+  bulkUpdateTopic: (oldName: string, newName: string) => Promise<boolean>;
+  bulkDeleteTopic: (topicName: string) => Promise<boolean>;
 
   questionBank: QuestionBankItem[];
   fetchQuestionBank: () => Promise<void>;

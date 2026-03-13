@@ -463,9 +463,37 @@ export const useStore = create<AppState>((set, get) => ({
     };
     const { error } = await supabase.from('exams').insert(payload);
     if (error) {
-      console.error("addExam Supabase error:", error);
+      console.error("DEBUG: addExam Supabase error details:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        payload
+      });
       alert(`⚠️ Lỗi lưu bài tập lên server: ${error.message}\nBài tập vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
     }
+  },
+  bulkUpdateTopic: async (oldName, newName) => {
+    const { error } = await supabase.from('exams').update({ topic: newName }).eq('topic', oldName);
+    if (error) {
+      console.error("bulkUpdateTopic error:", error);
+      return false;
+    }
+    set(state => ({
+      exams: state.exams.map(e => e.topic === oldName ? { ...e, topic: newName } : e)
+    }));
+    return true;
+  },
+  bulkDeleteTopic: async (topicName) => {
+    const { error } = await supabase.from('exams').update({ topic: null }).eq('topic', topicName);
+    if (error) {
+      console.error("bulkDeleteTopic error:", error);
+      return false;
+    }
+    set(state => ({
+      exams: state.exams.map(e => e.topic === topicName ? { ...e, topic: undefined } : e)
+    }));
+    return true;
   },
   updateExam: async (updatedExam) => {
     const payload = {
@@ -558,8 +586,14 @@ export const useStore = create<AppState>((set, get) => ({
 
     const { error } = await supabase.from('assignments').insert(payload);
     if (error) {
-      console.error("addAssignment Supabase error:", error);
-      alert(`⚠️ Lỗi giao bài tập lên server: ${error.message}\nBài giao vẫn hiện tạm thời nhưng sẽ mất khi tải lại trang.`);
+      console.error("DEBUG: addAssignment Supabase error details:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        payload
+      });
+      alert(`⚠️ Lỗi giao bài tập lên server (Vercel): ${error.message}\nCó thể do lỗi mạng hoặc cấu hình bảng. Bài giao vẫn hiện tạm thời.`);
       return;
     }
 
