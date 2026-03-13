@@ -47,13 +47,23 @@ export const useStore = create<AppState>((set, get) => ({
 
       // 2. Fetch Exams
       const { data: exams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
-      if (exams) set({ exams: exams as Exam[] });
+      if (exams) {
+        const mappedExams = exams.map((e: any) => ({
+          ...e,
+          teacherId: e.teacherId || e.teacher_id || e.teacherid,
+          createdAt: e.createdAt || e.created_at || e.createdat,
+          updatedAt: e.updatedAt || e.updated_at || e.updatedat,
+          questionCount: e.questionCount || e.question_count || e.questioncount,
+          classId: e.classId || e.class_id || e.classid
+        }));
+        set({ exams: mappedExams as Exam[] });
+      }
 
       // 3. Fetch Classes
       const { data: rawClasses } = await supabase.from('classes').select('*');
       if (rawClasses) {
         const classes = rawClasses.map(c => {
-          let ids = c.studentIds || c.student_ids || [];
+          let ids = c.studentIds || c.student_ids || c.studentids || [];
           if (typeof ids === 'string') {
             try { ids = JSON.parse(ids); } catch (e) { ids = []; }
           }
@@ -62,8 +72,8 @@ export const useStore = create<AppState>((set, get) => ({
           return {
             id: c.id,
             name: c.name,
-            academicYearId: c.academicYearId || c.academic_year_id,
-            teacherId: c.teacherId || c.teacher_id,
+            academicYearId: c.academicYearId || c.academic_year_id || c.academicyearid,
+            teacherId: c.teacherId || c.teacher_id || c.teacherid,
             studentIds: ids
           };
         });
@@ -73,19 +83,21 @@ export const useStore = create<AppState>((set, get) => ({
       // 4. Fetch Assignments
       let { data: assignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
       if (!assignments) {
-        // Fallback for snake_case db
         const { data: fallbackAssignments } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
         assignments = fallbackAssignments;
       }
       if (assignments) {
         const mappedAssignments = assignments.map((a: any) => ({
           ...a,
-          examId: a.examId || a.exam_id,
-          classId: a.classId || a.class_id,
-          teacherId: a.teacherId || a.teacher_id,
-          durationMinutes: a.durationMinutes || a.duration_minutes,
-          studentIds: a.studentIds || a.student_ids,
-          createdAt: a.createdAt || a.created_at
+          examId: a.examId || a.exam_id || a.examid,
+          classId: a.classId || a.class_id || a.classid,
+          teacherId: a.teacherId || a.teacher_id || a.teacherid,
+          durationMinutes: a.durationMinutes || a.duration_minutes || a.durationminutes,
+          studentIds: a.studentIds || a.student_ids || a.studentids,
+          createdAt: a.createdAt || a.created_at || a.createdat,
+          startTime: a.startTime || a.start_time || a.starttime,
+          endTime: a.endTime || a.end_time || a.endtime,
+          status: a.status || 'active'
         }));
         set({ assignments: mappedAssignments as Assignment[] });
       }
@@ -95,15 +107,16 @@ export const useStore = create<AppState>((set, get) => ({
       if (attempts) {
         const mappedAttempts = attempts.map((a: any) => ({
           ...a,
-          examId: a.examId || a.exam_id,
-          assignmentId: a.assignmentId || a.assignment_id,
-          studentId: a.studentId || a.student_id,
-          submittedAt: a.submittedAt || a.submitted_at,
-          teacherFeedback: a.teacherFeedback || a.teacher_feedback,
-          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution,
-          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? 0,
-          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || {},
-          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? 0
+          examId: a.examId || a.exam_id || a.examid,
+          assignmentId: a.assignmentId || a.assignment_id || a.assignmentid,
+          studentId: a.studentId || a.student_id || a.studentid,
+          submittedAt: a.submittedAt || a.submitted_at || a.submittedat,
+          score: a.score !== undefined ? a.score : a.score, // score usually stays score
+          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution,
+          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0,
+          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {},
+          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0
         }));
         set({ attempts: mappedAttempts as Attempt[] });
       }
