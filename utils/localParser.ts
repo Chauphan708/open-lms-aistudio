@@ -7,7 +7,7 @@
  *   Hướng dẫn: / Giải thích: / Lời giải: (solution)
  */
 
-import { Question } from '../types';
+import { Question, QuestionType } from '../types';
 
 // Regex to split text into question blocks
 const QUESTION_START_REGEX = /(?:^|\n)\s*(?:Câu\s*(?:hỏi\s*)?|Bài\s*|Question\s*)(\d+)\s*[:.)\]]\s*/gi;
@@ -105,7 +105,7 @@ function parseOneBlock(block: string, index: number): Question | null {
     const lines = normalizedBlock.split('\n').map(l => l.trimEnd());
 
     let content = '';
-    const options: string[] = [];
+    let options: string[] = [];
     let correctOptionIndex: number | undefined = undefined;
     let solution = '';
     let hint = '';
@@ -216,7 +216,20 @@ function parseOneBlock(block: string, index: number): Question | null {
     if (!content) return null;
 
     // Determine question type
-    const type = options.length >= 2 ? 'MCQ' : 'SHORT_ANSWER';
+    let type: QuestionType = options.length >= 2 ? 'MCQ' : 'SHORT_ANSWER';
+
+    // Logic đặc biệt cho câu hỏi Nối cột (Matching)
+    const isMatchingKeywords = /nối|ghép|matching|khớp/i.test(content);
+    const hasPipeInOptions = options.some(opt => opt.includes('|'));
+
+    if (isMatchingKeywords && hasPipeInOptions) {
+        type = 'MATCHING';
+        // Chuẩn hóa options sang định dạng nội bộ "Vế 1 ||| Vế 2"
+        options = options.map(opt => opt.includes('|') ? opt.replace(/\s*\|\s*/, ' ||| ') : opt);
+        // Câu hỏi nối cột thường không có đáp án đúng theo kiểu ABCD trong text thô
+        correctOptionIndex = undefined;
+    }
+
     if (type === 'SHORT_ANSWER' && shortAnswerText) {
         options.push(shortAnswerText);
     }
