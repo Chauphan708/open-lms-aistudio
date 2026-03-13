@@ -562,9 +562,12 @@ export const ExamTake: React.FC = () => {
     }
   };
 
-  // On mount or new attempt, initialize state
+  // On mount, initialize state ONLY ONCE or when exam ID changes
+  const lastInitializedId = React.useRef<string | null>(null);
+
   useEffect(() => {
-    if (!exam) return;
+    if (!exam || lastInitializedId.current === exam.id) return;
+    lastInitializedId.current = exam.id;
 
     if (latestAttempt) {
       // View existing attempt result
@@ -1175,8 +1178,16 @@ export const ExamTake: React.FC = () => {
         if (Array.isArray(userAns) && userAns.length === q.options.length) {
           let isAllCorrect = true;
           for (let i = 0; i < q.options.length; i++) {
-            if (userAns[i] !== q.options[i]) {
+            const expected = q.options[i];
+            const actual = userAns[i];
+            
+            // Normalize for comparison
+            const normExpected = String(expected || '').trim().toLowerCase().replace(/\s*\|\|\|\s*/g, '|||');
+            const normActual = String(actual || '').trim().toLowerCase().replace(/\s*\|\|\|\s*/g, '|||');
+            
+            if (normActual !== normExpected) {
               isAllCorrect = false;
+              console.log(`DEBUG: Q${idx + 1} Mismatch at index ${i}: Expected "${normExpected}", Got "${normActual}"`);
               break;
             }
           }
@@ -1187,7 +1198,7 @@ export const ExamTake: React.FC = () => {
              console.log(`DEBUG: Q${idx + 1} INCORRECT`);
           }
         } else {
-           console.log(`DEBUG: Q${idx + 1} INCORRECT (Format mismatch or empty)`);
+           console.log(`DEBUG: Q${idx + 1} INCORRECT (Format mismatch length ${userAns?.length} vs ${q.options.length} or empty)`);
         }
       }
     });

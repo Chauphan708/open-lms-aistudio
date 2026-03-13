@@ -111,7 +111,7 @@ export const useStore = create<AppState>((set, get) => ({
           assignmentId: a.assignmentId || a.assignment_id || a.assignmentid,
           studentId: a.studentId || a.student_id || a.studentid,
           submittedAt: a.submittedAt || a.submitted_at || a.submittedat,
-          score: a.score !== undefined ? a.score : a.score, // score usually stays score
+          score: a.score !== undefined ? a.score : (a.score_achieved || 0),
           teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
           feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution,
           totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0,
@@ -581,7 +581,8 @@ export const useStore = create<AppState>((set, get) => ({
       endTime: assign.endTime,
       settings: assign.settings,
       mode: assign.mode,
-      studentIds: assign.studentIds
+      studentIds: assign.studentIds,
+      createdAt: assign.createdAt || new Date().toISOString()
     };
 
     const { error } = await supabase.from('assignments').insert(payload);
