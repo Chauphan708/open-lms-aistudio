@@ -1412,7 +1412,7 @@ export const ExamTake: React.FC = () => {
       )}
 
       {/* Sticky Header & Navigation Wrapper - Word Wrap & Auto Scaling */}
-      <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md shadow-sm -mx-4 px-4 md:-mx-8 md:px-8 transition-all border-b border-indigo-50">
+      <div className="sticky top-[57px] md:top-0 z-[100] bg-white/95 backdrop-blur-md shadow-sm -mx-4 px-4 md:-mx-8 md:px-8 transition-all border-b border-indigo-50">
         {/* Main Header - Auto wrap title on mobile */}
         <div className="py-2 md:py-3 flex justify-between items-start gap-2">
           <div className="flex-1 min-w-0">
@@ -1700,7 +1700,7 @@ export const ExamTake: React.FC = () => {
                     <span className="text-gray-500 font-bold text-[10px] md:text-sm uppercase tracking-wider">Câu {actualIndex + 1}</span>
                   </div>
                   <div className="flex-1 mt-1">
-                    <div className="text-gray-900 font-medium text-base md:text-lg leading-relaxed prose prose-p:my-0 max-w-none break-all sm:break-words">
+                    <div className="text-gray-900 font-medium text-base md:text-lg leading-relaxed prose prose-p:my-0 max-w-none break-words">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                         {q.content.replace(/\s*Đáp án:\s*[^\n]*$/i, '').trim()}
                       </ReactMarkdown>
