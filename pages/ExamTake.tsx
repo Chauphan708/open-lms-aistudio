@@ -1373,6 +1373,19 @@ export const ExamTake: React.FC = () => {
                 created_at: new Date().toISOString()
               };
               await supabase.from('behavior_logs').insert(newLog);
+
+              // 4. Thêm thông báo cho học sinh về việc cộng điểm
+              const notifRaw = {
+                id: `notif_auto_points_${Date.now()}`,
+                user_id: user.id,
+                type: 'SUCCESS',
+                title: 'Đã nhận điểm cộng!',
+                message: `Bạn được cộng ${finalPoints} điểm hành vi: ${reasonText}`,
+                is_read: false,
+                created_at: new Date().toISOString(),
+                link: '/student/history'
+              };
+              await supabase.from('notifications').insert(notifRaw);
             }
           }
         }

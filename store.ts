@@ -150,18 +150,47 @@ export const useStore = create<AppState>((set, get) => ({
       const { data: years } = await supabase.from('academic_years').select('*');
       if (years) set({ academicYears: years as AcademicYear[] });
 
-      // 7. Notifications
-      const { data: notifs, error: notifErr } = await supabase.from('notifications').select('*');
+      // 7. Notifications & Realtime Subscription
+      const { data: notifs, error: notifErr } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
       if (notifErr) console.error("Error fetching notifications:", notifErr);
+      
+      const mapNotif = (n: any): Notification => ({
+        id: String(n.id),
+        userId: String(n.userId || n.user_id || n.userid),
+        type: n.type || 'INFO',
+        title: n.title,
+        message: n.message,
+        isRead: !!(n.isRead ?? n.is_read ?? n.isread ?? false),
+        createdAt: n.createdAt || n.created_at || n.createdat,
+        link: n.link
+      });
+
       if (notifs) {
-        const mappedNotifs = notifs.map(n => ({
-          ...n,
-          userId: n.userId || n.user_id || n.userid,
-          isRead: n.isRead ?? n.is_read ?? n.isread ?? false,
-          createdAt: n.createdAt || n.created_at || n.createdat
-        })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        set({ notifications: mappedNotifs as Notification[] });
+        const mappedNotifs = notifs.map(mapNotif);
+        set({ notifications: mappedNotifs });
       }
+
+      // Realtime subscription for notifications
+      supabase
+        .channel('notifications-realtime')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notifications' },
+          (payload) => {
+            const newNotif = mapNotif(payload.new);
+            console.log('REALTIME: New notification received:', newNotif);
+            
+            set((state) => {
+              // Only add if it belongs to current user and not already in state
+              if (state.user && newNotif.userId === state.user.id) {
+                if (state.notifications.some(n => n.id === newNotif.id)) return state;
+                return { notifications: [newNotif, ...state.notifications] };
+              }
+              return state;
+            });
+          }
+        )
+        .subscribe();
 
       // 8. Resources
       const { data: rawResources } = await supabase.from('resources').select('*');
@@ -630,19 +659,39 @@ export const useStore = create<AppState>((set, get) => ({
     if (targetClass && exam) {
       const assignAny = assign as any;
       const notifyIds: string[] = assignAny.studentIds && assignAny.studentIds.length > 0 ? assignAny.studentIds : targetClass.studentIds;
-      const newNotifs: Notification[] = notifyIds.map((sid: string) => ({
-        id: `notif_${Date.now()}_${sid}`,
-        userId: sid,
-        type: 'INFO',
-        title: 'Bài tập mới',
-        message: `Giáo viên đã giao bài tập: ${exam.title}`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        link: `/exam/${exam.id}/take?assign=${assign.id}`
-      }));
+      
+      const newNotifsRaw = notifyIds.map((sid: string) => {
+        const id = `notif_${Date.now()}_${sid}`;
+        const createdAt = new Date().toISOString();
+        const link = `/exam/${exam.id}/take?assign=${assign.id}`;
+        
+        return {
+          id,
+          user_id: sid,
+          type: 'INFO',
+          title: 'Bài tập mới',
+          message: `Giáo viên đã giao bài tập: ${exam.title}`,
+          is_read: false,
+          created_at: createdAt,
+          link
+        };
+      });
 
-      await supabase.from('notifications').insert(newNotifs);
-      set((state: AppState) => ({ notifications: [...newNotifs, ...state.notifications] }));
+      await supabase.from('notifications').insert(newNotifsRaw);
+      
+      // Update local state (mapped to camelCase)
+      const newNotifsMapped: Notification[] = newNotifsRaw.map(n => ({
+        id: n.id,
+        userId: n.user_id,
+        type: n.type as any,
+        title: n.title,
+        message: n.message,
+        isRead: n.is_read,
+        createdAt: n.created_at,
+        link: n.link
+      }));
+      
+      set((state: AppState) => ({ notifications: [...newNotifsMapped, ...state.notifications] }));
     }
   },
 
@@ -805,17 +854,31 @@ export const useStore = create<AppState>((set, get) => ({
     const exam = state.exams.find(e => e.id === attempt?.examId);
 
     if (attempt && exam) {
-      const newNotif: Notification = {
+      const createdAt = new Date().toISOString();
+      const newNotifRaw = {
         id: `notif_fb_${Date.now()}`,
-        userId: attempt.studentId,
+        user_id: attempt.studentId,
         type: 'SUCCESS',
         title: 'Nhận xét mới',
         message: `Giáo viên đã gửi nhận xét cho bài thi: ${exam.title}`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
+        is_read: false,
+        created_at: createdAt,
         link: `/exam/${exam.id}/take`
       };
-      await supabase.from('notifications').insert(newNotif);
+
+      await supabase.from('notifications').insert(newNotifRaw);
+
+      // Local update
+      const newNotif: Notification = {
+        id: newNotifRaw.id,
+        userId: newNotifRaw.user_id,
+        type: 'SUCCESS',
+        title: newNotifRaw.title,
+        message: newNotifRaw.message,
+        isRead: false,
+        createdAt: newNotifRaw.created_at,
+        link: newNotifRaw.link
+      };
       set(s => ({ notifications: [newNotif, ...s.notifications] }));
     }
   },
@@ -838,15 +901,24 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({ notifications: [notif, ...state.notifications] }));
   },
   markNotificationRead: async (id) => {
+    // Optimistic update
     set((state) => ({
       notifications: state.notifications.map((n) => n.id === id ? { ...n, isRead: true } : n)
     }));
-    await supabase.from('notifications').update({ isRead: true }).eq('id', id);
+    // Try both snake_case and camelCase to be extra sure
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    if (error) {
+       await supabase.from('notifications').update({ isRead: true }).eq('id', id);
+    }
   },
   markAllNotificationsRead: async (userId) => {
     set((state) => ({
       notifications: state.notifications.map(n => n.userId === userId ? { ...n, isRead: true } : n)
     }));
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId);
+    if (error) {
+       await supabase.from('notifications').update({ isRead: true }).eq('userId', userId);
+    }
   },
 
   addResource: async (res) => {
