@@ -7,6 +7,10 @@ import {
   CheckCircle2, AlertCircle, Bookmark, Layers, GraduationCap, 
   HelpCircle, ChevronDown, Check, X, Save
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 const TYPE_LABELS: Record<QuestionType, string> = {
   MCQ: 'Trắc nghiệm',
@@ -232,7 +236,14 @@ const QuestionBank: React.FC = () => {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <div className="text-gray-800 text-sm font-medium line-clamp-3 whitespace-pre-wrap">{q.content}</div>
+                            <div className="text-gray-800 text-sm font-medium line-clamp-3 prose prose-sm max-w-none">
+                                <ReactMarkdown 
+                                    remarkPlugins={[remarkMath]} 
+                                    rehypePlugins={[rehypeKatex]}
+                                >
+                                    {q.content}
+                                </ReactMarkdown>
+                            </div>
                             <div className="flex flex-wrap gap-2 pt-1">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                     q.type === 'MCQ' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
