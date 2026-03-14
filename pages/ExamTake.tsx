@@ -459,7 +459,6 @@ export const ExamTake: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
   const [cheatWarnings, setCheatWarnings] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRetakeInitiated, setIsRetakeInitiated] = useState(false);
 
