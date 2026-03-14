@@ -365,11 +365,7 @@ export const ExamList: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-gray-900 text-lg">{exam.title}</h3>
-                      {exam.difficulty && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${getDifficultyLabel(exam.difficulty).color}`}>
-                          {getDifficultyLabel(exam.difficulty).label}
-                        </span>
-                      )}
+                      {/* Hidden difficulty label as per user request */}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
