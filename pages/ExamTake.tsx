@@ -1231,13 +1231,13 @@ export const ExamTake: React.FC = () => {
     }
 
     // Calculate total time
-    let totalTime = 0;
+    let totalTimeSpentSec = 0;
     if (examStartTime) {
-      totalTime = Math.floor((Date.now() - examStartTime) / 1000);
+      totalTimeSpentSec = Math.floor((Date.now() - examStartTime) / 1000);
     } else {
       // fallback if starting time lost: deduce from original duration
       const originalDuration = assignment?.durationMinutes || exam.durationMinutes;
-      totalTime = Math.max(0, (originalDuration * 60) - (timeLeft || 0));
+      totalTimeSpentSec = Math.max(0, (originalDuration * 60) - (timeLeft || 0));
     }
 
     // Save Attempt
