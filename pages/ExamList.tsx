@@ -92,7 +92,7 @@ export const ExamList: React.FC = () => {
   const trashedExams = useMemo(() => exams.filter(e => e.deletedAt), [exams]);
 
   const handleStartEdit = (exam: Exam) => {
-    navigate(`/exam/create?edit=${exam.id}`);
+    navigate(`/create-exam?edit=${exam.id}`);
   };
 
   const getDifficultyLabel = (diff: ExamDifficulty | undefined) => {
