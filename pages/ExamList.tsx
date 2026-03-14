@@ -98,7 +98,7 @@ export const ExamList: React.FC = () => {
   const getDifficultyLabel = (diff: ExamDifficulty | undefined) => {
     switch (diff) {
       case 'NHAN_BIET': return { label: 'Mức 1', color: 'bg-green-100 text-green-700' };
-      case 'THONG_HIEU': return { label: 'Mức 2', color: 'bg-yellow-100 text-yellow-700' };
+      case 'KET_NOI': return { label: 'Mức 2', color: 'bg-yellow-100 text-yellow-700' };
       case 'VAN_DUNG': return { label: 'Mức 3', color: 'bg-red-100 text-red-700' };
       default: return { label: 'Khác', color: 'bg-gray-100 text-gray-500' };
     }
@@ -267,7 +267,7 @@ export const ExamList: React.FC = () => {
                 >
                   <option value="">Tất cả</option>
                   <option value="NHAN_BIET">Mức 1</option>
-                  <option value="THONG_HIEU">Mức 2</option>
+                  <option value="KET_NOI">Mức 2</option>
                   <option value="VAN_DUNG">Mức 3</option>
                 </select>
               </div>

@@ -90,7 +90,7 @@ export const ExamCreate: React.FC = () => {
   const getDifficultyDescription = (diff: ExamDifficulty) => {
     switch (diff) {
       case 'NHAN_BIET': return 'Mức 1 (Nhận biết - Nhắc lại)';
-      case 'THONG_HIEU': return 'Mức 2 (Kết nối)';
+      case 'KET_NOI': return 'Mức 2 (Kết nối)';
       case 'VAN_DUNG': return 'Mức 3 (Vận dụng - Giải quyết vấn đề)';
       default: return 'Mức 1 (Nhận biết)';
     }
@@ -99,7 +99,7 @@ export const ExamCreate: React.FC = () => {
   const getDifficultyLabel = (diff: ExamDifficulty) => {
     switch (diff) {
       case 'NHAN_BIET': return 'Mức 1 (Nhận biết)';
-      case 'THONG_HIEU': return 'Mức 2 (Kết nối)';
+      case 'KET_NOI': return 'Mức 2 (Kết nối)';
       case 'VAN_DUNG': return 'Mức 3 (Vận dụng)';
       default: return 'Mức 1';
     }
@@ -730,14 +730,14 @@ export const ExamCreate: React.FC = () => {
                             }}
                             className={`text-[10px] px-2 py-0.5 rounded border uppercase font-medium outline-none cursor-pointer appearance-none ${
                                 q.level === 'NHAN_BIET' ? 'bg-green-100 text-green-700 border-green-200' :
-                                q.level === 'THONG_HIEU' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                                q.level === 'KET_NOI' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
                                 q.level === 'VAN_DUNG' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                                 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
                             }`}
                           >
                             <option value="">-- Mức độ --</option>
                             <option value="NHAN_BIET">Nhận biết</option>
-                            <option value="THONG_HIEU">Kết nối</option>
+                            <option value="KET_NOI">Kết nối</option>
                             <option value="VAN_DUNG">Vận dụng</option>
                           </select>
                         </div>

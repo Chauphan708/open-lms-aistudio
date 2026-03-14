@@ -194,7 +194,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                         {topics.map(t => {
                             const topicQs = questions.filter(q => (q.topic || 'Chung') === t);
                             const l1 = topicQs.filter(q => q.level === 'NHAN_BIET').length;
-                            const l2 = topicQs.filter(q => q.level === 'THONG_HIEU').length;
+                            const l2 = topicQs.filter(q => q.level === 'KET_NOI').length;
                             const l3 = topicQs.filter(q => q.level === 'VAN_DUNG').length;
 
                             return (
@@ -212,7 +212,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                         <tr>
                             <td className="border border-black p-2 text-left">TỔNG CỘNG</td>
                             <td className="border border-black p-2">{questions.filter(q => q.level === 'NHAN_BIET').length}</td>
-                            <td className="border border-black p-2">{questions.filter(q => q.level === 'THONG_HIEU').length}</td>
+                            <td className="border border-black p-2">{questions.filter(q => q.level === 'KET_NOI').length}</td>
                             <td className="border border-black p-2">{questions.filter(q => q.level === 'VAN_DUNG').length}</td>
                             <td className="border border-black p-2 text-red-600">{questions.length}</td>
                         </tr>

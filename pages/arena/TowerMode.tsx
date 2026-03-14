@@ -87,7 +87,7 @@ export const TowerMode: React.FC = () => {
                                 content: q.content,
                                 answers: q.options.slice(0, 4),
                                 correct_index: q.correctOptionIndex!,
-                                difficulty: exam.difficulty === 'NHAN_BIET' ? 1 : exam.difficulty === 'THONG_HIEU' ? 2 : 3,
+                                difficulty: exam.difficulty === 'NHAN_BIET' ? 1 : exam.difficulty === 'KET_NOI' ? 2 : 3,
                                 subject: exam.subject
                             });
                         });
