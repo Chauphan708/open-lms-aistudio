@@ -676,9 +676,18 @@ export const useStore = create<AppState>((set, get) => ({
         teacher_id: get().user?.id
       }));
 
+      console.log(`[Sync] Sending chunk ${i / CHUNK_SIZE + 1}...`, payload);
+      
       const { error } = await supabase.from('question_bank').insert(payload);
-      if (!error) successCount += chunk.length;
-      else console.error("Sync chunk error:", error);
+      if (!error) {
+        successCount += chunk.length;
+        console.log(`[Sync] Chunk ${i / CHUNK_SIZE + 1} success!`);
+      } else {
+        console.error("[Sync] Chunk error details:", {
+          error,
+          payloadSample: payload[0]
+        });
+      }
     }
 
     // Refresh local state
