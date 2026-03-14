@@ -1411,26 +1411,28 @@ export const ExamTake: React.FC = () => {
         </div>
       )}
 
-      {/* Sticky Header & Navigation Wrapper for Mobile/Desktop */}
-      <div className="sticky top-0 z-40 bg-white shadow-sm -mx-4 px-4 md:-mx-8 md:px-8 transition-all">
-        {/* Main Header */}
-        <div className="py-3 flex justify-between items-center border-b">
-          <div>
-            <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{exam.title}</h1>
-            <div className="text-xs text-gray-500 flex items-center gap-2">
-              Thí sinh: {user?.name}
-              {isSaving && <span className="flex items-center gap-1 text-indigo-500 italic animate-pulse"><RotateCcw className="h-3 w-3 animate-spin" /> Đang lưu...</span>}
+      {/* Sticky Header & Navigation Wrapper - Adaptive Scaling */}
+      <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md shadow-sm -mx-4 px-4 md:-mx-8 md:px-8 transition-all border-b border-indigo-50">
+        {/* Main Header - Compact on Mobile */}
+        <div className="py-1.5 md:py-3 flex justify-between items-center">
+          <div className="flex-1 min-w-0 mr-2">
+            <h1 className="font-bold text-gray-900 truncate text-sm md:text-base lg:text-lg max-w-full">
+              {exam.title}
+            </h1>
+            <div className="text-[10px] md:text-xs text-gray-500 flex items-center gap-2 truncate">
+              <span className="hidden sm:inline">Thí sinh:</span> {user?.name}
+              {isSaving && <span className="flex items-center gap-1 text-indigo-500 italic animate-pulse"><RotateCcw className="h-2.5 w-2.5 animate-spin" /> <span className="hidden xs:inline">Đang lưu...</span></span>}
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 font-mono text-lg font-bold ${(timeLeft || 0) < 300 ? 'text-red-600' : 'text-indigo-600'}`}>
-              <Clock className="h-5 w-5" />
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+            <div className={`flex items-center gap-1.5 font-mono text-base md:text-lg font-bold ${(timeLeft || 0) < 300 ? 'text-red-600' : 'text-indigo-600'}`}>
+              <Clock className="h-4 w-4 md:h-5 md:w-5" />
               {formatTime(timeLeft)}
             </div>
             {!isSubmitted && (
               <button
                 onClick={handleSubmit}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                className="bg-indigo-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
               >
                 Nộp bài
               </button>
@@ -1438,13 +1440,13 @@ export const ExamTake: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Sticky Question Navigation (Visible only on mobile when started and not submitted) */}
+        {/* Mobile Sticky Question Navigation - More Compact */}
         {!isSubmitted && hasStarted && (
-          <div className="lg:hidden py-3 overflow-x-auto scrollbar-hide border-t flex items-center relative">
-            <div className="sticky left-0 bg-white/90 backdrop-blur-sm pr-3 mr-1 z-10 py-1 border-r border-indigo-50">
-              <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg font-black">{answersCount}/{exam.questions.length}</span>
+          <div className="lg:hidden py-1.5 md:py-2 overflow-x-auto scrollbar-hide border-t border-gray-100 flex items-center relative">
+            <div className="sticky left-0 bg-white/95 backdrop-blur-sm pr-2 mr-1 z-10 py-0.5 border-r border-indigo-50">
+              <span className="text-[9px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md font-black">{answersCount}/{exam.questions.length}</span>
             </div>
-            <div className="flex gap-2 min-w-max px-1 items-center snap-x">
+            <div className="flex gap-1.5 min-w-max px-0.5 items-center snap-x">
               {exam.questions.map((q, idx) => {
                 const ans = answers[q.id];
                 let isAnswered = false;
@@ -1464,8 +1466,7 @@ export const ExamTake: React.FC = () => {
                       } else {
                         const element = document.getElementById(`question-${q.id}`);
                         if (element) {
-                          // Dynamic offset based on the combined header height
-                          const offset = 140; 
+                          const offset = 100; // Smaller offset for compact header
                           const elementPosition = element.getBoundingClientRect().top;
                           const offsetPosition = elementPosition + window.pageYOffset - offset;
                           window.scrollTo({
@@ -1476,12 +1477,12 @@ export const ExamTake: React.FC = () => {
                       }
                     }}
                     className={`
-                      h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-xl font-bold text-sm transition-all snap-center
+                      h-8 w-8 md:h-10 md:w-10 flex-shrink-0 flex items-center justify-center rounded-lg md:rounded-xl font-bold text-xs md:text-sm transition-all snap-center
                       active:scale-90
                       ${isAnswered
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 border-transparent'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100 border-transparent'
                       : 'bg-white text-gray-400 border border-gray-100 shadow-sm'}
-                      ${(viewMode === 'single' ? currentQuestionIndex === idx : false) ? 'ring-2 ring-indigo-400 ring-offset-2 scale-105' : ''}
+                      ${(viewMode === 'single' ? currentQuestionIndex === idx : false) ? 'ring-2 ring-indigo-400 ring-offset-1 scale-105' : ''}
                     `}
                   >
                     {idx + 1}
@@ -1490,10 +1491,15 @@ export const ExamTake: React.FC = () => {
               })}
             </div>
             {/* Horizontal Swipe Indicator Fade */}
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none z-10 lg:hidden" />
+            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent pointer-events-none z-10 lg:hidden" />
           </div>
         )}
       </div>
+
+      {/* Spacing for Fullscreen Mode to prevent overlapping */}
+      {!isSubmitted && hasStarted && (
+        <div className="h-2 lg:hidden" /> 
+      )}
 
       {/* Live Mode Indicator */}
       {liveSessionId && !isSubmitted && (
@@ -1683,26 +1689,28 @@ export const ExamTake: React.FC = () => {
             const shuffledIndices = shuffledOptionsMap[q.id] || q.options.map((_, i) => i);
 
             return (
-              <div id={`question-container-${actualIndex}`} data-index={actualIndex} key={q.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm scroll-mt-24">
-                <div id={`question-${q.id}`} className="flex flex-col gap-3 mb-4">
+              <div id={`question-container-${actualIndex}`} data-index={actualIndex} key={q.id} className="bg-white p-4 md:p-6 rounded-xl border border-gray-200 shadow-sm scroll-mt-[100px] md:scroll-mt-24">
+                <div id={`question-${q.id}`} className="flex flex-col gap-2 md:gap-3 mb-4">
                   <div className="flex items-center gap-2">
-                    <span className="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-4 ring-indigo-50">
+                    <span className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs md:text-sm shadow-sm ring-2 md:ring-4 ring-indigo-50">
                       {actualIndex + 1}
                     </span>
-                    <span className="text-gray-500 font-bold text-sm uppercase tracking-wider">Câu {actualIndex + 1}</span>
+                    <span className="text-gray-500 font-bold text-[10px] md:text-sm uppercase tracking-wider">Câu {actualIndex + 1}</span>
                   </div>
                   <div className="flex-1 mt-1">
-                    <div className="text-gray-900 font-medium text-lg leading-relaxed prose prose-p:my-0">
+                    <div className="text-gray-900 font-medium text-base md:text-lg leading-relaxed prose prose-p:my-0 max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                         {q.content.replace(/\s*Đáp án:\s*[^\n]*$/i, '').trim()}
                       </ReactMarkdown>
                     </div>
                     {q.imageUrl && (
-                      <img
-                        src={q.imageUrl}
-                        alt="Question Image"
-                        className="mt-4 rounded-lg border border-gray-100 shadow-sm max-h-80 object-contain max-w-full"
-                      />
+                      <div className="mt-3 md:mt-4 overflow-hidden rounded-lg border border-gray-100 shadow-sm bg-gray-50 flex justify-center">
+                        <img
+                          src={q.imageUrl}
+                          alt="Question Image"
+                          className="max-h-[40vh] md:max-h-80 object-contain w-auto max-w-full"
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
