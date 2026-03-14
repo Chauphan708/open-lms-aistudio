@@ -503,17 +503,30 @@ export const ExamTake: React.FC = () => {
     }
   }, [assignment]);
 
-  // Check for existing attempts - Standardize ID comparison
+  // Check for existing attempts - Standardize ID comparison & include Assignment Context
   const myAttempts = useMemo(() => {
     if (!user || !id) return [];
-    return attempts.filter(a => String(a.examId) === String(id) && String(a.studentId) === String(user.id));
-  }, [attempts, id, user?.id]);
+    return attempts.filter(a => {
+      const matchExam = String(a.examId) === String(id);
+      const matchStudent = String(a.studentId) === String(user.id);
+      
+      // If we are in an assignment context, ONLY show attempts for this specific assignment
+      // Otherwise (direct exam link), show attempts with no assignmentId
+      const currentAssignId = assignmentId ? String(assignmentId) : '';
+      const attemptAssignId = a.assignmentId ? String(a.assignmentId) : '';
+      
+      const matchAssignment = currentAssignId === attemptAssignId;
+      
+      return matchExam && matchStudent && matchAssignment;
+    });
+  }, [attempts, id, user?.id, assignmentId]);
   
   const latestAttempt = myAttempts.length > 0 ? myAttempts[myAttempts.length - 1] : null; // Get latest
 
   // Retake Logic
   const attemptCount = myAttempts.length;
-  const canRetake = !assignment || assignmentSettings.maxAttempts === 0 || attemptCount < assignmentSettings.maxAttempts;
+  const maxAllowed = Number(assignmentSettings.maxAttempts || 0);
+  const canRetake = !assignment || maxAllowed === 0 || attemptCount < maxAllowed;
 
   // --- CRITICAL VISIBILITY LOGIC ---
   // If feedback exists, the feedback's specific setting OVERRIDES assignment settings.
@@ -958,14 +971,17 @@ export const ExamTake: React.FC = () => {
   useEffect(() => {
     if (accessDenied) return;
     if (timeLeft === null) return;
+    if (isSubmitted) return;
+    if (!hasStarted) return; // DON'T start timer or check for 0 until user clicks "Start"
 
-    if (timeLeft > 0 && !isSubmitted) {
-      const timer = setInterval(() => setTimeLeft(prev => (prev !== null ? prev - 1 : 0)), 1000);
+    if (timeLeft > 0) {
+      const timer = setInterval(() => setTimeLeft(prev => (prev !== null && prev > 0 ? prev - 1 : 0)), 1000);
       return () => clearInterval(timer);
-    } else if (timeLeft === 0 && !isSubmitted && exam) {
+    } else if (timeLeft === 0 && exam) {
+      console.log("DEBUG: Timer reached 0. Auto-submitting...");
       handleSubmit();
     }
-  }, [timeLeft, isSubmitted, exam, accessDenied]);
+  }, [timeLeft, isSubmitted, hasStarted, exam, accessDenied]);
 
   // LIVE UPDATE EFFECT
   useEffect(() => {
