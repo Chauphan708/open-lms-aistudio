@@ -641,6 +641,7 @@ export const ExamTake: React.FC = () => {
             if (parsed.examStartTime) setExamStartTime(parsed.examStartTime);
             else setExamStartTime(Date.now());
             
+            setHasStarted(true); // Restore started state on successful resume
             return; // Resumed successfully
           }
         } catch (e) {
@@ -1412,7 +1413,7 @@ export const ExamTake: React.FC = () => {
 
       {/* Mobile Sticky Question Navigation (Visible only on mobile when started and not submitted) */}
       {!isSubmitted && hasStarted && (
-        <div className="lg:hidden sticky top-[64px] z-[30] bg-white/95 backdrop-blur-md border-b shadow-sm -mx-4 px-4 py-3 mb-4 overflow-x-auto custom-scrollbar-hide">
+        <div className="lg:hidden sticky top-[70px] z-[45] bg-white/95 backdrop-blur-md border-b shadow-sm -mx-4 px-4 py-3 mb-4 overflow-x-auto custom-scrollbar-hide">
           <div className="flex gap-2 min-w-max pb-1 items-center">
             <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg font-black mr-1">{answersCount}/{exam.questions.length}</span>
             {exam.questions.map((q, idx) => {
