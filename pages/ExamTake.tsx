@@ -1555,25 +1555,10 @@ export const ExamTake: React.FC = () => {
         {!isSubmitted && (
           <div className="hidden lg:block w-56 flex-shrink-0 relative">
             <div className="sticky top-[120px] bg-white p-5 rounded-2xl shadow-xl border border-indigo-100 flex flex-col max-h-[calc(100vh-160px)] transition-all">
-              <div className="flex items-center gap-3 mb-4 border-b pb-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-indigo-600" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 font-medium">Thời gian còn lại</div>
-                  <div className={`font-mono text-xl font-bold ${(timeLeft || 0) < 300 ? 'text-red-600' : 'text-indigo-700'}`}>
-                    {formatTime(timeLeft)}
-                  </div>
-                </div>
-              </div>
-
               <div className="text-sm font-bold text-gray-700 mb-3">Danh sách câu hỏi</div>
-              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar mb-4">
                 <div className="grid grid-cols-4 gap-2">
                   {exam.questions.map((q, idx) => {
-                    // Check if question is answered
-                    // For array types (Matching, Ordering, DragDrop), we check if at least one element is filled/selected
-                    // For string/number types (MCQ, Short Answer), we check if value exists
                     const ans = answers[q.id];
                     let isAnswered = false;
 
@@ -1610,6 +1595,18 @@ export const ExamTake: React.FC = () => {
                       </button>
                     )
                   })}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 mb-4 border-t pt-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 font-medium">Thời gian còn lại</div>
+                  <div className={`font-mono text-xl font-bold ${(timeLeft || 0) < 300 ? 'text-red-600' : 'text-indigo-700'}`}>
+                    {formatTime(timeLeft)}
+                  </div>
                 </div>
               </div>
 
