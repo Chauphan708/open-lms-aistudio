@@ -39,7 +39,9 @@ export const Settings: React.FC = () => {
   // Profile State
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [password, setPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [avatar, setAvatar] = useState(user?.avatar || '');
 
   // Notifications State (Mock)
@@ -85,11 +87,26 @@ export const Settings: React.FC = () => {
     });
 
     // Update password if changed
-    if (password.trim()) {
-      const success = await changePassword(user.id, password);
+    if (newPassword.trim()) {
+      // 1. Check old password
+      if (oldPassword !== user.password) {
+        alert('Mật khẩu cũ không chính xác!');
+        setLoading(false);
+        return;
+      }
+      // 2. Check confirm password
+      if (newPassword !== confirmPassword) {
+        alert('Mật khẩu mới và xác nhận mật khẩu không khớp!');
+        setLoading(false);
+        return;
+      }
+      
+      const success = await changePassword(user.id, newPassword);
       if (success) {
-        setPassword('');
-        alert('Đã cập nhật hồ sơ và mật khẩu thành công!');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        alert('Đã cập nhật hồ sơ và mật khẩu mới thành công!');
       } else {
         alert('Cập nhật hồ sơ thành công, nhưng lỗi khi đổi mật khẩu.');
       }
@@ -308,15 +325,40 @@ export const Settings: React.FC = () => {
                     className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
-                <div className="md:col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Đổi mật khẩu</label>
-                  <input
-                    type="password"
-                    placeholder="Nhập mật khẩu mới (để trống nếu không đổi)"
-                    value={password} onChange={e => setPassword(e.target.value)}
-                    className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Để trống nếu bạn không muốn thay đổi mật khẩu.</p>
+                <div className="md:col-span-2 space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <Key className="h-4 w-4 text-indigo-600" /> Đổi mật khẩu
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Mật khẩu cũ</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={oldPassword} onChange={e => setOldPassword(e.target.value)}
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Mật khẩu mới</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Xác nhận mật khẩu mới</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400">Đăng nhập bằng mật khẩu hiện tại để đổi mật khẩu mới.</p>
                 </div>
               </div>
 

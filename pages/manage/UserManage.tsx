@@ -21,7 +21,7 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
     // Password Reset State
     const [resetUser, setResetUser] = useState<User | null>(null);
-    const [newPassword, setNewPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('12345678');
 
     // Edit User State
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -340,11 +340,12 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
 
     const handleResetPassword = async () => {
         if (!resetUser || !newPassword) return;
+
         const success = await changePassword(resetUser.id, newPassword);
         if (success) {
             alert(`Đã đổi mật khẩu cho ${resetUser.name} thành công.`);
             setResetUser(null);
-            setNewPassword('');
+            setNewPassword('12345678');
         } else {
             alert("Lỗi khi đổi mật khẩu.");
         }

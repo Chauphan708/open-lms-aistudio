@@ -49,7 +49,7 @@ import { CountdownTimer } from './pages/tools/CountdownTimer';
 
 import { useStore } from './store';
 import { UserRole } from './types';
-import { Loader2, LogIn, Key, Mail, Eye, EyeOff } from 'lucide-react';
+import { Loader2, LogIn, Key, Mail, Eye, EyeOff, X } from 'lucide-react';
 
 const Login = () => {
   const { setUser, users } = useStore();
@@ -57,6 +57,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleRealLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +89,7 @@ const Login = () => {
         <p className="text-gray-500 mb-6">Hệ thống quản lý học tập & thi cử</p>
 
         {/* Real Login Form */}
-        <form onSubmit={handleRealLogin} className="space-y-4 mb-8 text-left">
+        <form onSubmit={handleRealLogin} className="space-y-4 mb-4 text-left">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Tên đăng nhập / Email</label>
             <div className="relative">
@@ -118,8 +119,15 @@ const Login = () => {
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <div className="text-right mt-1">
+            <div className="flex justify-between items-center mt-1">
               <span className="text-xs text-gray-400">Admin mặc định: 123456</span>
+              <button 
+                type="button" 
+                onClick={() => setShowForgotPassword(true)}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+              >
+                Quên mật khẩu?
+              </button>
             </div>
           </div>
 
@@ -129,6 +137,36 @@ const Login = () => {
             <LogIn className="h-4 w-4" /> Đăng nhập
           </button>
         </form>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in text-left">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Khôi phục mật khẩu?</h3>
+                <button onClick={() => setShowForgotPassword(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-4 text-indigo-800 text-sm">
+                <p className="font-bold flex items-center gap-2 mb-2">
+                  <Mail className="h-4 w-4" /> Email Admin:
+                </p>
+                <p className="font-mono bg-white/50 p-2 rounded border border-indigo-200 break-all">ptchau708@gmail.com</p>
+                <p className="mt-4 opacity-90 leading-relaxed">
+                  Để bảo mật cao nhất, mật khẩu sẽ không hiển thị tại đây. 
+                  Bạn có thể reset mật khẩu trực tiếp qua cơ sở dữ liệu hoặc liên hệ hỗ trợ kỹ thuật.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowForgotPassword(false)}
+                className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition-all"
+              >
+                Tôi đã hiểu
+              </button>
+            </div>
+          </div>
+        )}
 
         <p className="mt-6 text-xs text-gray-400">
           *Hệ thống mã nguồn mở
