@@ -42,7 +42,7 @@ export interface Class {
 }
 
 export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
-export type ExamDifficulty = 'NHAN_BIET' | 'THONG_HIEU' | 'VAN_DUNG';
+export type ExamDifficulty = 'NHAN_BIET' | 'KET_NOI' | 'VAN_DUNG';
 
 export interface Question {
   id: string;
@@ -394,6 +394,7 @@ export interface AppState {
 
   questionBank: QuestionBankItem[];
   fetchQuestionBank: () => Promise<void>;
+  syncQuestionsFromExams: () => Promise<number>;
   addQuestionToBank: (q: QuestionBankItem) => Promise<boolean>;
   updateQuestionInBank: (q: QuestionBankItem) => Promise<boolean>;
   deleteQuestionFromBank: (id: string) => Promise<boolean>;

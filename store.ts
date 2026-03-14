@@ -588,6 +588,62 @@ export const useStore = create<AppState>((set, get) => ({
     const { data } = await supabase.from('question_bank').select('*');
     if (data) set({ questionBank: data as QuestionBankItem[] });
   },
+  syncQuestionsFromExams: async () => {
+    const { exams, questionBank } = get();
+    let newQuestions: QuestionBankItem[] = [];
+    
+    // Create a set of existing question contents to avoid duplicates
+    const existingContents = new Set(questionBank.map(q => q.content.trim()));
+
+    exams.forEach(exam => {
+      if (!exam.questions) return;
+      exam.questions.forEach(q => {
+        // Simple duplicate check: by content
+        if (existingContents.has(q.content.trim())) return;
+
+        const newItem: QuestionBankItem = {
+          ...q,
+          id: `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          subject: exam.subject,
+          grade: exam.grade,
+          topic: q.topic || exam.topic || '',
+          level: (q.level as string === 'THONG_HIEU' ? 'KET_NOI' : q.level) as any
+        };
+        newQuestions.push(newItem);
+        existingContents.add(q.content.trim()); // Prevent duplicates within the same sync
+      });
+    });
+
+    if (newQuestions.length === 0) return 0;
+
+    // Push to Supabase in chunks to avoid payload size limits
+    const CHUNK_SIZE = 50;
+    let successCount = 0;
+    for (let i = 0; i < newQuestions.length; i += CHUNK_SIZE) {
+      const chunk = newQuestions.slice(i, i + CHUNK_SIZE);
+      const payload = chunk.map(q => ({
+        content: q.content,
+        type: q.type,
+        options: q.options,
+        correct_option_index: q.correctOptionIndex,
+        solution: q.solution,
+        hint: q.hint,
+        level: q.level,
+        topic: q.topic,
+        subject: q.subject,
+        grade: q.grade,
+        is_arena_eligible: q.isArenaEligible
+      }));
+
+      const { error } = await supabase.from('question_bank').insert(payload);
+      if (!error) successCount += chunk.length;
+      else console.error("Sync chunk error:", error);
+    }
+
+    // Refresh local state
+    await get().fetchQuestionBank();
+    return successCount;
+  },
   addQuestionToBank: async (q) => {
     const { id, ...rest } = q;
     const payload = {

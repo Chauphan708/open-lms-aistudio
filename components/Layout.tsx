@@ -31,7 +31,9 @@ import {
   ClipboardList,
   Zap,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Database,
+  Layers
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
@@ -118,6 +120,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
       items: [
         { label: 'Ngân hàng Bài tập', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { label: 'Ngân hàng Câu hỏi', path: '/question-bank', icon: Database, roles: ['TEACHER', 'ADMIN'] },
         { label: 'Tạo Bài tập', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
         { label: 'Tạo Đề kiểm tra', path: '/exam-matrix', icon: BookOpen, roles: ['TEACHER'] },
         { label: 'Quản lý Bài đã giao', path: '/teacher/assignments', icon: ClipboardList, roles: ['TEACHER'] },

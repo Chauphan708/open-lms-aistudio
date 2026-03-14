@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ExamCreate } from './pages/ExamCreate';
 import { ExamMatrix } from './pages/ExamMatrix';
+import QuestionBank from './pages/QuestionBank';
 import { AIStats } from './pages/AIStats';
 import { ExamList } from './pages/ExamList';
 import { ExamTake } from './pages/ExamTake';
@@ -250,6 +251,11 @@ function App() {
         <Route path="/exam-matrix" element={
           <ProtectedRoute roles={['TEACHER']}>
             <ExamMatrix />
+          </ProtectedRoute>
+        } />
+        <Route path="/question-bank" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <QuestionBank />
           </ProtectedRoute>
         } />
         <Route path="/ai-stats" element={

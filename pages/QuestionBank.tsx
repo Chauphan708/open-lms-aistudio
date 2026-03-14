@@ -1,0 +1,351 @@
+
+import React, { useState, useEffect } from 'react';
+import { useStore } from '../store';
+import { QuestionBankItem, QuestionType, ExamDifficulty } from '../types';
+import { 
+  Search, Filter, Plus, Trash2, Edit2, Download, RefreshCw, 
+  CheckCircle2, AlertCircle, Bookmark, Layers, GraduationCap, 
+  HelpCircle, ChevronDown, Check, X, Save
+} from 'lucide-react';
+
+const TYPE_LABELS: Record<QuestionType, string> = {
+  MCQ: 'Trắc nghiệm',
+  MATCHING: 'Nối cột',
+  ORDERING: 'Sắp xếp',
+  DRAG_DROP: 'Kéo thả',
+  SHORT_ANSWER: 'Tự luận ngắn'
+};
+
+const LEVEL_LABELS: Record<ExamDifficulty, string> = {
+  NHAN_BIET: 'Nhận biết',
+  KET_NOI: 'Kết nối',
+  VAN_DUNG: 'Vận dụng'
+};
+
+const QuestionBank: React.FC = () => {
+  const { questionBank, syncQuestionsFromExams, deleteQuestionFromBank, updateQuestionInBank, fetchInitialData } = useStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSubject, setFilterSubject] = useState('all');
+  const [filterGrade, setFilterGrade] = useState('all');
+  const [filterLevel, setFilterLevel] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ count: number; show: boolean }>({ count: 0, show: false });
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Partial<QuestionBankItem>>({});
+
+  const subjects = Array.from(new Set(questionBank.map(q => q.subject))).sort();
+  const grades = Array.from(new Set(questionBank.map(q => q.grade))).sort();
+  const topics = Array.from(new Set(questionBank.map(q => q.topic))).sort();
+
+  const filteredQuestions = questionBank.filter(q => {
+    const matchesSearch = q.content.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         (q.topic?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSubject = filterSubject === 'all' || q.subject === filterSubject;
+    const matchesGrade = filterGrade === 'all' || q.grade === filterGrade;
+    const matchesLevel = filterLevel === 'all' || q.level === filterLevel;
+    const matchesType = filterType === 'all' || q.type === filterType;
+    return matchesSearch && matchesSubject && matchesGrade && matchesLevel && matchesType;
+  });
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const count = await syncQuestionsFromExams();
+      setSyncResult({ count, show: true });
+      setTimeout(() => setSyncResult(prev => ({ ...prev, show: false })), 3000);
+    } catch (error) {
+      console.error("Sync failed:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa câu hỏi này?")) {
+      await deleteQuestionFromBank(id);
+    }
+  };
+
+  const startEdit = (q: QuestionBankItem) => {
+    setEditingId(q.id);
+    setEditValues({ ...q });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingId && editValues) {
+      const success = await updateQuestionInBank(editValues as QuestionBankItem);
+      if (success) {
+        setEditingId(null);
+        setEditValues({});
+      } else {
+        alert("Lỗi khi cập nhật câu hỏi.");
+      }
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col p-4 space-y-4 bg-gray-50/50">
+      {/* Header & Stats */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Layers className="h-6 w-6 text-emerald-600" /> Ngân hàng Câu hỏi
+          </h1>
+          <p className="text-gray-500 text-sm">Quản lý và đồng bộ tập trung tất cả câu hỏi trong hệ thống</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {syncResult.show && (
+            <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 animate-bounce">
+              <CheckCircle2 className="h-4 w-4" /> Đã đồng bộ thêm {syncResult.count} câu mới
+            </div>
+          )}
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2 bg-white border-2 border-emerald-500 text-emerald-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-50 transition-all shadow-sm disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ từ Bài tập'}
+          </button>
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="relative col-span-1 md:col-span-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo nội dung, chủ đề..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 border-0 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
+          />
+        </div>
+
+        <select
+          value={filterSubject}
+          onChange={(e) => setFilterSubject(e.target.value)}
+          className="bg-gray-50 border-0 rounded-xl text-sm px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="all">Tất cả Môn</option>
+          {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <select
+          value={filterGrade}
+          onChange={(e) => setFilterGrade(e.target.value)}
+          className="bg-gray-50 border-0 rounded-xl text-sm px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="all">Tất cả Lớp</option>
+          {grades.map(g => <option key={g} value={g}>Lớp {g}</option>)}
+        </select>
+
+        <select
+          value={filterLevel}
+          onChange={(e) => setFilterLevel(e.target.value)}
+          className="bg-gray-50 border-0 rounded-xl text-sm px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="all">Tất cả Mức độ</option>
+          <option value="NHAN_BIET">Nhận biết</option>
+          <option value="KET_NOI">Kết nối</option>
+          <option value="VAN_DUNG">Vận dụng</option>
+        </select>
+
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          className="bg-gray-50 border-0 rounded-xl text-sm px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="all">Tất cả Loại câu</option>
+          {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+
+      {/* Main Table */}
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-gray-50/80 text-gray-500 text-xs font-bold uppercase tracking-wider sticky top-0 z-10">
+              <tr>
+                <th className="px-6 py-4 border-b">Câu hỏi / Nội dung</th>
+                <th className="px-4 py-4 border-b w-32">Thông tin</th>
+                <th className="px-4 py-4 border-b w-32">Chủ đề</th>
+                <th className="px-4 py-4 border-b w-32 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filteredQuestions.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <HelpCircle className="h-10 w-10 opacity-20" />
+                      <p>Không tìm thấy câu hỏi nào phù hợp</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredQuestions.map((q) => {
+                  const isEditing = editingId === q.id;
+                  
+                  return (
+                    <tr key={q.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 align-top">
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <textarea
+                              value={editValues.content}
+                              onChange={(e) => setEditValues({ ...editValues, content: e.target.value })}
+                              className="w-full border rounded-lg p-2 text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                            {q.type === 'MCQ' && (
+                              <div className="grid grid-cols-2 gap-2">
+                                {editValues.options?.map((opt, i) => (
+                                  <div key={i} className={`flex items-center gap-2 border rounded-lg p-2 ${editValues.correctOptionIndex === i ? 'bg-emerald-50 border-emerald-200' : ''}`}>
+                                    <input 
+                                      type="radio" 
+                                      checked={editValues.correctOptionIndex === i}
+                                      onChange={() => setEditValues({ ...editValues, correctOptionIndex: i })}
+                                    />
+                                    <input
+                                      value={opt}
+                                      onChange={(e) => {
+                                        const newOpts = [...(editValues.options || [])];
+                                        newOpts[i] = e.target.value;
+                                        setEditValues({ ...editValues, options: newOpts });
+                                      }}
+                                      className="bg-transparent border-0 text-xs w-full outline-none"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-gray-800 text-sm font-medium line-clamp-3 whitespace-pre-wrap">{q.content}</div>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    q.type === 'MCQ' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                                }`}>
+                                    {TYPE_LABELS[q.type]}
+                                </span>
+                                {q.level && (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                        q.level === 'NHAN_BIET' ? 'bg-green-50 text-green-600' : 
+                                        q.level === 'KET_NOI' ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
+                                    }`}>
+                                        {LEVEL_LABELS[q.level]}
+                                    </span>
+                                )}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 align-top text-xs">
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <input
+                              placeholder="Môn"
+                              value={editValues.subject}
+                              onChange={(e) => setEditValues({ ...editValues, subject: e.target.value })}
+                              className="w-full border rounded p-1"
+                            />
+                            <input
+                              placeholder="Lớp"
+                              value={editValues.grade}
+                              onChange={(e) => setEditValues({ ...editValues, grade: e.target.value })}
+                              className="w-full border rounded p-1"
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-1 text-gray-500">
+                            <div className="flex items-center gap-1"><BookMarked className="h-3 w-3" /> {q.subject}</div>
+                            <div className="flex items-center gap-1"><GraduationCap className="h-3 w-3" /> Lớp {q.grade}</div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        {isEditing ? (
+                          <input
+                            placeholder="Chủ đề"
+                            value={editValues.topic}
+                            onChange={(e) => setEditValues({ ...editValues, topic: e.target.value })}
+                            className="w-full border rounded p-1 text-xs"
+                          />
+                        ) : (
+                          <div className="text-xs text-gray-600 font-medium italic">{q.topic || '(Chưa phân loại)'}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        <div className="flex items-center justify-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <button
+                                onClick={handleSaveEdit}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title="Lưu"
+                              >
+                                <Save className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition-colors"
+                                title="Hủy"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => startEdit(q)}
+                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Sửa"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(q.id)}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Xóa"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* Bottom info */}
+      <div className="flex justify-between items-center text-xs text-gray-400 px-2">
+        <div>Hiển thị {filteredQuestions.length} / {questionBank.length} câu hỏi</div>
+        <div className="flex items-center gap-4">
+           <div className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-500" /> Đã lưu đám mây</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple Icon fallback logic
+const BookMarked = Bookmark;
+
+export default QuestionBank;

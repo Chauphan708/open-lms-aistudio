@@ -40,6 +40,13 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
     const [isAiFilling, setIsAiFilling] = useState(false);
     const [missingInfo, setMissingInfo] = useState<{ topic: string; level: string; count: number }[]>([]);
 
+    // Lấy danh sách các chủ đề duy nhất từ ngân hàng câu hỏi theo Môn và Lớp
+    const availableTopics = Array.from(new Set(
+        questionBank
+            .filter(q => q.subject === subject && q.grade === grade && q.topic)
+            .map(q => q.topic!)
+    )).sort();
+
     // Validate and calculate
     const totalPercentage = rows.reduce((sum, r) => sum + (r.level1Percent || 0) + (r.level2Percent || 0) + (r.level3Percent || 0), 0);
 
@@ -104,7 +111,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                 generatedQuestions = [
                     ...generatedQuestions,
                     ...getQs('NHAN_BIET', targetL1),
-                    ...getQs('THONG_HIEU', targetL2),
+                    ...getQs('KET_NOI', targetL2),
                     ...getQs('VAN_DUNG', targetL3),
                 ];
             }
@@ -137,7 +144,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
             for (const missing of missingInfo) {
                 const levelMap: Record<string, string> = {
                     'NHAN_BIET': 'Mức 1 (Nhận biết - Nhắc lại)',
-                    'THONG_HIEU': 'Mức 2 (Kết nối)',
+                    'KET_NOI': 'Mức 2 (Kết nối)',
                     'VAN_DUNG': 'Mức 3 (Vận dụng - Giải quyết vấn đề)'
                 };
 
@@ -217,7 +224,19 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                         {rows.map((row) => (
                             <tr key={row.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
                                 <td className="p-2 align-top">
-                                    <input type="text" placeholder="VD: Hình học" value={row.topic} onChange={e => updateRow(row.id, 'topic', e.target.value)} className="w-full min-w-[120px] border rounded p-1.5 text-xs bg-white text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none" />
+                                    <div className="relative group/topic">
+                                        <input 
+                                            type="text" 
+                                            list={`topics-${row.id}`}
+                                            placeholder="Chọn hoặc nhập chủ đề" 
+                                            value={row.topic} 
+                                            onChange={e => updateRow(row.id, 'topic', e.target.value)} 
+                                            className="w-full min-w-[120px] border rounded p-1.5 text-xs bg-white text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none" 
+                                        />
+                                        <datalist id={`topics-${row.id}`}>
+                                            {availableTopics.map(t => <option key={t} value={t} />)}
+                                        </datalist>
+                                    </div>
                                 </td>
                                 <td className="p-2 align-top"><input type="number" min="0" value={row.level1Percent} onChange={e => updateRow(row.id, 'level1Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
                                 <td className="p-1 align-top text-center text-xs font-bold text-blue-600">{getCount(row.level1Percent)}</td>
