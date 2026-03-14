@@ -449,6 +449,7 @@ export const ExamTake: React.FC = () => {
 
   // Widget State
   const [showDictionary, setShowDictionary] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
   const [viewMode, setViewMode] = useState<'scroll' | 'single'>('scroll');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
@@ -1377,9 +1378,98 @@ export const ExamTake: React.FC = () => {
 
       <DictionaryWidget isOpen={showDictionary} onClose={() => setShowDictionary(false)} />
 
-      {/* Camera PIP View */}
+      {/* Floating Question Navigation Button (Mobile only) */}
+      {!isSubmitted && hasStarted && (
+        <button
+          onClick={() => setShowMobileNav(!showMobileNav)}
+          className={`lg:hidden fixed bottom-4 left-4 bg-white p-3 rounded-full shadow-lg border border-indigo-100 z-50 hover:bg-indigo-50 transition-all group ${showMobileNav ? 'ring-4 ring-indigo-500/20' : ''}`}
+          title="Danh sách câu hỏi"
+        >
+          <ListOrdered className={`h-6 w-6 ${showMobileNav ? 'text-indigo-600' : 'text-gray-600'}`} />
+          <span className="absolute left-full ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap top-1/2 -translate-y-1/2">
+            Danh sách câu
+          </span>
+        </button>
+      )}
+
+      {/* Floating Question Nav Panel (Mobile Overlay) - Always accessible */}
+      {!isSubmitted && hasStarted && showMobileNav && (
+        <div className="lg:hidden fixed inset-0 z-[110] animate-in fade-in">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowMobileNav(false)} />
+          <div className="absolute bottom-20 left-4 right-4 bg-white rounded-3xl shadow-2xl border border-indigo-50 p-6 animate-in slide-in-from-bottom-5 duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-gray-900 flex items-center gap-2">
+                <ListOrdered className="h-5 w-5 text-indigo-600" />
+                Tiến độ làm bài
+              </h3>
+              <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-black text-xs">
+                {answersCount}/{exam.questions.length}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-5 gap-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+              {exam.questions.map((q, idx) => {
+                const ans = answers[q.id];
+                let isAnswered = false;
+                if (ans !== undefined && ans !== null && ans !== '') {
+                  if (Array.isArray(ans)) {
+                    isAnswered = ans.some(a => a !== undefined && a !== null && a !== '');
+                  } else {
+                    isAnswered = true;
+                  }
+                }
+                const isActive = viewMode === 'single' ? currentQuestionIndex === idx : false;
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (viewMode === 'single') {
+                        setCurrentQuestionIndex(idx);
+                      } else {
+                        const element = document.getElementById(`question-${q.id}`);
+                        if (element) {
+                          // Account for potentially multi-line header
+                          const headerElement = document.querySelector('.sticky.top-0');
+                          const offset = headerElement ? headerElement.getBoundingClientRect().height + 10 : 120;
+                          const elementPosition = element.getBoundingClientRect().top;
+                          const offsetPosition = elementPosition + window.pageYOffset - offset;
+                          window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                          });
+                        }
+                      }
+                      setShowMobileNav(false);
+                    }}
+                    className={`
+                      h-12 w-full flex items-center justify-center rounded-xl font-black text-sm transition-all shadow-sm
+                      active:scale-95
+                      ${isAnswered
+                        ? 'bg-indigo-600 text-white shadow-indigo-100'
+                        : 'bg-gray-50 text-gray-400 border border-gray-100 shadow-sm'}
+                      ${isActive ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}
+                    `}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button 
+              onClick={() => setShowMobileNav(false)}
+              className="mt-6 w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors"
+            >
+              Đóng bảng điều hướng
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Camera PIP View - Shifting up slightly if floating nav button is visible */}
       {!!assignmentSettings.requireCamera && !isSubmitted && hasStarted && (
-        <div className="fixed bottom-4 left-4 z-40 bg-white p-1 rounded-xl shadow-2xl border-2 border-indigo-100 flex flex-col items-center">
+        <div className={`fixed ${showMobileNav ? 'bottom-20' : 'bottom-4'} left-4 z-40 bg-white p-1 rounded-xl shadow-2xl border-2 border-indigo-100 flex flex-col items-center transition-all duration-300`}>
           <div className="relative w-32 h-24 bg-gray-900 rounded-lg overflow-hidden border border-gray-800">
             <video
               ref={videoRef}
