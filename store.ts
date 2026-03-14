@@ -609,24 +609,41 @@ export const useStore = create<AppState>((set, get) => ({
     // Create a set of existing question contents to avoid duplicates
     const existingContents = new Set(questionBank.map(q => q.content.trim()));
 
+    console.log("[Sync] Start syncing from", exams.length, "exams");
+    
     exams.forEach(exam => {
-      if (!exam.questions) return;
-      exam.questions.forEach(q => {
+      let qList = exam.questions;
+      if (!qList) return;
+      
+      // Handle potential stringified JSON
+      if (typeof qList === 'string') {
+        try { qList = JSON.parse(qList); } catch (e) { return; }
+      }
+      
+      if (!Array.isArray(qList)) return;
+
+      qList.forEach(q => {
+        if (!q || !q.content) return;
+        const content = String(q.content).trim();
+        
         // Simple duplicate check: by content
-        if (existingContents.has(q.content.trim())) return;
+        if (existingContents.has(content)) return;
 
         const newItem: QuestionBankItem = {
           ...q,
+          content,
           id: `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          subject: exam.subject,
-          grade: exam.grade,
+          subject: exam.subject || 'Chưa rõ',
+          grade: exam.grade || 'Chưa rõ',
           topic: q.topic || exam.topic || '',
           level: (q.level as string === 'THONG_HIEU' ? 'KET_NOI' : q.level) as any
         };
         newQuestions.push(newItem);
-        existingContents.add(q.content.trim()); // Prevent duplicates within the same sync
+        existingContents.add(content); // Prevent duplicates within the same sync
       });
     });
+
+    console.log("[Sync] Found", newQuestions.length, "new questions to sync");
 
     if (newQuestions.length === 0) return 0;
 

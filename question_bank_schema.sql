@@ -1,3 +1,6 @@
+-- Enable UUID extension
+create extension if not exists "uuid-ossp";
+
 -- Drop table if exists to recreate with correct schema
 DROP TABLE IF EXISTS public.question_bank;
 
@@ -24,8 +27,8 @@ CREATE TABLE public.question_bank (
 -- Enable RLS
 ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
 
--- Create policies (Keep them simple for now)
-CREATE POLICY "Users can see all questions" ON public.question_bank FOR SELECT TO authenticated USING (true);
+-- Create policies
+CREATE POLICY "Public access" ON public.question_bank FOR SELECT TO public USING (true);
 CREATE POLICY "Users can insert questions" ON public.question_bank FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Users can update/delete their own" ON public.question_bank FOR ALL TO authenticated 
 USING (
