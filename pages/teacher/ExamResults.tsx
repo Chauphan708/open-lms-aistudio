@@ -23,10 +23,10 @@ export const ExamResults: React.FC = () => {
       setTimeout(() => setIsRefreshing(false), 800);
    };
 
-    const exam = exams.find(e => e.id === id);
+    const exam = exams.find(e => String(e.id) === String(id));
     const examAttempts = attempts.filter(a => {
-        const matchesExam = a.examId === id;
-        const matchesAssign = !assignmentIdFromUrl || a.assignmentId === assignmentIdFromUrl;
+        const matchesExam = String(a.examId) === String(id);
+        const matchesAssign = !assignmentIdFromUrl || String(a.assignmentId) === String(assignmentIdFromUrl);
         return matchesExam && matchesAssign;
     });
 

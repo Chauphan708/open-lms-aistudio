@@ -54,11 +54,12 @@ export const useStore = create<AppState>((set, get) => ({
       } else if (exams) {
         const mappedExams = exams.map((e: any) => ({
           ...e,
-          teacherId: e.teacherId || e.teacher_id || e.teacherid,
+          id: String(e.id),
+          teacherId: String(e.teacherId || e.teacher_id || e.teacherid),
           createdAt: e.createdAt || e.created_at || e.createdat,
           updatedAt: e.updatedAt || e.updated_at || e.updatedat,
           questionCount: e.questionCount || e.question_count || e.questioncount,
-          classId: e.classId || e.class_id || e.classid
+          classId: String(e.classId || e.class_id || e.classid || '')
         }));
         set({ exams: mappedExams as Exam[] });
       }
@@ -74,11 +75,11 @@ export const useStore = create<AppState>((set, get) => ({
           if (!Array.isArray(ids)) ids = [];
 
           return {
-            id: c.id,
+            id: String(c.id),
             name: c.name,
-            academicYearId: c.academicYearId || c.academic_year_id || c.academicyearid,
-            teacherId: c.teacherId || c.teacher_id || c.teacherid,
-            studentIds: ids
+            academicYearId: String(c.academicYearId || c.academic_year_id || c.academicyearid),
+            teacherId: String(c.teacherId || c.teacher_id || c.teacherid),
+            studentIds: ids.map((sid: any) => String(sid))
           };
         });
         set({ classes: classes as Class[] });
@@ -93,11 +94,14 @@ export const useStore = create<AppState>((set, get) => ({
       if (assignments) {
         const mappedAssignments = assignments.map((a: any) => ({
           ...a,
-          examId: a.examId || a.exam_id || a.examid,
-          classId: a.classId || a.class_id || a.classid,
-          teacherId: a.teacherId || a.teacher_id || a.teacherid,
-          durationMinutes: a.durationMinutes || a.duration_minutes || a.durationminutes,
-          studentIds: a.studentIds || a.student_ids || a.studentids,
+          id: String(a.id),
+          examId: String(a.examId || a.exam_id || a.examid),
+          classId: String(a.classId || a.class_id || a.classid),
+          teacherId: String(a.teacherId || a.teacher_id || a.teacherid),
+          durationMinutes: Number(a.durationMinutes || a.duration_minutes || a.durationminutes || 0),
+          studentIds: Array.isArray(a.studentIds || a.student_ids || a.studentids) 
+            ? (a.studentIds || a.student_ids || a.studentids).map((sid: any) => String(sid)) 
+            : [],
           createdAt: a.createdAt || a.created_at || a.createdat,
           startTime: a.startTime || a.start_time || a.starttime,
           endTime: a.endTime || a.end_time || a.endtime,
@@ -121,21 +125,21 @@ export const useStore = create<AppState>((set, get) => ({
             const mappedAttempt: Attempt = {
               id: String(a.id),
               answers: (a.answers as Record<string, any>) || {},
-              examId: String(a.examId || a.exam_id || a.examid),
-              assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
-              studentId: String(a.studentId || a.student_id || a.studentid),
-              submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
+              examId: String(a.exam_id || a.examId || a.examid),
+              assignmentId: String(a.assignment_id || a.assignmentId || a.assignmentid || ''),
+              studentId: String(a.student_id || a.studentId || a.studentid),
+              submittedAt: String(a.submitted_at || a.submittedAt || a.submittedat || new Date().toISOString()),
               score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
-              teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
-              feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
-              totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
-              timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
-              cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
+              teacherFeedback: a.teacher_feedback || a.teacherFeedback || a.teacherfeedback,
+              feedbackAllowViewSolution: !!(a.feedback_allow_view_solution ?? a.feedbackAllowViewSolution ?? a.feedbackallowviewsolution ?? true),
+              totalTimeSpentSec: Number(a.total_time_spent_sec ?? a.totalTimeSpentSec ?? a.totaltimespentsec ?? 0),
+              timeSpentPerQuestion: (a.time_spent_per_question || a.timeSpentPerQuestion || a.timespentperquestion || {}) as Record<string, number>,
+              cheatWarnings: Number(a.cheat_warnings ?? a.cheatWarnings ?? a.cheatwarnings ?? 0)
             };
             
             set((state) => {
                // Tránh trùng lặp nếu bài nộp đã được addAttempt (local) add vào rồi
-               if (state.attempts.some(att => att.id === mappedAttempt.id)) return state;
+               if (state.attempts.some(att => String(att.id) === mappedAttempt.id)) return state;
                return { attempts: [...state.attempts, mappedAttempt] };
             });
           }
@@ -427,11 +431,11 @@ export const useStore = create<AppState>((set, get) => ({
   addClass: async (cls) => {
     // Map camelCase to potential snake_case for robust insertion
     const payload = {
-      id: cls.id,
+      id: String(cls.id),
       name: cls.name,
-      academic_year_id: cls.academicYearId,
-      teacher_id: cls.teacherId,
-      student_ids: cls.studentIds
+      academic_year_id: String(cls.academicYearId),
+      teacher_id: String(cls.teacherId),
+      student_ids: Array.isArray(cls.studentIds) ? cls.studentIds.map((sid: any) => String(sid)) : []
     };
 
     const { error } = await supabase.from('classes').insert(payload);
@@ -467,17 +471,17 @@ export const useStore = create<AppState>((set, get) => ({
     // Optimistic: add to local state immediately so user sees it
     set((state) => ({ exams: [exam, ...state.exams] }));
     const payload = {
-      id: exam.id,
+      id: String(exam.id),
       title: exam.title,
       subject: exam.subject,
       topic: exam.topic,
       grade: exam.grade,
       difficulty: exam.difficulty,
-      duration_minutes: exam.durationMinutes,
-      question_count: exam.questionCount,
+      duration_minutes: Number(exam.durationMinutes),
+      question_count: Number(exam.questionCount),
       created_at: exam.createdAt,
       status: exam.status,
-      class_id: exam.classId,
+      class_id: String(exam.classId || ''),
       description: (exam as any).description,
       questions: exam.questions,
       deleted_at: exam.deletedAt
@@ -593,16 +597,16 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({ assignments: [assign, ...state.assignments] }));
 
     const payload = {
-      id: assign.id,
-      exam_id: assign.examId,
-      class_id: assign.classId,
-      teacher_id: assign.teacherId,
-      duration_minutes: assign.durationMinutes,
+      id: String(assign.id),
+      exam_id: String(assign.examId),
+      class_id: String(assign.classId),
+      teacher_id: String(assign.teacherId),
+      duration_minutes: Number(assign.durationMinutes),
       start_time: assign.startTime,
       end_time: assign.endTime,
       settings: assign.settings,
       mode: assign.mode,
-      student_ids: assign.studentIds,
+      student_ids: Array.isArray(assign.studentIds) ? assign.studentIds.map((sid: any) => String(sid)) : [],
       created_at: assign.createdAt || new Date().toISOString()
     };
 
@@ -682,16 +686,17 @@ export const useStore = create<AppState>((set, get) => ({
       if (fallback) {
         const mapped = fallback.map((a: any) => ({
           ...a,
-          examId: a.examId || a.exam_id || a.examid,
-          assignmentId: a.assignmentId || a.assignment_id || a.assignmentid,
-          studentId: a.studentId || a.student_id || a.studentid,
-          submittedAt: a.submittedAt || a.submitted_at || a.submittedat,
-          score: a.score !== undefined ? a.score : (a.score_achieved || 0),
+          id: String(a.id),
+          examId: String(a.examId || a.exam_id || a.examid),
+          assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
+          studentId: String(a.studentId || a.student_id || a.studentid),
+          submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
+          score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
           teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
-          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution,
-          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0,
-          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {},
-          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0
+          feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
+          totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
+          timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
+          cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
         }));
         set({ attempts: mapped as Attempt[] });
       }

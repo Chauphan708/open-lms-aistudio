@@ -429,9 +429,11 @@ export const ExamTake: React.FC = () => {
   const navigate = useNavigate();
 
   const { exams, assignments, user, addAttempt, attempts, liveSessions, updateLiveParticipantProgress } = useStore();
-  const exam = exams.find(e => e.id === id);
-  const assignment = assignments.find(a => a.id === assignmentId);
-  const liveSession = liveSessions.find(s => s.id === liveSessionId);
+  
+  // NORMALIZE IDs to String early
+  const exam = useMemo(() => exams.find(e => String(e.id) === String(id)), [exams, id]);
+  const assignment = useMemo(() => assignments.find(a => String(a.id) === String(assignmentId)), [assignments, assignmentId]);
+  const liveSession = useMemo(() => liveSessions.find(s => String(s.id) === String(liveSessionId)), [liveSessions, liveSessionId]);
 
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -501,8 +503,12 @@ export const ExamTake: React.FC = () => {
     }
   }, [assignment]);
 
-  // Check for existing attempts
-  const myAttempts = user ? attempts.filter(a => a.examId === id && a.studentId === user.id) : [];
+  // Check for existing attempts - Standardize ID comparison
+  const myAttempts = useMemo(() => {
+    if (!user || !id) return [];
+    return attempts.filter(a => String(a.examId) === String(id) && String(a.studentId) === String(user.id));
+  }, [attempts, id, user?.id]);
+  
   const latestAttempt = myAttempts.length > 0 ? myAttempts[myAttempts.length - 1] : null; // Get latest
 
   // Retake Logic
@@ -562,12 +568,10 @@ export const ExamTake: React.FC = () => {
     }
   };
 
-  // On mount, initialize state ONLY ONCE or when exam ID changes
-  const lastInitializedId = React.useRef<string | null>(null);
-
+  // On mount or data change, initialize state. 
+  // We remove lastInitializedId to allow re-initialization if exam data arrives late.
   useEffect(() => {
-    if (!exam || lastInitializedId.current === exam.id) return;
-    lastInitializedId.current = exam.id;
+    if (!exam) return;
 
     if (latestAttempt) {
       // View existing attempt result
@@ -588,50 +592,50 @@ export const ExamTake: React.FC = () => {
       });
       setShuffledOptionsMap(standardMap);
 
-    } else {
+    } else if (!isSubmitted && !hasStarted) {
       // New attempt -> check local storage first
       const saved = localStorage.getItem(`exam_draft_${exam.id}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed.shuffledOptionsMap) setShuffledOptionsMap(parsed.shuffledOptionsMap);
-          else setShuffledOptionsMap(generateShuffles());
+          
+          // Only resume if it matches the current assignmentId to avoid cross-sharing drafts
+          const draftAssignId = parsed.assignmentId ? String(parsed.assignmentId) : '';
+          const currentAssignId = assignmentId ? String(assignmentId) : '';
+          
+          if (draftAssignId === currentAssignId) {
+            if (parsed.shuffledOptionsMap) setShuffledOptionsMap(parsed.shuffledOptionsMap);
+            else setShuffledOptionsMap(generateShuffles());
 
-          setAnswers(parsed.answers || {});
-          if (parsed.cheatWarnings) setCheatWarnings(parsed.cheatWarnings);
+            setAnswers(parsed.answers || {});
+            if (parsed.cheatWarnings) setCheatWarnings(parsed.cheatWarnings);
 
-          if (parsed.timeLeft !== undefined && parsed.timeLeft !== null) {
-            setTimeLeft(parsed.timeLeft);
-          } else {
-            const duration = assignment?.durationMinutes || exam.durationMinutes;
-            setTimeLeft(duration * 60);
-          }
+            if (typeof parsed.timeLeft === 'number' && isFinite(parsed.timeLeft)) {
+              setTimeLeft(parsed.timeLeft);
+            } else {
+              const dur = assignment?.durationMinutes || exam.durationMinutes || 45;
+              setTimeLeft(dur * 60);
+            }
 
-          if (parsed.timeSpentPerQuestion) {
-            setTimeSpentPerQuestion(parsed.timeSpentPerQuestion);
-          }
-          if (parsed.examStartTime) {
-            setExamStartTime(parsed.examStartTime);
-          } else {
-            setExamStartTime(Date.now());
+            if (parsed.timeSpentPerQuestion) setTimeSpentPerQuestion(parsed.timeSpentPerQuestion);
+            if (parsed.examStartTime) setExamStartTime(parsed.examStartTime);
+            else setExamStartTime(Date.now());
+            
+            return; // Resumed successfully
           }
         } catch (e) {
-          setShuffledOptionsMap(generateShuffles());
-          const duration = assignment?.durationMinutes || exam.durationMinutes;
-          setTimeLeft(duration * 60);
-          setExamStartTime(Date.now());
+            console.error("Error parsing draft:", e);
         }
-      } else {
-        // Shuffle!
-        setShuffledOptionsMap(generateShuffles());
-
-        // Timer
-        const duration = assignment?.durationMinutes || exam.durationMinutes;
-        setTimeLeft(duration * 60);
-        setExamStartTime(Date.now());
-      }
+      } 
+      
+      // Fallback: Fresh Start (if no draft or draft mismatch)
+      setShuffledOptionsMap(generateShuffles());
+      const duration = (assignment?.durationMinutes || exam.durationMinutes || 45);
+      const initialSeconds = duration * 60;
+      setTimeLeft(initialSeconds);
+      setExamStartTime(Date.now());
     }
-  }, [exam, latestAttempt, assignment, generateShuffles]);
+  }, [exam?.id, latestAttempt?.id, assignment?.id, generateShuffles]);
 
   useEffect(() => {
     if (!exam || isSubmitted || !hasStarted) {
@@ -641,6 +645,7 @@ export const ExamTake: React.FC = () => {
 
     setIsSaving(true);
     localStorage.setItem(`exam_draft_${exam.id}`, JSON.stringify({
+      assignmentId: assignmentId || '', // Store assignment context
       answers,
       timeLeft,
       shuffledOptionsMap,
@@ -1238,14 +1243,14 @@ export const ExamTake: React.FC = () => {
     // Save Attempt
     const attempt: Attempt = {
       id: `att_${Date.now()}`,
-      examId: exam.id,
-      assignmentId: assignment?.id,
-      studentId: user?.id || 'guest',
+      examId: String(exam.id),
+      assignmentId: String(assignmentId || assignment?.id || ''),
+      studentId: String(user?.id || 'guest'),
       answers,
       score: finalScore,
       submittedAt: new Date().toISOString(),
-      cheatWarnings: cheatWarnings,
-      totalTimeSpentSec: totalTime,
+      cheatWarnings: Number(cheatWarnings || 0),
+      totalTimeSpentSec: Number(totalTimeSpentSec || 0),
       timeSpentPerQuestion: timeSpentPerQuestion
     };
     console.log("DEBUG: Final Attempt Payload to send:", attempt);

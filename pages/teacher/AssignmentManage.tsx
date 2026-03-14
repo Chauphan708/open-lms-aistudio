@@ -188,7 +188,7 @@ export const AssignmentManage: React.FC = () => {
                             const exam = exams.find(e => e.id === a.examId);
                             const cls = classes.find(c => c.id === a.classId);
                             const status = getStatus(a);
-                            const submittedCount = attempts.filter(att => att.assignmentId === a.id).length;
+                            const submittedCount = attempts.filter(att => String(att.assignmentId) === String(a.id)).length;
                             const totalStudents = cls ? cls.studentIds.length : 0;
 
                             if (!exam) return null;
