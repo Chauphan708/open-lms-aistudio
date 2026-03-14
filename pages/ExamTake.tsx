@@ -522,6 +522,13 @@ export const ExamTake: React.FC = () => {
   }, [attempts, id, user?.id, assignmentId]);
   
   const latestAttempt = myAttempts.length > 0 ? myAttempts[myAttempts.length - 1] : null; // Get latest
+  
+  const answersCount = useMemo(() => {
+    return Object.values(answers).filter(v => {
+      if (Array.isArray(v)) return v.some(i => i !== undefined && i !== null && i !== '');
+      return v !== undefined && v !== null && v !== '';
+    }).length;
+  }, [answers]);
 
   // Retake Logic
   const attemptCount = myAttempts.length;
@@ -1399,66 +1406,54 @@ export const ExamTake: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Nav Toggle */}
+      {/* Mobile Sticky Question Navigation (Visible only on mobile when started and not submitted) */}
       {!isSubmitted && hasStarted && (
-        <button
-          onClick={() => setIsMobileNavOpen(true)}
-          className="lg:hidden fixed bottom-20 right-4 bg-indigo-600 p-4 rounded-full shadow-lg text-white z-40 hover:bg-indigo-700 transition-all border-2 border-white ring-2 ring-indigo-200"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
-      )}
-
-      {/* Mobile Nav Drawer */}
-      {isMobileNavOpen && !isSubmitted && hasStarted && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex justify-end transition-opacity">
-          <div className="w-[85vw] max-w-sm bg-white h-full shadow-2xl p-5 flex flex-col animate-slide-in-right">
-            <div className="flex justify-between items-center mb-6 border-b pb-4">
-              <div className="font-bold text-gray-800 flex items-center gap-2 text-lg">
-                <ListOrdered className="h-6 w-6 text-indigo-600" /> Danh sách câu hỏi
-              </div>
-              <button onClick={() => setIsMobileNavOpen(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X className="h-5 w-5 text-gray-500" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-              <div className="grid grid-cols-5 sm:grid-cols-6 gap-3">
-                {exam.questions.map((q, idx) => {
-                  const ans = answers[q.id];
-                  let isAnswered = false;
-                  if (ans !== undefined && ans !== null && ans !== '') {
-                    if (Array.isArray(ans)) {
-                      isAnswered = ans.some(a => a !== undefined && a !== null && a !== '');
+        <div className="lg:hidden sticky top-[72px] z-20 bg-white/95 backdrop-blur-md border-b shadow-sm -mx-4 px-4 py-3 mb-4 overflow-x-auto custom-scrollbar-hide">
+          <div className="flex gap-2 min-w-max pb-1 items-center">
+            <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg font-black mr-1">{answersCount}/{exam.questions.length}</span>
+            {exam.questions.map((q, idx) => {
+              const ans = answers[q.id];
+              let isAnswered = false;
+              if (ans !== undefined && ans !== null && ans !== '') {
+                if (Array.isArray(ans)) {
+                  isAnswered = ans.some(a => a !== undefined && a !== null && a !== '');
+                } else {
+                  isAnswered = true;
+                }
+              }
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (viewMode === 'single') {
+                      setCurrentQuestionIndex(idx);
                     } else {
-                      isAnswered = true;
+                      const element = document.getElementById(`question-${q.id}`);
+                      if (element) {
+                        // Offset for sticky headers
+                        const offset = 140; 
+                        const elementPosition = element.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - offset;
+                        window.scrollTo({
+                          top: offsetPosition,
+                          behavior: 'smooth'
+                        });
+                      }
                     }
-                  }
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        if (viewMode === 'single') {
-                          setCurrentQuestionIndex(idx);
-                        } else {
-                          const element = document.getElementById(`question-${q.id}`);
-                          if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }
-                        }
-                        setIsMobileNavOpen(false); // Close drawer after clicking
-                      }}
-                      className={`
-                          h-12 w-full flex items-center justify-center rounded-lg font-bold text-sm transition-all
-                          active:scale-95
-                          ${isAnswered
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 border-transparent'
-                          : 'bg-gray-100 text-gray-500 border border-gray-200'}
-                        `}
-                    >
-                      {idx + 1}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+                  }}
+                  className={`
+                    h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg font-bold text-sm transition-all
+                    active:scale-95
+                    ${isAnswered
+                    ? 'bg-indigo-600 text-white shadow-md border-transparent'
+                    : 'bg-gray-100 text-gray-500 border border-gray-200'}
+                    ${(viewMode === 'single' ? currentQuestionIndex === idx : false) ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}
+                  `}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1552,10 +1547,14 @@ export const ExamTake: React.FC = () => {
       <div className="flex flex-col lg:flex-row gap-6">
 
         {/* Navigation Sidebar (Desktop Left) */}
-        {!isSubmitted && (
+        {/* Navigation Sidebar (Desktop Left) */}
+        {!isSubmitted && hasStarted && (
           <div className="hidden lg:block w-56 flex-shrink-0 relative">
-            <div className="sticky top-[120px] bg-white p-5 rounded-2xl shadow-xl border border-indigo-100 flex flex-col max-h-[calc(100vh-160px)] transition-all">
-              <div className="text-sm font-bold text-gray-700 mb-3">Danh sách câu hỏi</div>
+            <div className="sticky top-[100px] bg-white p-5 rounded-2xl shadow-xl border border-indigo-100 flex flex-col max-h-[calc(100vh-140px)] transition-all">
+              <div className="text-sm font-bold text-gray-700 mb-3 flex items-center justify-between">
+                <span>Danh sách câu hỏi</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black">{answersCount} / {exam.questions.length}</span>
+              </div>
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar mb-4">
                 <div className="grid grid-cols-4 gap-2">
                   {exam.questions.map((q, idx) => {
@@ -1570,6 +1569,8 @@ export const ExamTake: React.FC = () => {
                       }
                     }
 
+                    const isActive = viewMode === 'single' ? currentQuestionIndex === idx : false;
+
                     return (
                       <button
                         key={idx}
@@ -1579,7 +1580,13 @@ export const ExamTake: React.FC = () => {
                           } else {
                             const element = document.getElementById(`question-${q.id}`);
                             if (element) {
-                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              const offset = 120;
+                              const elementPosition = element.getBoundingClientRect().top;
+                              const offsetPosition = elementPosition + window.pageYOffset - offset;
+                              window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                              });
                             }
                           }
                         }}
@@ -1589,6 +1596,7 @@ export const ExamTake: React.FC = () => {
                           ${isAnswered
                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 border-transparent'
                             : 'bg-gray-100 text-gray-500 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600'}
+                          ${isActive ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}
                         `}
                       >
                         {idx + 1}
@@ -1610,18 +1618,18 @@ export const ExamTake: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t flex flex-col gap-2">
+              <div className="mt-2 pt-4 border-t flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <div className="w-4 h-4 rounded bg-indigo-600"></div> Đã làm
+                  <div className="w-3 h-3 rounded bg-indigo-600"></div> <span>Đã làm</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <div className="w-4 h-4 rounded bg-gray-100 border border-gray-200"></div> Chưa làm
+                  <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200"></div> <span>Chưa làm</span>
                 </div>
 
-                <div className="mt-3 pt-3 border-t">
+                <div className="mt-2 pt-3 border-t">
                   <button
                     onClick={() => setViewMode(prev => prev === 'scroll' ? 'single' : 'scroll')}
-                    className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'single' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    className={`w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm ${viewMode === 'single' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     <Sparkles className="h-3 w-3" /> {viewMode === 'scroll' ? 'Chế độ từng câu' : 'Chế độ danh sách'}
                   </button>
