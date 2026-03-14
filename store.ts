@@ -35,7 +35,16 @@ export const useStore = create<AppState>((set, get) => ({
       // 0. Fetch Question Bank
       try {
         const { data: qBanks } = await supabase.from('question_bank').select('*');
-        if (qBanks) set({ questionBank: qBanks as QuestionBankItem[] });
+        if (qBanks) {
+          const mapped = qBanks.map((q: any) => ({
+            ...q,
+            correctOptionIndex: q.correct_option_index,
+            imageUrl: q.image_url,
+            isArenaEligible: q.is_arena_eligible,
+            teacherId: q.teacher_id
+          }));
+          set({ questionBank: mapped as QuestionBankItem[] });
+        }
       } catch (err) {
         console.error("Error fetching question_bank:", err);
       }
@@ -633,11 +642,13 @@ export const useStore = create<AppState>((set, get) => ({
         correct_option_index: q.correctOptionIndex,
         solution: q.solution,
         hint: q.hint,
+        image_url: q.imageUrl,
         level: q.level,
         topic: q.topic,
         subject: q.subject,
         grade: q.grade,
-        is_arena_eligible: q.isArenaEligible
+        is_arena_eligible: q.isArenaEligible,
+        teacher_id: get().user?.id
       }));
 
       const { error } = await supabase.from('question_bank').insert(payload);
@@ -650,21 +661,39 @@ export const useStore = create<AppState>((set, get) => ({
     return successCount;
   },
   addQuestionToBank: async (q) => {
-    const { id, ...rest } = q;
     const payload = {
-      ...rest,
+      content: q.content,
+      type: q.type,
+      options: q.options,
       correct_option_index: q.correctOptionIndex,
-      is_arena_eligible: q.isArenaEligible
+      solution: q.solution,
+      hint: q.hint,
+      image_url: q.imageUrl,
+      level: q.level,
+      topic: q.topic,
+      subject: q.subject,
+      grade: q.grade,
+      is_arena_eligible: q.isArenaEligible,
+      teacher_id: get().user?.id
     };
     const { error } = await supabase.from('question_bank').insert(payload);
     if (error) return false;
-    set((state) => ({ questionBank: [q, ...state.questionBank] }));
+    await get().fetchQuestionBank(); // Refresh to get proper IDs or just trust UI
     return true;
   },
   updateQuestionInBank: async (q) => {
     const payload = {
-      ...q,
+      content: q.content,
+      type: q.type,
+      options: q.options,
       correct_option_index: q.correctOptionIndex,
+      solution: q.solution,
+      hint: q.hint,
+      image_url: q.imageUrl,
+      level: q.level,
+      topic: q.topic,
+      subject: q.subject,
+      grade: q.grade,
       is_arena_eligible: q.isArenaEligible
     };
     const { error } = await supabase.from('question_bank').update(payload).eq('id', q.id);
