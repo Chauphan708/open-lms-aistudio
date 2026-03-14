@@ -459,8 +459,9 @@ export const ExamTake: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
   const [cheatWarnings, setCheatWarnings] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRetakeInitiated, setIsRetakeInitiated] = useState(false);
 
   // --- CAMERA AI STATES ---
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -958,6 +959,9 @@ export const ExamTake: React.FC = () => {
     // Reset Timer
     const duration = assignment?.durationMinutes || exam!.durationMinutes;
     setTimeLeft(duration * 60);
+    
+    // Explicitly allow start screen even if latestAttempt exists
+    setIsRetakeInitiated(true);
   };
 
   // Initialize Access Control
@@ -1065,7 +1069,8 @@ export const ExamTake: React.FC = () => {
   }
 
   // Pre-Start Screen
-  if (!hasStarted && !isSubmitted && !latestAttempt) {
+  // Show if: Not started AND (No previous attempt OR User clicked "Retake")
+  if (!hasStarted && !isSubmitted && (!latestAttempt || isRetakeInitiated)) {
     const isContinuing = !!localStorage.getItem(`exam_draft_${exam.id}`);
     const isExamMode = assignment?.mode === 'exam';
     const requireFullscreen = assignmentSettings.requireFullscreen !== false && (isExamMode || !!assignmentSettings.requireFullscreen);
@@ -1408,7 +1413,7 @@ export const ExamTake: React.FC = () => {
 
       {/* Mobile Sticky Question Navigation (Visible only on mobile when started and not submitted) */}
       {!isSubmitted && hasStarted && (
-        <div className="lg:hidden sticky top-[72px] z-20 bg-white/95 backdrop-blur-md border-b shadow-sm -mx-4 px-4 py-3 mb-4 overflow-x-auto custom-scrollbar-hide">
+        <div className="lg:hidden sticky top-[64px] z-[30] bg-white/95 backdrop-blur-md border-b shadow-sm -mx-4 px-4 py-3 mb-4 overflow-x-auto custom-scrollbar-hide">
           <div className="flex gap-2 min-w-max pb-1 items-center">
             <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg font-black mr-1">{answersCount}/{exam.questions.length}</span>
             {exam.questions.map((q, idx) => {
@@ -1467,7 +1472,7 @@ export const ExamTake: React.FC = () => {
       )}
 
       {/* Header Sticky */}
-      <div className="sticky top-0 z-10 bg-white border-b shadow-sm mb-6 -mx-4 px-4 md:-mx-8 md:px-8 py-3 flex justify-between items-center">
+      <div className="sticky top-0 z-40 bg-white border-b shadow-sm mb-6 -mx-4 px-4 md:-mx-8 md:px-8 py-3 flex justify-between items-center transition-all">
         <div>
           <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{exam.title}</h1>
           <div className="text-xs text-gray-500 flex items-center gap-2">
