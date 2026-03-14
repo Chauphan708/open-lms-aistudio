@@ -1242,7 +1242,7 @@ export const ExamTake: React.FC = () => {
 
     // Save Attempt
     const attempt: Attempt = {
-      id: `att_${Date.now()}`,
+      id: crypto.randomUUID(),
       examId: String(exam.id),
       assignmentId: String(assignmentId || assignment?.id || ''),
       studentId: String(user?.id || 'guest'),

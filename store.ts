@@ -679,52 +679,50 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Attempts
   fetchAttempts: async () => {
-    const { data: attempts, error } = await supabase.from('attempts').select('*').order('created_at', { ascending: false });
-    if (error) {
-      // Fallback for older schema
-      const { data: fallback } = await supabase.from('attempts').select('*').order('submittedAt', { ascending: false });
-      if (fallback) {
-        const mapped = fallback.map((a: any) => ({
-          ...a,
-          id: String(a.id),
-          examId: String(a.examId || a.exam_id || a.examid),
-          assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
-          studentId: String(a.studentId || a.student_id || a.studentid),
-          submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
-          score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
-          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
-          feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
-          totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
-          timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
-          cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
-        }));
-        set({ attempts: mapped as Attempt[] });
+    // Try ordering by different potential columns to handle various schema versions
+    const orderColumns = ['submitted_at', 'created_at', 'submittedAt'];
+    let data: any[] | null = null;
+    let lastError: any = null;
+
+    for (const col of orderColumns) {
+      const { data: result, error } = await supabase
+        .from('attempts')
+        .select('*')
+        .order(col, { ascending: false });
+      
+      if (!error) {
+        data = result;
+        break;
       }
-      return;
+      lastError = error;
     }
-    
-    if (attempts) {
-        const mappedAttempts: Attempt[] = attempts.map((a: any) => ({
-          id: String(a.id),
-          answers: (a.answers as Record<string, any>) || {},
-          examId: String(a.examId || a.exam_id || a.examid),
-          assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
-          studentId: String(a.studentId || a.student_id || a.studentid),
-          submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
-          score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
-          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
-          feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
-          totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
-          timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
-          cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
-        }));
-      set({ attempts: mappedAttempts as Attempt[] });
+
+    if (data) {
+      const mappedAttempts: Attempt[] = data.map((a: any) => ({
+        id: String(a.id),
+        answers: (a.answers as Record<string, any>) || {},
+        examId: String(a.examId || a.exam_id || a.examid),
+        assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
+        studentId: String(a.studentId || a.student_id || a.studentid),
+        submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
+        score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
+        teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+        feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
+        totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
+        timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
+        cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
+      }));
+      set({ attempts: mappedAttempts });
+    } else if (lastError) {
+      console.error("fetchAttempts failed on all order columns:", lastError);
     }
   },
 
   addAttempt: async (attempt) => {
     console.log("DEBUG: addAttempt starting with payload:", attempt);
-    const payload = {
+    
+    // First Priority: Standard Snake Case (New Schema)
+    const snakePayload = {
       id: attempt.id,
       exam_id: attempt.examId,
       assignment_id: attempt.assignmentId || null,
@@ -733,44 +731,58 @@ export const useStore = create<AppState>((set, get) => ({
       score: attempt.score,
       submitted_at: attempt.submittedAt,
       teacher_feedback: attempt.teacherFeedback || null,
-      feedback_allow_view_solution: attempt.feedbackAllowViewSolution || null,
+      feedback_allow_view_solution: attempt.feedbackAllowViewSolution ?? true,
       total_time_spent_sec: attempt.totalTimeSpentSec || null,
       time_spent_per_question: attempt.timeSpentPerQuestion || null,
       cheat_warnings: attempt.cheatWarnings || null
     };
 
-    let { error } = await supabase.from('attempts').insert(payload);
+    let { error } = await supabase.from('attempts').insert(snakePayload);
     
     if (error) {
-      console.error("DEBUG: addAttempt Supabase error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        payload
-      });
-
-      // Fallback: try inserting without the new columns (compatibility with old schema)
-      const fallbackPayload: any = { ...payload };
-      delete fallbackPayload.total_time_spent_sec;
-      delete fallbackPayload.time_spent_per_question;
-      delete fallbackPayload.cheat_warnings;
+      console.warn("DEBUG: addAttempt Snake Case failed, trying Snake Min...", error.message);
       
-      const { error: err2 } = await supabase.from('attempts').insert(fallbackPayload);
-      if (!err2) {
-        error = null;
-      } else {
-        console.error("DEBUG: addAttempt Fallback error:", err2);
-        alert(`❌ LỖI NỘP BÀI: ${err2.message}\n\nVui lòng CHỤP ẢNH MÀN HÌNH kết quả này và gửi cho giáo viên ngay để được ghi nhận điểm!`);
-        return false;
+      // Second Priority: Snake Case without stats columns (Compatibility)
+      const snakeMinPayload = { ...snakePayload };
+      delete (snakeMinPayload as any).total_time_spent_sec;
+      delete (snakeMinPayload as any).time_spent_per_question;
+      delete (snakeMinPayload as any).cheat_warnings;
+
+      const { error: err2 } = await supabase.from('attempts').insert(snakeMinPayload);
+      
+      if (err2) {
+        console.warn("DEBUG: addAttempt Snake Min failed, trying Camel Case...", err2.message);
+        
+        // Third Priority: Old Camel Case
+        const camelPayload = {
+          id: attempt.id,
+          examId: attempt.examId,
+          assignmentId: attempt.assignmentId || null,
+          studentId: attempt.studentId,
+          answers: attempt.answers,
+          score: attempt.score,
+          submittedAt: attempt.submittedAt,
+          teacherFeedback: attempt.teacherFeedback || null,
+          feedbackAllowViewSolution: attempt.feedbackAllowViewSolution ?? true
+        };
+
+        const { error: err3 } = await supabase.from('attempts').insert(camelPayload);
+        
+        if (err3) {
+           console.error("DEBUG: addAttempt failed on ALL levels:", {
+             snakeError: error.message,
+             snakeMinError: err2.message,
+             camelError: err3.message
+           });
+           alert(`❌ LỖI NỘP BÀI: ${err3.message}\n\nVui lòng CHỤP ẢNH MÀN HÌNH kết quả này và gửi cho giáo viên ngay!`);
+           return false;
+        }
       }
     }
 
-    if (!error) {
-      set((state) => ({ attempts: [...state.attempts, attempt] }));
-      return true;
-    }
-    return false;
+    // Success if we reached here
+    set((state) => ({ attempts: [...state.attempts, attempt] }));
+    return true;
   },
   updateAttemptFeedback: async (attemptId, feedback, allowViewSolution) => {
     const { error } = await supabase.from('attempts').update({
