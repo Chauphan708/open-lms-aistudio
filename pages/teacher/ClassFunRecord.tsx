@@ -28,7 +28,8 @@ export const ClassFunRecord: React.FC = () => {
     const {
         behaviors, logs, groupMembers, groups, isLoading,
         fetchClassFunData, addBehavior, updateBehavior, deleteBehavior, batchAddBehaviorLogs,
-        attendance, fetchAttendance, deleteBehaviorLog
+        attendance, fetchAttendance, deleteBehaviorLog,
+        autoPointThresholds, fetchPointThresholds, savePointThresholds, updateBehaviorLog
     } = useClassFunStore();
 
     // --- States ---
@@ -38,18 +39,28 @@ export const ClassFunRecord: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [customReason, setCustomReason] = useState('');
     const [showManageBehaviors, setShowManageBehaviors] = useState(false);
+    const [showAutoPointConfig, setShowAutoPointConfig] = useState(false);
     const [showSuccess, setShowSuccess] = useState<{ points: number; count: number } | null>(null);
 
     // New behavior form
     const [newBehavior, setNewBehavior] = useState({ description: '', type: 'POSITIVE' as 'POSITIVE' | 'NEGATIVE', points: 5 });
     const [editingBehavior, setEditingBehavior] = useState<{ id: string; description: string; type: 'POSITIVE' | 'NEGATIVE'; points: number } | null>(null);
+    const [editingLogId, setEditingLogId] = useState<string | null>(null);
+    const [editLogData, setEditLogData] = useState({ points: 0, reason: '' });
+
+    const [tempThresholds, setTempThresholds] = useState(autoPointThresholds);
+
+    useEffect(() => {
+        setTempThresholds(autoPointThresholds);
+    }, [autoPointThresholds]);
 
     // Load data
     useEffect(() => {
         if (selectedClassId && user?.id) {
             fetchClassFunData(selectedClassId, user.id);
+            fetchPointThresholds(user.id);
         }
-    }, [selectedClassId, user?.id, fetchClassFunData]);
+    }, [selectedClassId, user?.id, fetchClassFunData, fetchPointThresholds]);
 
     const todayStr = new Date().toLocaleDateString('en-CA');
     useEffect(() => {
@@ -72,7 +83,7 @@ export const ClassFunRecord: React.FC = () => {
     // Check attendance status
     const currentAttendance = useMemo(() => {
         const map: Record<string, 'present' | 'excused' | 'unexcused'> = {};
-        attendance.forEach(a => map[a.student_id] = a.status);
+        (attendance || []).forEach((a: any) => { map[a.student_id] = a.status; });
         return map;
     }, [attendance]);
 
@@ -86,19 +97,16 @@ export const ClassFunRecord: React.FC = () => {
     // Group students by group
     const groupedStudents = useMemo(() => {
         const result = {
-            groups: groups.map(g => ({ ...g, students: [] as typeof filteredStudents })).sort((a, b) => a.sort_order - b.sort_order),
+            groups: (groups || []).map((g: any) => ({ ...g, students: [] as typeof filteredStudents })).sort((a: any, b: any) => a.sort_order - b.sort_order),
             ungrouped: [] as typeof filteredStudents
         };
 
-        filteredStudents.forEach(s => {
-            const member = groupMembers.find(m => m.student_id === s.id);
+        filteredStudents.forEach((s: any) => {
+            const member = (groupMembers || []).find((m: any) => m.student_id === s.id);
             if (member) {
-                const groupIndex = result.groups.findIndex(g => g.id === member.group_id);
-                if (groupIndex !== -1) {
-                    result.groups[groupIndex].students.push(s);
-                } else {
-                    result.ungrouped.push(s);
-                }
+                const group = result.groups.find((g: any) => g.id === member.group_id);
+                if (group) group.students.push(s);
+                else result.ungrouped.push(s);
             } else {
                 result.ungrouped.push(s);
             }
@@ -260,11 +268,89 @@ export const ClassFunRecord: React.FC = () => {
                         </select>
                     )}
                     <button onClick={() => setShowManageBehaviors(!showManageBehaviors)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm font-medium hover:bg-gray-50 transition">
-                        <Edit2 className="h-4 w-4" /> Quản lý hành vi
+                        className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition ${showManageBehaviors ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white hover:bg-gray-50'}`}>
+                        <Edit2 className="h-4 w-4" /> Bậc mốc điểm
+                    </button>
+                    <button onClick={() => { setShowAutoPointConfig(!showAutoPointConfig); setShowManageBehaviors(false); }}
+                        className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition ${showAutoPointConfig ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white hover:bg-gray-50'}`}>
+                        <Zap className="h-4 w-4" /> Cấu hình điểm tự động
                     </button>
                 </div>
             </div>
+
+            {/* Auto Point Config Panel */}
+            {showAutoPointConfig && (
+                <div className="bg-white rounded-xl shadow-sm border p-6 space-y-4 animate-in slide-in-from-top-2">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-bold text-gray-800">Cấu hình mốc điểm bài tập</h2>
+                        <p className="text-xs text-gray-500 italic">* Hệ thống sẽ cộng thêm điểm chênh lệch khi HS đạt mốc cao hơn.</p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        {tempThresholds.map((t, idx) => (
+                            <div key={t.id || idx} className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <div className="flex-1 flex items-center gap-2">
+                                    <span className="text-sm font-bold text-gray-600 min-w-20">Đúng từ:</span>
+                                    <div className="relative flex-1 max-w-[120px]">
+                                        <input 
+                                            type="number" 
+                                            value={t.percentage} 
+                                            onChange={(e) => {
+                                                const newThresholds = [...tempThresholds];
+                                                newThresholds[idx] = { ...newThresholds[idx], percentage: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) };
+                                                setTempThresholds(newThresholds);
+                                            }}
+                                            className="w-full pl-3 pr-8 py-2 border rounded-lg text-sm font-black"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
+                                    </div>
+                                </div>
+                                <div className="flex-1 flex items-center gap-2">
+                                    <span className="text-sm font-bold text-gray-600 min-w-20">Tổng điểm:</span>
+                                    <input 
+                                        type="number" 
+                                        value={t.points} 
+                                        onChange={(e) => {
+                                            const newThresholds = [...tempThresholds];
+                                            newThresholds[idx] = { ...newThresholds[idx], points: parseInt(e.target.value) || 0 };
+                                            setTempThresholds(newThresholds);
+                                        }}
+                                        className="w-full max-w-[80px] px-3 py-2 border rounded-lg text-sm font-black text-indigo-600"
+                                    />
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        setTempThresholds(tempThresholds.filter((_, i) => i !== idx));
+                                    }}
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-4 border-t">
+                        <button 
+                            onClick={() => {
+                                setTempThresholds([...tempThresholds, { id: `new_${Date.now()}`, percentage: 0, points: 0 }]);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-indigo-200 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-50 transition"
+                        >
+                            <Plus className="h-4 w-4" /> Thêm mốc mới
+                        </button>
+                        <button 
+                            onClick={() => {
+                                if (user?.id) savePointThresholds(user.id, tempThresholds);
+                                setShowAutoPointConfig(false);
+                            }}
+                            className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-100 transition"
+                        >
+                            Lưu cấu hình
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Manage Behaviors Panel */}
             {showManageBehaviors && (
@@ -542,23 +628,66 @@ export const ClassFunRecord: React.FC = () => {
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                 {logs.filter(l => l.created_at.startsWith(todayStr)).map(log => {
                                     const student = users.find(u => u.id === log.student_id);
+                                    const isEditing = editingLogId === log.id;
+
                                     return (
-                                        <div key={log.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-gray-50 border gap-2 hover:bg-gray-100 transition">
-                                            <div className="flex items-center gap-3">
+                                        <div key={log.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-gray-50 border gap-2 hover:bg-gray-100 transition group/log">
+                                            <div className="flex items-center gap-3 flex-1">
                                                 <img src={student?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(student?.name || '')}&background=6366f1&color=fff&size=32`} className="w-8 h-8 rounded-full" />
-                                                <div>
+                                                <div className="flex-1">
                                                     <p className="text-sm font-bold text-gray-800">{student?.name}</p>
-                                                    <p className="text-xs text-gray-500">{log.reason}</p>
+                                                    {isEditing ? (
+                                                        <input 
+                                                            value={editLogData.reason} 
+                                                            onChange={e => setEditLogData({ ...editLogData, reason: e.target.value })}
+                                                            className="text-xs w-full mt-1 px-2 py-1 border rounded"
+                                                        />
+                                                    ) : (
+                                                        <p className="text-xs text-gray-500 line-clamp-1">{log.reason}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3 self-end sm:self-auto">
-                                                <span className={`text-sm font-bold ${log.points >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                    {log.points > 0 ? '+' : ''}{log.points}
-                                                </span>
-                                                <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                <button onClick={() => deleteBehaviorLog(log.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Xóa lịch sử này">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                {isEditing ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <input 
+                                                            type="number" 
+                                                            value={editLogData.points} 
+                                                            onChange={e => setEditLogData({ ...editLogData, points: parseInt(e.target.value) || 0 })}
+                                                            className="w-16 px-2 py-1 text-sm border rounded font-bold"
+                                                        />
+                                                        <button onClick={() => {
+                                                            updateBehaviorLog(log.id, editLogData);
+                                                            setEditingLogId(null);
+                                                        }} className="p-1 px-2 bg-indigo-600 text-white rounded text-xs">Lưu</button>
+                                                        <button onClick={() => setEditingLogId(null)} className="p-1 px-2 bg-gray-200 text-gray-600 rounded text-xs">Hủy</button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <span className={`text-sm font-bold ${log.points >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                            {log.points > 0 ? '+' : ''}{log.points}
+                                                        </span>
+                                                        <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        
+                                                        <div className="flex items-center gap-1 opacity-0 group-hover/log:opacity-100 transition-opacity">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setEditingLogId(log.id);
+                                                                    setEditLogData({ points: log.points, reason: log.reason || '' });
+                                                                }} 
+                                                                className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Sửa bản ghi này"
+                                                            >
+                                                                <Edit2 className="h-4 w-4" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => deleteBehaviorLog(log.id)} 
+                                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Xóa lịch sử này"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     )

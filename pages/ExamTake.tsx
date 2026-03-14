@@ -428,7 +428,13 @@ export const ExamTake: React.FC = () => {
   const liveSessionId = searchParams.get('live'); // Check if Live Mode
   const navigate = useNavigate();
 
-  const { exams, assignments, user, addAttempt, attempts, liveSessions, updateLiveParticipantProgress } = useStore();
+  const { 
+    exams, assignments, user, addAttempt, attempts, liveSessions, 
+    updateLiveParticipantProgress 
+  } = useStore();
+  const { 
+    autoPointThresholds, fetchPointThresholds, batchAddBehaviorLogs 
+  } = useClassFunStore();
   
   // NORMALIZE IDs to String early
   const exam = useMemo(() => exams.find(e => String(e.id) === String(id)), [exams, id]);
@@ -503,6 +509,13 @@ export const ExamTake: React.FC = () => {
       return defaultSettings;
     }
   }, [assignment]);
+
+  // Fetch auto point settings
+  useEffect(() => {
+    if (assignment?.teacherId) {
+      fetchPointThresholds(assignment.teacherId);
+    }
+  }, [assignment?.teacherId, fetchPointThresholds]);
 
   // Check for existing attempts - Standardize ID comparison & include Assignment Context
   const myAttempts = useMemo(() => {
@@ -1292,67 +1305,68 @@ export const ExamTake: React.FC = () => {
        console.log("DEBUG: addAttempt SUCCESS.");
     }
 
-    // BỔ SUNG LOGIC: Tự động ghi nhận điểm hành vi
-    if (user && user.id && assignment?.classId) {
+     // BỔ SUNG LOGIC: Tự động ghi nhận điểm hành vi theo mốc linh hoạt & cộng dồn
+    if (user && user.id && assignment?.classId && exam) {
       const percentage = (correctCount / exam.questions.length) * 100;
-      let pointsToGive = 0;
-      let reasonText = "";
-
-      if (percentage === 100) {
-        pointsToGive = 5;
-        reasonText = "Làm đúng tất cả bài online";
-      } else if (percentage >= 50) {
-        pointsToGive = 3;
-        reasonText = "Làm đúng từ 50% bài làm online";
-      } else {
-        pointsToGive = 1;
-        reasonText = "Có làm bài online";
-      }
-
-      if (cheatWarnings > 0) {
-        pointsToGive = Math.max(0, pointsToGive - 2); // Trừ điểm nếu có vi phạm
-        reasonText += ` (Cảnh báo gian lận ${cheatWarnings} lần)`;
+      
+      // 1. Xác định mốc điểm cao nhất đạt được dựa trên cấu hình linh hoạt
+      // thresholds được sắp xếp tăng dần theo percentage trong store
+      let targetTotalPoints = 0;
+      let activeThresholdLabel = "Có làm bài online";
+      
+      const sortedThresholds = [...autoPointThresholds].sort((a, b) => a.percentage - b.percentage);
+      
+      for (const threshold of sortedThresholds) {
+        if (percentage >= threshold.percentage) {
+          targetTotalPoints = threshold.points;
+          activeThresholdLabel = `Làm đúng từ ${threshold.percentage}% bài làm online`;
+          if (threshold.percentage === 0) activeThresholdLabel = "Có làm bài online";
+          if (threshold.percentage === 100) activeThresholdLabel = "Làm đúng 100% bài làm online";
+        }
       }
 
       try {
-        // Kiểm tra xem đã có log tự động nào cho bài này chưa (quy ước reason chứa chuỗi 'bài làm online' + assignment ID)
         const identifyKey = `[Tự động - ${assignment.id}]`;
-        const finalReasonText = `${identifyKey} ${reasonText}`;
 
+        // 2. Tính tổng điểm tự động đã nhận cho bài tập này
         const { data: existingLogs, error: checkError } = await supabase
           .from('behavior_logs')
-          .select('*')
+          .select('points')
           .eq('student_id', user.id)
           .eq('class_id', assignment.classId)
-          .like('reason', `${identifyKey}%`)
-          .order('points', { ascending: false });
+          .like('reason', `${identifyKey}%`);
 
         if (!checkError) {
-          if (existingLogs && existingLogs.length > 0) {
-            const bestLog = existingLogs[0];
-            // Nếu log mới có điểm lớn hơn log cũ (trường hợp retake), thì ta update/nâng điểm
-            if (pointsToGive > bestLog.points) {
-              await supabase.from('behavior_logs').update({
-                points: pointsToGive,
-                reason: finalReasonText
-              }).eq('id', bestLog.id);
+          const currentEarnedPoints = (existingLogs || []).reduce((sum, log) => sum + log.points, 0);
+          
+          // 3. Nếu mốc mới cao hơn tổng đã nhận, cộng thêm phần chênh lệch
+          let diffPoints = targetTotalPoints - currentEarnedPoints;
+          
+          if (diffPoints > 0) {
+            let reasonText = activeThresholdLabel;
+            if (cheatWarnings > 0) {
+              const penalty = Math.min(diffPoints, 2);
+              diffPoints -= penalty;
+              reasonText += ` (Cảnh báo gian lận ${cheatWarnings} lần, -${penalty}đ)`;
             }
-          } else {
-            // Chưa có log thì tạo mới
-            const newLog = {
-              id: `log_auto_${Date.now()}`,
-              student_id: user.id,
-              class_id: assignment.classId,
-              points: pointsToGive,
-              reason: finalReasonText,
-              recorded_by: assignment.teacherId || 'system',
-              created_at: new Date().toISOString()
-            };
-            await supabase.from('behavior_logs').insert(newLog);
+
+            if (diffPoints > 0) {
+              const finalReasonText = `${identifyKey} ${reasonText}`;
+              const newLog = {
+                id: `log_auto_${Date.now()}`,
+                student_id: user.id,
+                class_id: assignment.classId,
+                points: diffPoints,
+                reason: finalReasonText,
+                recorded_by: assignment.teacherId || 'system',
+                created_at: new Date().toISOString()
+              };
+              await supabase.from('behavior_logs').insert(newLog);
+            }
           }
         }
       } catch (err) {
-        console.error("Lỗi tự động ghi nhận điểm hành vi:", err);
+        console.error("Error awarding automatic points:", err);
       }
     }
   };

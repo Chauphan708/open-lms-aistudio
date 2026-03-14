@@ -58,6 +58,7 @@ interface ClassFunState {
   seatingChart: ClassSeatingChart | null;
   isLoading: boolean;
   hasMoreLogs: boolean;
+  autoPointThresholds: { id: string; percentage: number; points: number }[];
 
   // Actions - Groups
   fetchClassFunData: (classId: string, teacherId: string) => Promise<void>;
@@ -87,6 +88,11 @@ interface ClassFunState {
   // Actions - Seating Chart
   fetchSeatingChart: (classId: string) => Promise<void>;
   saveSeatingChart: (chart: Omit<ClassSeatingChart, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+
+  // Actions - Auto Point Settings
+  fetchPointThresholds: (teacherId: string) => Promise<void>;
+  savePointThresholds: (teacherId: string, thresholds: { percentage: number, points: number }[]) => Promise<void>;
+  updateBehaviorLog: (id: string, data: Partial<BehaviorLog>) => Promise<void>;
 }
 
 export const useClassFunStore = create<ClassFunState>((set, get) => ({
@@ -98,6 +104,7 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
   seatingChart: null,
   isLoading: false,
   hasMoreLogs: true,
+  autoPointThresholds: [],
 
   // --- Fetch all data for a class ---
   fetchClassFunData: async (classId, teacherId) => {
@@ -395,6 +402,57 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
           } as ClassSeatingChart
         });
       }
+    }
+  },
+
+  // --- Auto Point Settings & Manual Log Updates ---
+  fetchPointThresholds: async (teacherId) => {
+    const { data } = await supabase
+      .from('teacher_auto_point_settings')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .order('percentage', { ascending: true });
+    
+    if (data) {
+      set({ autoPointThresholds: data });
+    } else {
+      // Default thresholds if none exist
+      set({ autoPointThresholds: [
+        { id: 'def_1', percentage: 0, points: 1 },
+        { id: 'def_2', percentage: 50, points: 3 },
+        { id: 'def_3', percentage: 100, points: 5 }
+      ]});
+    }
+  },
+
+  savePointThresholds: async (teacherId, thresholds) => {
+    // Delete existing
+    await supabase.from('teacher_auto_point_settings').delete().eq('teacher_id', teacherId);
+    
+    // Insert new
+    const toInsert = thresholds.map((t, idx) => ({
+      teacher_id: teacherId,
+      percentage: t.percentage,
+      points: t.points,
+      id: `pt_${Date.now()}_${idx}`
+    }));
+    
+    const { error } = await supabase.from('teacher_auto_point_settings').insert(toInsert);
+    if (!error) {
+      set({ autoPointThresholds: toInsert as any });
+    }
+  },
+
+  updateBehaviorLog: async (id, data) => {
+    const { error } = await supabase
+      .from('behavior_logs')
+      .update(data)
+      .eq('id', id);
+    
+    if (!error) {
+      set(s => ({
+        logs: s.logs.map(l => l.id === id ? { ...l, ...data } : l)
+      }));
     }
   }
 }));
