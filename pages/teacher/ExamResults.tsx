@@ -1,20 +1,34 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store';
 import { analyzeClassPerformance, analyzeStudentAttempt } from '../../services/geminiService';
-import { BarChart3, ArrowLeft, Users, BrainCircuit, Sparkles, TrendingUp, TrendingDown, Clock, Settings, X, CheckCircle, XCircle, Search, Send, Save, Eye, EyeOff, ChevronDown, ChevronRight } from 'lucide-react';
+import { BarChart3, ArrowLeft, Users, BrainCircuit, Sparkles, TrendingUp, TrendingDown, Clock, Settings, X, CheckCircle, XCircle, Search, Send, Save, Eye, EyeOff, ChevronDown, ChevronRight, RefreshCw, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Attempt } from '../../types';
 
 export const ExamResults: React.FC = () => {
-   const { id } = useParams();
-   const navigate = useNavigate();
-   const { exams, attempts, users, assignments, classes, user, saveUserPrompt, updateAttemptFeedback } = useStore();
+    const { id } = useParams();
+    const [searchParams] = useSearchParams();
+    const assignmentIdFromUrl = searchParams.get('assign');
+    const navigate = useNavigate();
+    const { exams, attempts, users, assignments, classes, user, saveUserPrompt, updateAttemptFeedback, fetchAttempts } = useStore();
+   
+   const [isRefreshing, setIsRefreshing] = useState(false);
 
-   const exam = exams.find(e => e.id === id);
-   const examAttempts = attempts.filter(a => a.examId === id);
+   const handleManualRefresh = async () => {
+      setIsRefreshing(true);
+      await fetchAttempts();
+      setTimeout(() => setIsRefreshing(false), 800);
+   };
+
+    const exam = exams.find(e => e.id === id);
+    const examAttempts = attempts.filter(a => {
+        const matchesExam = a.examId === id;
+        const matchesAssign = !assignmentIdFromUrl || a.assignmentId === assignmentIdFromUrl;
+        return matchesExam && matchesAssign;
+    });
 
    // Class Analysis State
    const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -130,14 +144,28 @@ export const ExamResults: React.FC = () => {
                   <h1 className="text-2xl font-bold text-gray-900">{exam.title}</h1>
                   <p className="text-gray-500 text-sm">Thống kê kết quả lớp học</p>
                </div>
-               <button
-                  onClick={() => setShowConfigModal(true)}
-                  disabled={isAnalyzing || examAttempts.length === 0}
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                  <Sparkles className="h-5 w-5" />
-                  {isAnalyzing ? 'AI đang phân tích...' : 'Phân tích lớp học với AI'}
-               </button>
+                <div className="flex flex-wrap items-center gap-2">
+                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-100 rounded-lg text-green-700 text-xs font-bold mr-2">
+                      <Zap className="h-3 w-3 animate-pulse" />
+                      Realtime Active
+                   </div>
+                   <button
+                      onClick={handleManualRefresh}
+                      disabled={isRefreshing}
+                      className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center disabled:opacity-50"
+                      title="Tải lại kết quả"
+                   >
+                      <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                   </button>
+                   <button
+                      onClick={() => setShowConfigModal(true)}
+                      disabled={isAnalyzing || examAttempts.length === 0}
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                      <Sparkles className="h-5 w-5" />
+                      {isAnalyzing ? 'AI đang phân tích...' : 'Phân tích lớp học với AI'}
+                   </button>
+                </div>
             </div>
          </div>
 
@@ -250,14 +278,21 @@ export const ExamResults: React.FC = () => {
                                     isCorrect = userAns === q.correctOptionIndex;
                                  } else if (q.type === 'SHORT_ANSWER') {
                                     const sAns = String(userAns || '').trim().toLowerCase();
-                                    isCorrect = q.options && q.options.length > 0
+                                    const solString = String(q.solution || '').trim();
+                                    const isSolutionShort = solString !== '' && solString.split(/\s+/).length < 10;
+
+                                    isCorrect = (q.options && q.options.length > 0)
                                        ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
-                                       : sAns === String(q.solution || '').trim().toLowerCase();
+                                       : (isSolutionShort && sAns === solString.toLowerCase());
                                  } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
                                     if (Array.isArray(userAns) && userAns.length === q.options.length) {
                                        let isAllCorrect = true;
                                        for (let i = 0; i < q.options.length; i++) {
-                                          if (userAns[i] !== q.options[i]) {
+                                          const expected = q.options[i];
+                                          const actual = userAns[i];
+                                          const normExpected = String(expected || '').trim().toLowerCase().replace(/\s*\|\|\|\s*/g, '|||');
+                                          const normActual = String(actual || '').trim().toLowerCase().replace(/\s*\|\|\|\s*/g, '|||');
+                                          if (normActual !== normExpected) {
                                              isAllCorrect = false;
                                              break;
                                           }
@@ -661,14 +696,21 @@ export const ExamResults: React.FC = () => {
                                  isCorrect = userAns === q.correctOptionIndex;
                               } else if (q.type === 'SHORT_ANSWER') {
                                  const sAns = String(userAns || '').trim().toLowerCase();
-                                 isCorrect = q.options && q.options.length > 0
+                                 const solString = String(q.solution || '').trim();
+                                 const isSolutionShort = solString !== '' && solString.split(/\s+/).length < 10;
+
+                                 isCorrect = (q.options && q.options.length > 0)
                                     ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
-                                    : sAns === String(q.solution || '').trim().toLowerCase();
+                                    : (isSolutionShort && sAns === solString.toLowerCase());
                               } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
                                  if (Array.isArray(userAns) && userAns.length === q.options.length) {
                                     let isAllCorrect = true;
                                     for (let i = 0; i < q.options.length; i++) {
-                                       if (userAns[i] !== q.options[i]) {
+                                       const expected = q.options[i];
+                                       const actual = userAns[i];
+                                       const normExpected = String(expected || '').trim().toLowerCase().replace(/\s*\|\|\|\s*/g, '|||');
+                                       const normActual = String(actual || '').trim().toLowerCase().replace(/\s*\|\|\|\s*/g, '|||');
+                                       if (normActual !== normExpected) {
                                           isAllCorrect = false;
                                           break;
                                        }

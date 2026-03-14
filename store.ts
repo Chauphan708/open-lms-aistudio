@@ -107,23 +107,40 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 5. Fetch Attempts
-      let { data: attempts } = await supabase.from('attempts').select('*');
-      if (attempts) {
-        const mappedAttempts = attempts.map((a: any) => ({
-          ...a,
-          examId: a.examId || a.exam_id || a.examid,
-          assignmentId: a.assignmentId || a.assignment_id || a.assignmentid,
-          studentId: a.studentId || a.student_id || a.studentid,
-          submittedAt: a.submittedAt || a.submitted_at || a.submittedat,
-          score: a.score !== undefined ? a.score : (a.score_achieved || 0),
-          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
-          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution,
-          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0,
-          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {},
-          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0
-        }));
-        set({ attempts: mappedAttempts as Attempt[] });
-      }
+      await get().fetchAttempts();
+
+      // --- SETUP REALTIME SUBSCRIPTIONS ---
+      supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'attempts' },
+          (payload) => {
+            console.log('REALTIME: New attempt received:', payload.new);
+            const a = payload.new;
+            const mappedAttempt: Attempt = {
+              id: String(a.id),
+              answers: (a.answers as Record<string, any>) || {},
+              examId: String(a.examId || a.exam_id || a.examid),
+              assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
+              studentId: String(a.studentId || a.student_id || a.studentid),
+              submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
+              score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
+              teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+              feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
+              totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
+              timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
+              cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
+            };
+            
+            set((state) => {
+               // Tránh trùng lặp nếu bài nộp đã được addAttempt (local) add vào rồi
+               if (state.attempts.some(att => att.id === mappedAttempt.id)) return state;
+               return { attempts: [...state.attempts, mappedAttempt] };
+            });
+          }
+        )
+        .subscribe();
 
       // 6. Fetch Years
       const { data: years } = await supabase.from('academic_years').select('*');
@@ -657,7 +674,51 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Attempts
+  fetchAttempts: async () => {
+    const { data: attempts, error } = await supabase.from('attempts').select('*').order('created_at', { ascending: false });
+    if (error) {
+      // Fallback for older schema
+      const { data: fallback } = await supabase.from('attempts').select('*').order('submittedAt', { ascending: false });
+      if (fallback) {
+        const mapped = fallback.map((a: any) => ({
+          ...a,
+          examId: a.examId || a.exam_id || a.examid,
+          assignmentId: a.assignmentId || a.assignment_id || a.assignmentid,
+          studentId: a.studentId || a.student_id || a.studentid,
+          submittedAt: a.submittedAt || a.submitted_at || a.submittedat,
+          score: a.score !== undefined ? a.score : (a.score_achieved || 0),
+          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+          feedbackAllowViewSolution: a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution,
+          totalTimeSpentSec: a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0,
+          timeSpentPerQuestion: a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {},
+          cheatWarnings: a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0
+        }));
+        set({ attempts: mapped as Attempt[] });
+      }
+      return;
+    }
+    
+    if (attempts) {
+        const mappedAttempts: Attempt[] = attempts.map((a: any) => ({
+          id: String(a.id),
+          answers: (a.answers as Record<string, any>) || {},
+          examId: String(a.examId || a.exam_id || a.examid),
+          assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
+          studentId: String(a.studentId || a.student_id || a.studentid),
+          submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
+          score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
+          teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+          feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
+          totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
+          timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
+          cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
+        }));
+      set({ attempts: mappedAttempts as Attempt[] });
+    }
+  },
+
   addAttempt: async (attempt) => {
+    console.log("DEBUG: addAttempt starting with payload:", attempt);
     const payload = {
       id: attempt.id,
       exam_id: attempt.examId,

@@ -72,9 +72,13 @@ export const AssignmentManage: React.FC = () => {
     const formatForDatetimeLocal = (dateStr: string | undefined): string => {
         if (!dateStr) return '';
         const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '';
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        if (isNaN(d.getTime())) {
+            // Try secondary formats or return current date if critical
+            return '';
+        }
+        const tzOffset = d.getTimezoneOffset() * 60000; // offset in milliseconds
+        const localISOTime = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 16);
+        return localISOTime;
     };
 
     const openEdit = (a: Assignment) => {
@@ -227,7 +231,7 @@ export const AssignmentManage: React.FC = () => {
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 self-end lg:self-auto flex-shrink-0">
                                         <Link
-                                            to={`/exam/${exam.id}/results`}
+                                            to={`/exam/${exam.id}/results?assign=${a.id}`}
                                             className="px-3 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border border-green-100"
                                             title="Xem kết quả"
                                         >

@@ -1159,20 +1159,28 @@ export const ExamTake: React.FC = () => {
       if (q.type === 'MCQ') {
         if (userAns === q.correctOptionIndex) {
            correctCount++;
-           console.log(`DEBUG: Q${idx + 1} CORRECT`);
+           console.log(`DEBUG: Q${idx + 1} MCQ CORRECT`);
         } else {
-           console.log(`DEBUG: Q${idx + 1} INCORRECT`);
+           console.log(`DEBUG: Q${idx + 1} MCQ INCORRECT. User: ${userAns}, Expected: ${q.correctOptionIndex}`);
         }
       } else if (q.type === 'SHORT_ANSWER') {
         const sAns = String(userAns || '').trim().toLowerCase();
-        const isCorrect = q.options && q.options.length > 0
+        
+        // CẢI TIẾN: Chỉ so khớp với solution nếu nó ngắn (thường là đáp án ngắn), 
+        // nếu solution dài dằng dặc thì đó là lời giải chi tiết, không dùng để chấm điểm tự động.
+        const solString = String(q.solution || '').trim();
+        const isSolutionShort = solString !== '' && solString.split(/\s+/).length < 10;
+        
+        // So khớp với danh sách options (đáp án chấp nhận được) HOẶC solution (nếu nó ngắn)
+        const isCorrect = (q.options && q.options.length > 0)
           ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
-          : sAns === String(q.solution || '').trim().toLowerCase();
+          : (isSolutionShort && sAns === solString.toLowerCase());
+
         if (isCorrect) {
            correctCount++;
-           console.log(`DEBUG: Q${idx + 1} CORRECT`);
+           console.log(`DEBUG: Q${idx + 1} SHORT_ANSWER CORRECT. User: "${sAns}"`);
         } else {
-           console.log(`DEBUG: Q${idx + 1} INCORRECT`);
+           console.log(`DEBUG: Q${idx + 1} SHORT_ANSWER INCORRECT. User: "${sAns}", Expected in options: ${JSON.stringify(q.options)}, Solution: "${solString}" (Short: ${isSolutionShort})`);
         }
       } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
         if (Array.isArray(userAns) && userAns.length === q.options.length) {
@@ -1187,18 +1195,18 @@ export const ExamTake: React.FC = () => {
             
             if (normActual !== normExpected) {
               isAllCorrect = false;
-              console.log(`DEBUG: Q${idx + 1} Mismatch at index ${i}: Expected "${normExpected}", Got "${normActual}"`);
+              console.log(`DEBUG: Q${idx + 1} ${q.type} Mismatch at index ${i}: Expected "${normExpected}", Got "${normActual}"`);
               break;
             }
           }
           if (isAllCorrect) {
              correctCount++;
-             console.log(`DEBUG: Q${idx + 1} CORRECT`);
+             console.log(`DEBUG: Q${idx + 1} ${q.type} CORRECT`);
           } else {
-             console.log(`DEBUG: Q${idx + 1} INCORRECT`);
+             console.log(`DEBUG: Q${idx + 1} ${q.type} INCORRECT`);
           }
         } else {
-           console.log(`DEBUG: Q${idx + 1} INCORRECT (Format mismatch length ${userAns?.length} vs ${q.options.length} or empty)`);
+           console.log(`DEBUG: Q${idx + 1} ${q.type} INCORRECT (Format mismatch/empty)`);
         }
       }
     });
