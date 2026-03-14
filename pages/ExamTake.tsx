@@ -1411,68 +1411,8 @@ export const ExamTake: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Sticky Question Navigation (Visible only on mobile when started and not submitted) */}
-      {!isSubmitted && hasStarted && (
-        <div className="lg:hidden sticky top-[70px] z-[45] bg-white/95 backdrop-blur-md border-b shadow-sm -mx-4 px-4 py-3 mb-4 overflow-x-auto custom-scrollbar-hide">
-          <div className="flex gap-2 min-w-max pb-1 items-center">
-            <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg font-black mr-1">{answersCount}/{exam.questions.length}</span>
-            {exam.questions.map((q, idx) => {
-              const ans = answers[q.id];
-              let isAnswered = false;
-              if (ans !== undefined && ans !== null && ans !== '') {
-                if (Array.isArray(ans)) {
-                  isAnswered = ans.some(a => a !== undefined && a !== null && a !== '');
-                } else {
-                  isAnswered = true;
-                }
-              }
-              return (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    if (viewMode === 'single') {
-                      setCurrentQuestionIndex(idx);
-                    } else {
-                      const element = document.getElementById(`question-${q.id}`);
-                      if (element) {
-                        // Offset for sticky headers
-                        const offset = 140; 
-                        const elementPosition = element.getBoundingClientRect().top;
-                        const offsetPosition = elementPosition + window.pageYOffset - offset;
-                        window.scrollTo({
-                          top: offsetPosition,
-                          behavior: 'smooth'
-                        });
-                      }
-                    }
-                  }}
-                  className={`
-                    h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg font-bold text-sm transition-all
-                    active:scale-95
-                    ${isAnswered
-                    ? 'bg-indigo-600 text-white shadow-md border-transparent'
-                    : 'bg-gray-100 text-gray-500 border border-gray-200'}
-                    ${(viewMode === 'single' ? currentQuestionIndex === idx : false) ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}
-                  `}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Live Mode Indicator */}
-      {liveSessionId && !isSubmitted && (
-        <div className="mb-4 bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center justify-between animate-fade-in shadow-md">
-          <span className="font-bold flex items-center gap-2"><Radio className="h-4 w-4 animate-pulse" /> Đang thi trực tiếp (Live)</span>
-          <span className="text-xs bg-white/20 px-2 py-1 rounded">Tiến độ của bạn đang được giáo viên theo dõi</span>
-        </div>
-      )}
-
       {/* Header Sticky */}
-      <div className="sticky top-0 z-40 bg-white border-b shadow-sm mb-6 -mx-4 px-4 md:-mx-8 md:px-8 py-3 flex justify-between items-center transition-all">
+      <div className="sticky top-0 z-40 bg-white border-b shadow-sm -mx-4 px-4 md:-mx-8 md:px-8 py-3 flex justify-between items-center transition-all">
         <div>
           <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{exam.title}</h1>
           <div className="text-xs text-gray-500 flex items-center gap-2">
@@ -1495,6 +1435,69 @@ export const ExamTake: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Mobile Sticky Question Navigation (Visible only on mobile when started and not submitted) */}
+      {!isSubmitted && hasStarted && (
+        <div className="lg:hidden sticky top-[64px] z-[35] bg-white/95 backdrop-blur-md border-b shadow-md -mx-4 px-4 py-3 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-indigo-200">
+          <div className="flex gap-2 min-w-max pb-1 items-center snap-x">
+            <div className="sticky left-0 bg-white/50 backdrop-blur-sm pr-2 mr-1 z-10 py-1">
+              <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg font-black border border-indigo-100 shadow-sm">{answersCount}/{exam.questions.length}</span>
+            </div>
+            {exam.questions.map((q, idx) => {
+              const ans = answers[q.id];
+              let isAnswered = false;
+              if (ans !== undefined && ans !== null && ans !== '') {
+                if (Array.isArray(ans)) {
+                  isAnswered = ans.some(a => a !== undefined && a !== null && a !== '');
+                } else {
+                  isAnswered = true;
+                }
+              }
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (viewMode === 'single') {
+                      setCurrentQuestionIndex(idx);
+                    } else {
+                      const element = document.getElementById(`question-${q.id}`);
+                      if (element) {
+                        const offset = 160; 
+                        const elementPosition = element.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - offset;
+                        window.scrollTo({
+                          top: offsetPosition,
+                          behavior: 'smooth'
+                        });
+                      }
+                    }
+                  }}
+                  className={`
+                    h-11 w-11 flex-shrink-0 flex items-center justify-center rounded-xl font-bold text-sm transition-all snap-center
+                    active:scale-90
+                    ${isAnswered
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 border-transparent'
+                    : 'bg-white text-gray-500 border border-gray-200 shadow-sm'}
+                    ${(viewMode === 'single' ? currentQuestionIndex === idx : false) ? 'ring-2 ring-indigo-400 ring-offset-2 scale-105' : ''}
+                  `}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Live Mode Indicator */}
+      {liveSessionId && !isSubmitted && (
+        <div className="mb-4 bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center justify-between animate-fade-in shadow-md">
+          <span className="font-bold flex items-center gap-2"><Radio className="h-4 w-4 animate-pulse" /> Đang thi trực tiếp (Live)</span>
+          <span className="text-xs bg-white/20 px-2 py-1 rounded">Tiến độ của bạn đang được giáo viên theo dõi</span>
+        </div>
+      )}
+
+
 
       {isSubmitted && (
         <div className="space-y-6 mb-8">
