@@ -603,11 +603,19 @@ export const useStore = create<AppState>((set, get) => ({
     if (data) set({ questionBank: data as QuestionBankItem[] });
   },
   syncQuestionsFromExams: async () => {
-    const { exams, questionBank } = get();
+    const { exams, questionBank, user } = get();
+    if (!user) {
+      console.error("[Sync] No user found in store, sync aborted");
+      return 0;
+    }
+
     let newQuestions: QuestionBankItem[] = [];
     
     // Create a set of existing question contents to avoid duplicates
     const existingContents = new Set(questionBank.map(q => q.content.trim()));
+
+    console.log("[Sync] Current User ID:", user.id);
+    console.log("[Sync] Existing questions in bank:", existingContents.size);
 
     console.log("[Sync] Start syncing from", exams.length, "exams");
     
