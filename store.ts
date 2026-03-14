@@ -33,8 +33,12 @@ export const useStore = create<AppState>((set, get) => ({
     set({ isDataLoading: true });
     try {
       // 0. Fetch Question Bank
-      const { data: qBanks } = await supabase.from('question_bank').select('*');
-      if (qBanks) set({ questionBank: qBanks as QuestionBankItem[] });
+      try {
+        const { data: qBanks } = await supabase.from('question_bank').select('*');
+        if (qBanks) set({ questionBank: qBanks as QuestionBankItem[] });
+      } catch (err) {
+        console.error("Error fetching question_bank:", err);
+      }
 
       // 1. Fetch Users (Profiles)
       const { data: users, error: userErr } = await supabase.from('profiles').select('*');
@@ -254,8 +258,9 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
     } catch (e) {
-      console.error("Error fetching initial data:", e);
-      set({ users: SEED_USERS });
+      console.error("Error fetching initial data (Global):", e);
+      // Don't reset users unless it's absolutely necessary (e.g., users is empty)
+      if (get().users.length === 0) set({ users: SEED_USERS });
     } finally {
       set({ isDataLoading: false });
     }
