@@ -494,7 +494,7 @@ export const ClassFunRecord: React.FC = () => {
                                     <button onClick={() => selectGroup(g.id)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">Chọn cả tổ</button>
                                 </div>
                                 <div className="p-1 space-y-1">
-                                    {g.students.map(s => {
+                                    {g.students.map((s: any) => {
                                         const selected = selectedStudentIds.includes(s.id);
                                         const score = studentScores.get(s.id) || 0;
                                         const isAbsent = currentAttendance[s.id] === 'excused' || currentAttendance[s.id] === 'unexcused';
