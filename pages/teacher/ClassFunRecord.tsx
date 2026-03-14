@@ -269,11 +269,11 @@ export const ClassFunRecord: React.FC = () => {
                     )}
                     <button onClick={() => setShowManageBehaviors(!showManageBehaviors)}
                         className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition ${showManageBehaviors ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white hover:bg-gray-50'}`}>
-                        <Edit2 className="h-4 w-4" /> Bậc mốc điểm
+                        <Edit2 className="h-4 w-4" /> Quản lý hành vi
                     </button>
                     <button onClick={() => { setShowAutoPointConfig(!showAutoPointConfig); setShowManageBehaviors(false); }}
                         className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition ${showAutoPointConfig ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white hover:bg-gray-50'}`}>
-                        <Zap className="h-4 w-4" /> Cấu hình điểm tự động
+                        <Zap className="h-4 w-4" /> Điểm cộng tự động
                     </button>
                 </div>
             </div>
@@ -668,14 +668,14 @@ export const ClassFunRecord: React.FC = () => {
                                                             {log.points > 0 ? '+' : ''}{log.points}
                                                         </span>
                                                         <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                        
-                                                        <div className="flex items-center gap-1 opacity-0 group-hover/log:opacity-100 transition-opacity">
+
+                                                        <div className="flex items-center gap-1">
                                                             <button 
                                                                 onClick={() => {
                                                                     setEditingLogId(log.id);
                                                                     setEditLogData({ points: log.points, reason: log.reason || '' });
                                                                 }} 
-                                                                className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Sửa bản ghi này"
+                                                                className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition" title="Sửa bản ghi này"
                                                             >
                                                                 <Edit2 className="h-4 w-4" />
                                                             </button>
