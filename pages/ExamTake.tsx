@@ -1340,24 +1340,34 @@ export const ExamTake: React.FC = () => {
         if (!checkError) {
           const currentEarnedPoints = (existingLogs || []).reduce((sum, log) => sum + log.points, 0);
           
-          // 3. Nếu mốc mới cao hơn tổng đã nhận, cộng thêm phần chênh lệch
-          let diffPoints = targetTotalPoints - currentEarnedPoints;
-          
-          if (diffPoints > 0) {
+          // 3. Nếu mốc mới cao hơn tổng đã nhận, cập nhật lại (Xóa cũ - Thêm mới để chỉ có 1 dòng duy nhất)
+          if (targetTotalPoints > currentEarnedPoints) {
+            // Xóa tất cả log tự động cũ của bài tập này cho học sinh này
+            if (existingLogs && existingLogs.length > 0) {
+              await supabase
+                .from('behavior_logs')
+                .delete()
+                .eq('student_id', user.id)
+                .eq('class_id', assignment.classId)
+                .like('reason', `${identifyKey}%`);
+            }
+
             let reasonText = activeThresholdLabel;
+            let finalPoints = targetTotalPoints;
+
             if (cheatWarnings > 0) {
-              const penalty = Math.min(diffPoints, 2);
-              diffPoints -= penalty;
+              const penalty = Math.min(finalPoints, 2);
+              finalPoints -= penalty;
               reasonText += ` (Cảnh báo gian lận ${cheatWarnings} lần, -${penalty}đ)`;
             }
 
-            if (diffPoints > 0) {
+            if (finalPoints > 0) {
               const finalReasonText = `${identifyKey} ${reasonText}`;
               const newLog = {
                 id: `log_auto_${Date.now()}`,
                 student_id: user.id,
                 class_id: assignment.classId,
-                points: diffPoints,
+                points: finalPoints,
                 reason: finalReasonText,
                 recorded_by: assignment.teacherId || 'system',
                 created_at: new Date().toISOString()

@@ -14,9 +14,11 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
 
   // Form State
   const [selectedClassId, setSelectedClassId] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [duration, setDuration] = useState(exam.durationMinutes);
+  const [startTimeDate, setStartTimeDate] = useState('');
+  const [startTimeHour, setStartTimeHour] = useState('00:00');
+  const [endTimeDate, setEndTimeDate] = useState('');
+  const [endTimeHour, setEndTimeHour] = useState('00:00');
+  const [duration, setDuration] = useState(exam.durationMinutes || 0);
   const [successLink, setSuccessLink] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -25,9 +27,11 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
       setSuccessLink('');
       setCopied(false);
       setSelectedClassId('');
-      setStartTime('');
-      setEndTime('');
-      setDuration(exam.durationMinutes);
+      setStartTimeDate('');
+      setStartTimeHour('00:00');
+      setEndTimeDate('');
+      setEndTimeHour('00:00');
+      setDuration(exam.durationMinutes || 0);
       setViewScore(true);
       setViewPassFail(true);
       setViewSolution(true);
@@ -79,8 +83,8 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
       classId: selectedClassId,
       teacherId: user?.id || '',
       createdAt: new Date().toISOString(),
-      startTime: startTime ? new Date(startTime).toISOString() : undefined,
-      endTime: endTime ? new Date(endTime).toISOString() : undefined,
+      startTime: startTimeDate ? new Date(`${startTimeDate}T${startTimeHour || '00:00'}`).toISOString() : undefined,
+      endTime: endTimeDate ? new Date(`${endTimeDate}T${endTimeHour || '00:00'}`).toISOString() : undefined,
       durationMinutes: duration,
       studentIds: selectedStudentIds.length > 0 ? selectedStudentIds : undefined,
       mode: mode,
@@ -253,23 +257,39 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                 <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-indigo-600" /> Bắt đầu
                 </label>
-                <input
-                  type="datetime-local"
-                  className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500"
-                  value={startTime}
-                  onChange={e => setStartTime(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    className="flex-1 border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500"
+                    value={startTimeDate}
+                    onChange={e => setStartTimeDate(e.target.value)}
+                  />
+                  <input
+                    type="time"
+                    className="w-24 border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500"
+                    value={startTimeHour}
+                    onChange={e => setStartTimeHour(e.target.value)}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-indigo-600" /> Kết thúc
                 </label>
-                <input
-                  type="datetime-local"
-                  className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500"
-                  value={endTime}
-                  onChange={e => setEndTime(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    className="flex-1 border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500"
+                    value={endTimeDate}
+                    onChange={e => setEndTimeDate(e.target.value)}
+                  />
+                  <input
+                    type="time"
+                    className="w-24 border border-gray-300 bg-white text-gray-900 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500"
+                    value={endTimeHour}
+                    onChange={e => setEndTimeHour(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
