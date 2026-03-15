@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 interface PrintableContentProps {
-    type: 'MATRIX' | 'EXAM_MCQ' | 'EXAM_ESSAY' | 'SOLUTION' | 'ALL';
+    type: 'MATRIX' | 'EXAM' | 'ALL'; // MATRIX: Chỉ ma trận, EXAM: Đề + HDC, ALL: Ma trận + Đề + HDC
     questions: Question[];
     title: string;
     subject: string;
@@ -240,9 +240,12 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
 
             <div className="print-layout">
                 {(type === 'MATRIX' || type === 'ALL') && renderMatrix()}
-                {(type === 'EXAM_MCQ' || type === 'ALL') && renderExam(false)}
-                {(type === 'EXAM_ESSAY' || type === 'ALL') && renderExam(true)}
-                {(type === 'SOLUTION' || type === 'ALL') && renderSolution()}
+                {(type === 'EXAM' || type === 'ALL') && (
+                    <>
+                        {renderExam(false)}
+                        {renderSolution()}
+                    </>
+                )}
             </div>
         </div>
     );

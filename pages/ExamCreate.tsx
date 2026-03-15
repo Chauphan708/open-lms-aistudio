@@ -12,7 +12,7 @@ import { MatrixConfig } from '../components/MatrixConfig';
 import { PrintableContent } from '../components/PrintableContent';
 
 type CreateMode = 'PARSE' | 'GENERATE' | 'MATRIX';
-type PrintType = 'MATRIX' | 'EXAM_MCQ' | 'EXAM_ESSAY' | 'SOLUTION' | 'ALL';
+type PrintType = 'MATRIX' | 'EXAM' | 'ALL';
 
 export const ExamCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -344,13 +344,10 @@ export const ExamCreate: React.FC = () => {
                 <Printer className="h-4 w-4" />
                 Xuất File <ChevronDown className="h-3 w-3" />
               </button>
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
-                <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Xuất Ma trận</button>
-                <button onClick={() => handlePrint('EXAM_MCQ')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> Xuất Đề thi</button>
-                <button onClick={() => handlePrint('EXAM_ESSAY')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Edit2 className="h-4 w-4" /> Xuất Tự luận</button>
-                <button onClick={() => handlePrint('SOLUTION')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Xuất Đáp án</button>
-                <div className="h-px bg-gray-200 my-1"></div>
-                <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold flex items-center gap-2"><Printer className="h-4 w-4" /> Xuất Tất Cả</button>
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> 1. In Ma trận</button>
+                <button onClick={() => handlePrint('EXAM')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. In Đề kiểm tra</button>
+                <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold flex items-center gap-2"><Printer className="h-4 w-4" /> 3. In Ma trận & Đề</button>
               </div>
             </div>
           )}

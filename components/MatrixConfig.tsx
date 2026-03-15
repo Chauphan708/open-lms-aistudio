@@ -8,9 +8,11 @@ interface MatrixRow {
     id: string;
     topic: string;
     level1Percent: number; // Nhận biết
+    level1McqPercent: number;
     level2Percent: number; // Kết nối
+    level2McqPercent: number;
     level3Percent: number; // Vận dụng
-    mcqPercent: number;    // % Trắc nghiệm (phần còn lại là tự luận)
+    level3McqPercent: number;
 }
 
 interface MatrixConfigProps {
@@ -33,7 +35,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
     const { questionBank } = useStore();
     const [totalQuestions, setTotalQuestions] = useState(40);
     const [rows, setRows] = useState<MatrixRow[]>([
-        { id: '1', topic: '', level1Percent: 40, level2Percent: 30, level3Percent: 30, mcqPercent: 100 }
+        { id: '1', topic: '', level1Percent: 40, level1McqPercent: 100, level2Percent: 30, level2McqPercent: 100, level3Percent: 30, level3McqPercent: 100 }
     ]);
     const [error, setError] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -54,7 +56,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
     const getCount = (percent: number) => Math.round((percent / 100) * totalQuestions);
 
     const handleAddRow = () => {
-        setRows([...rows, { id: Date.now().toString(), topic: '', level1Percent: 0, level2Percent: 0, level3Percent: 0, mcqPercent: 100 }]);
+        setRows([...rows, { id: Date.now().toString(), topic: '', level1Percent: 0, level1McqPercent: 100, level2Percent: 0, level2McqPercent: 100, level3Percent: 0, level3McqPercent: 100 }]);
     };
 
     const handleRemoveRow = (id: string) => {
@@ -96,23 +98,46 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                 const targetL2 = getCount(row.level2Percent);
                 const targetL3 = getCount(row.level3Percent);
 
-                // Extract by levels
-                const getQs = (level: string, count: number) => {
+                // Extract by levels with MCQ/Essay split
+                const getQs = (level: string, count: number, mcqPercent: number) => {
                     if (count === 0) return [];
-                    const matched = topicQuestions.filter(q => q.level === level);
-                    if (matched.length < count) {
-                        const shortage = count - matched.length;
-                        newMissingList.push({ topic: row.topic, level, count: shortage });
-                        return matched; // Take all available
+                    const mcqCount = Math.round((mcqPercent / 100) * count);
+                    const essayCount = count - mcqCount;
+
+                    const levelQuestions = topicQuestions.filter(q => q.level === level);
+                    const mcqs = levelQuestions.filter(q => q.type === 'MCQ');
+                    const essays = levelQuestions.filter(q => q.type !== 'MCQ');
+
+                    let selected: Question[] = [];
+
+                    // Pick MCQs
+                    if (mcqCount > 0) {
+                        if (mcqs.length < mcqCount) {
+                            newMissingList.push({ topic: row.topic, level: `${level} (TN)`, count: mcqCount - mcqs.length });
+                            selected = [...selected, ...mcqs];
+                        } else {
+                            selected = [...selected, ...shuffleArray(mcqs).slice(0, mcqCount)];
+                        }
                     }
-                    return shuffleArray(matched).slice(0, count);
+
+                    // Pick Essays
+                    if (essayCount > 0) {
+                        if (essays.length < essayCount) {
+                            newMissingList.push({ topic: row.topic, level: `${level} (TL)`, count: essayCount - essays.length });
+                            selected = [...selected, ...essays];
+                        } else {
+                            selected = [...selected, ...shuffleArray(essays).slice(0, essayCount)];
+                        }
+                    }
+
+                    return selected;
                 };
 
                 generatedQuestions = [
                     ...generatedQuestions,
-                    ...getQs('NHAN_BIET', targetL1),
-                    ...getQs('KET_NOI', targetL2),
-                    ...getQs('VAN_DUNG', targetL3),
+                    ...getQs('NHAN_BIET', targetL1, row.level1McqPercent),
+                    ...getQs('KET_NOI', targetL2, row.level2McqPercent),
+                    ...getQs('VAN_DUNG', targetL3, row.level3McqPercent),
                 ];
             }
 
@@ -211,12 +236,14 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                         <tr>
                             <th className="px-3 py-2 border-b whitespace-nowrap">Chủ đề</th>
                             <th className="px-3 py-2 border-b text-center text-blue-700 whitespace-nowrap" title="Nhận biết">N.Biết (%)</th>
-                            <th className="px-2 py-2 border-b text-center text-blue-500 whitespace-nowrap text-xs">Câu</th>
+                            <th className="px-3 py-2 border-b text-center text-blue-500 whitespace-nowrap text-xs">% TN</th>
+                            <th className="px-2 py-2 border-b text-center text-blue-500 whitespace-nowrap text-xs">Câu (TN/TL)</th>
                             <th className="px-3 py-2 border-b text-center text-orange-700 whitespace-nowrap" title="Kết nối">Kết nối (%)</th>
-                            <th className="px-2 py-2 border-b text-center text-orange-500 whitespace-nowrap text-xs">Câu</th>
+                            <th className="px-3 py-2 border-b text-center text-orange-500 whitespace-nowrap text-xs">% TN</th>
+                            <th className="px-2 py-2 border-b text-center text-orange-500 whitespace-nowrap text-xs">Câu (TN/TL)</th>
                             <th className="px-3 py-2 border-b text-center text-red-700 whitespace-nowrap" title="Vận dụng">V.Dụng (%)</th>
-                            <th className="px-2 py-2 border-b text-center text-red-500 whitespace-nowrap text-xs">Câu</th>
-                            <th className="px-3 py-2 border-b text-center whitespace-nowrap">% TN</th>
+                            <th className="px-3 py-2 border-b text-center text-red-500 whitespace-nowrap text-xs">% TN</th>
+                            <th className="px-2 py-2 border-b text-center text-red-500 whitespace-nowrap text-xs">Câu (TN/TL)</th>
                             <th className="px-3 py-2 border-b bg-gray-50"></th>
                         </tr>
                     </thead>
@@ -239,12 +266,23 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                                     </div>
                                 </td>
                                 <td className="p-2 align-top"><input type="number" min="0" value={row.level1Percent} onChange={e => updateRow(row.id, 'level1Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
-                                <td className="p-1 align-top text-center text-xs font-bold text-blue-600">{getCount(row.level1Percent)}</td>
+                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level1McqPercent} onChange={e => updateRow(row.id, 'level1McqPercent', Number(e.target.value))} className="w-12 border rounded p-1.5 text-center text-[10px] mx-auto block bg-white text-gray-900" title="% Trắc nghiệm của mức Nhận biết" /></td>
+                                <td className="p-1 align-top text-center text-[10px] font-bold text-blue-600">
+                                    {Math.round((row.level1McqPercent/100) * getCount(row.level1Percent))}/{getCount(row.level1Percent) - Math.round((row.level1McqPercent/100) * getCount(row.level1Percent))}
+                                </td>
+
                                 <td className="p-2 align-top"><input type="number" min="0" value={row.level2Percent} onChange={e => updateRow(row.id, 'level2Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
-                                <td className="p-1 align-top text-center text-xs font-bold text-orange-600">{getCount(row.level2Percent)}</td>
+                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level2McqPercent} onChange={e => updateRow(row.id, 'level2McqPercent', Number(e.target.value))} className="w-12 border rounded p-1.5 text-center text-[10px] mx-auto block bg-white text-gray-900" title="% Trắc nghiệm của mức Kết nối" /></td>
+                                <td className="p-1 align-top text-center text-[10px] font-bold text-orange-600">
+                                    {Math.round((row.level2McqPercent/100) * getCount(row.level2Percent))}/{getCount(row.level2Percent) - Math.round((row.level2McqPercent/100) * getCount(row.level2Percent))}
+                                </td>
+
                                 <td className="p-2 align-top"><input type="number" min="0" value={row.level3Percent} onChange={e => updateRow(row.id, 'level3Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
-                                <td className="p-1 align-top text-center text-xs font-bold text-red-600">{getCount(row.level3Percent)}</td>
-                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.mcqPercent} onChange={e => updateRow(row.id, 'mcqPercent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" title="% Trắc nghiệm" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level3McqPercent} onChange={e => updateRow(row.id, 'level3McqPercent', Number(e.target.value))} className="w-12 border rounded p-1.5 text-center text-[10px] mx-auto block bg-white text-gray-900" title="% Trắc nghiệm của mức Vận dụng" /></td>
+                                <td className="p-1 align-top text-center text-[10px] font-bold text-red-600">
+                                    {Math.round((row.level3McqPercent/100) * getCount(row.level3Percent))}/{getCount(row.level3Percent) - Math.round((row.level3McqPercent/100) * getCount(row.level3Percent))}
+                                </td>
+                                
                                 <td className="p-2 text-center align-top">
                                     <button onClick={() => handleRemoveRow(row.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" disabled={rows.length === 1}>
                                         <Trash2 className="h-4 w-4" />
