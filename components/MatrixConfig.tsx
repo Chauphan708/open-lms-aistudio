@@ -263,7 +263,7 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                                             onChange={e => updateRow(row.id, 'topic', e.target.value)} 
                                             className="w-full min-w-[120px] border rounded p-1.5 pr-6 text-xs bg-white text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none" 
                                         />
-                                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 pointer-events-none" />
                                         <datalist id={`topics-${row.id}`}>
                                             {availableTopics.map(t => <option key={t} value={t} />)}
                                         </datalist>

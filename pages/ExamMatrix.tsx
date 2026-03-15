@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Question, QuestionType } from '../types';
 import { MatrixConfig } from '../components/MatrixConfig';
 import { PrintableContent } from '../components/PrintableContent';
@@ -12,7 +13,13 @@ import rehypeKatex from 'rehype-katex';
 type PrintType = 'MATRIX' | 'EXAM' | 'ALL';
 
 export const ExamMatrix: React.FC = () => {
-    const { addExam, questionBank } = useStore();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { addExam, updateExam, exams, questionBank } = useStore();
+
+    const searchParams = new URLSearchParams(location.search);
+    const editExamId = searchParams.get('edit');
+    const [isEditMode, setIsEditMode] = React.useState(false);
 
     const [title, setTitle] = useState('');
     const [subject, setSubject] = useState('Toán');
@@ -27,6 +34,21 @@ export const ExamMatrix: React.FC = () => {
     const [examVariant, setExamVariant] = useState('A');
     // C3: Timer
     const [timerEnabled, setTimerEnabled] = useState(false);
+
+    React.useEffect(() => {
+        if (editExamId) {
+            const examToEdit = exams.find(e => e.id === editExamId);
+            if (examToEdit) {
+                setIsEditMode(true);
+                setTitle(examToEdit.title);
+                setSubject(examToEdit.subject);
+                setGrade(examToEdit.grade || '5');
+                setDuration(examToEdit.durationMinutes);
+                setQuestions(JSON.parse(JSON.stringify(examToEdit.questions)));
+                setExamCategory(examToEdit.category || 'EXAM');
+            }
+        }
+    }, [editExamId, exams]);
 
     const SUBJECTS = ['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'];
     const GRADES = ['1', '2', '3', '4', '5'];
@@ -49,11 +71,29 @@ export const ExamMatrix: React.FC = () => {
         setQuestions(questions.map(q => q.id === editingQuestion.id ? editingQuestion : q));
         setEditingQuestion(null);
     };
-
     const handleSaveExam = () => {
         if (!title.trim() || questions.length === 0) {
             setError("Vui lòng nhập tên đề kiểm tra và có ít nhất 1 câu hỏi.");
             return;
+        }
+
+        if (isEditMode && editExamId) {
+            const updatedExam = exams.find(e => e.id === editExamId);
+            if (updatedExam) {
+                updateExam({
+                    ...updatedExam,
+                    title,
+                    subject,
+                    grade,
+                    durationMinutes: duration,
+                    questionCount: questions.length,
+                    category: examCategory,
+                    questions
+                });
+                alert(`Đã cập nhật ${examCategory === 'EXAM' ? 'đề KT' : 'nhiệm vụ'} thành công!`);
+                navigate('/exams');
+                return;
+            }
         }
 
         const newExam = {
@@ -73,6 +113,7 @@ export const ExamMatrix: React.FC = () => {
         addExam(newExam);
         setError(null);
         alert(`Đã lưu ${examCategory === 'EXAM' ? 'đề KT' : 'nhiệm vụ'} thành công!`);
+        navigate('/exams');
     };
 
     // C1: Trộn đề - tạo bản shuffled
@@ -220,7 +261,7 @@ export const ExamMatrix: React.FC = () => {
                         </>
                     )}
                     <button onClick={handleSaveExam} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium shadow-sm">
-                        <Save className="h-4 w-4" /> Lưu Đề KT
+                        <Save className="h-4 w-4" /> {isEditMode ? 'Cập nhật Đề KT' : 'Lưu Đề KT'}
                     </button>
                 </div>
             </div>

@@ -108,7 +108,11 @@ export const ExamList: React.FC = () => {
   };
 
   const handleStartEdit = (exam: Exam) => {
-    navigate(`/create-exam?edit=${exam.id}`);
+    if (exam.category === 'EXAM') {
+      navigate(`/exam-matrix?edit=${exam.id}`);
+    } else {
+      navigate(`/create-exam?edit=${exam.id}`);
+    }
   };
 
   // --- STUDENT VIEW: Show Assignments ---
