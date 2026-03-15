@@ -30,7 +30,7 @@ export const ExamCreate: React.FC = () => {
   const [topic, setTopic] = useState(''); // New topic field
   const [grade, setGrade] = useState('5'); // Default Grade 5
   const [difficulty, setDifficulty] = useState<ExamDifficulty>('NHAN_BIET');
-  const [examCategory, setExamCategory] = useState<'EXAM' | 'TASK'>('EXAM');
+  const [examCategory, setExamCategory] = useState<'EXAM' | 'TASK'>('TASK');
 
   // Save Settings
   const [saveTarget, setSaveTarget] = useState<'BANK' | 'CLASS'>('BANK');
