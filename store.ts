@@ -72,7 +72,7 @@ export const useStore = create<AppState>((set, get) => ({
           createdAt: e.createdAt || e.created_at || e.createdat,
           updatedAt: e.updatedAt || e.updated_at || e.updatedat,
           questionCount: e.questionCount || e.question_count || e.questioncount,
-          category: e.category || 'EXAM',
+          category: e.category || (String(e.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
           classId: String(e.classId || e.class_id || e.classid || '')
         }));
         set({ exams: mappedExams as Exam[] });
@@ -578,7 +578,7 @@ export const useStore = create<AppState>((set, get) => ({
       classId: updatedExam.classId,
       description: (updatedExam as any).description,
       questions: updatedExam.questions,
-      category: updatedExam.category || 'EXAM',
+      category: updatedExam.category || (String(updatedExam.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
       deletedAt: updatedExam.deletedAt
     };
     const { error } = await supabase.from('exams').update(payload).eq('id', updatedExam.id);
