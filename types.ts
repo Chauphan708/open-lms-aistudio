@@ -76,6 +76,7 @@ export interface Exam {
   status: 'DRAFT' | 'PUBLISHED';
   classId?: string; // If assigned to a specific class directly (or null for bank)
   questions: Question[];
+  category: 'EXAM' | 'TASK';
   deletedAt?: string; // Soft delete timestamp (thùng rác)
 }
 

@@ -222,13 +222,15 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                 </div>
             )}
 
-            <div className="flex-shrink-0">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tổng số câu hỏi</label>
-                <input
-                    type="number" value={totalQuestions} onChange={e => setTotalQuestions(Number(e.target.value))}
-                    className="w-full xl:w-1/3 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900"
-                    min="1"
-                />
+            <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
+                <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tổng số câu hỏi</label>
+                    <input
+                        type="number" value={totalQuestions} onChange={e => setTotalQuestions(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900"
+                        min="1"
+                    />
+                </div>
             </div>
 
             <div className="flex-1 overflow-x-auto overflow-y-auto border border-gray-200 rounded-lg bg-white relative">

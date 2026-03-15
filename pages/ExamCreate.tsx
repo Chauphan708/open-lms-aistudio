@@ -30,6 +30,7 @@ export const ExamCreate: React.FC = () => {
   const [topic, setTopic] = useState(''); // New topic field
   const [grade, setGrade] = useState('5'); // Default Grade 5
   const [difficulty, setDifficulty] = useState<ExamDifficulty>('NHAN_BIET');
+  const [examCategory, setExamCategory] = useState<'EXAM' | 'TASK'>('EXAM');
 
   // Save Settings
   const [saveTarget, setSaveTarget] = useState<'BANK' | 'CLASS'>('BANK');
@@ -115,6 +116,7 @@ export const ExamCreate: React.FC = () => {
         setTopic(examToEdit.topic || '');
         setGrade(examToEdit.grade || '5');
         setDifficulty(examToEdit.difficulty || 'NHAN_BIET');
+        setExamCategory(examToEdit.category || 'EXAM');
         setDuration(examToEdit.durationMinutes);
         setQuestions(JSON.parse(JSON.stringify(examToEdit.questions))); // Deep copy
 
@@ -235,6 +237,7 @@ export const ExamCreate: React.FC = () => {
           topic: topic.trim() || undefined,
           grade,
           difficulty,
+          category: examCategory,
           durationMinutes: duration,
           questionCount: questions.length,
           classId: saveTarget === 'CLASS' ? targetClassId : undefined,
@@ -252,6 +255,7 @@ export const ExamCreate: React.FC = () => {
       topic: topic.trim() || undefined,
       grade,
       difficulty,
+      category: examCategory,
       durationMinutes: duration,
       questionCount: questions.length,
       createdAt: new Date().toISOString(),
@@ -319,7 +323,7 @@ export const ExamCreate: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Chỉnh sửa Bài Tập' : 'Tạo Bài Tập Mới'}</h1>
-          <p className="text-gray-500">{isEditMode ? 'Quản lý nội dung câu hỏi và cấu hình bài tập.' : 'Soạn thảo, upload file hoặc nhờ AI tạo bài tập tự động.'}</p>
+          <p className="text-gray-500">{isEditMode ? 'Quản lý nội dung câu hỏi và cấu hình Bài Tập.' : 'Soạn thảo, upload file hoặc nhờ AI tạo Bài Tập tự động.'}</p>
         </div>
         <div className="flex gap-3">
           <div className="flex bg-gray-200 p-1 rounded-lg">
@@ -346,7 +350,7 @@ export const ExamCreate: React.FC = () => {
               </button>
               <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
                 <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> 1. In Ma trận</button>
-                <button onClick={() => handlePrint('EXAM')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. In Đề kiểm tra</button>
+                <button onClick={() => handlePrint('EXAM')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. In Đề KT</button>
                 <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold flex items-center gap-2"><Printer className="h-4 w-4" /> 3. In Ma trận & Đề</button>
               </div>
             </div>
@@ -457,12 +461,24 @@ export const ExamCreate: React.FC = () => {
                 )}
               </div>
               <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian (phút)</label>
-                  <input
-                    type="number" value={duration} onChange={e => setDuration(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Loại bộ đề</label>
+                    <select
+                      value={examCategory} onChange={e => setExamCategory(e.target.value as any)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    >
+                      <option value="EXAM">ĐỀ KT</option>
+                      <option value="TASK">NHIỆM VỤ</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian (phút)</label>
+                    <input
+                      type="number" value={duration} onChange={e => setDuration(Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -473,7 +489,7 @@ export const ExamCreate: React.FC = () => {
                   <label className={`cursor-pointer border p-3 rounded-lg flex flex-col items-center gap-2 text-sm transition-colors ${saveTarget === 'BANK' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'hover:bg-gray-50 bg-white'}`}>
                     <input type="radio" name="target" className="hidden" checked={saveTarget === 'BANK'} onChange={() => setSaveTarget('BANK')} />
                     <BrainCircuit className="h-5 w-5" />
-                    Ngân hàng bài tập
+                    Kho Đề KT & Nhiệm vụ
                   </label>
                   <label className={`cursor-pointer border p-3 rounded-lg flex flex-col items-center gap-2 text-sm transition-colors ${saveTarget === 'CLASS' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'hover:bg-gray-50 bg-white'}`}>
                     <input type="radio" name="target" className="hidden" checked={saveTarget === 'CLASS'} onChange={() => setSaveTarget('CLASS')} />

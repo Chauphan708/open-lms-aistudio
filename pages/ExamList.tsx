@@ -26,6 +26,7 @@ export const ExamList: React.FC = () => {
   const [filterDuration, setFilterDuration] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('');
   const [filterQuestionType, setFilterQuestionType] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
   const [filterTopic, setFilterTopic] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
@@ -71,6 +72,7 @@ export const ExamList: React.FC = () => {
       const matchesTopic = filterTopic ? exam.topic === filterTopic : true;
       const matchesDate = filterDate ? exam.createdAt.startsWith(filterDate) : true;
       const matchesDifficulty = filterDifficulty ? exam.difficulty === filterDifficulty : true;
+      const matchesCategory = filterCategory ? exam.category === filterCategory : true;
 
       let matchesDuration = true;
       if (filterDuration) {
@@ -85,15 +87,11 @@ export const ExamList: React.FC = () => {
         matchesType = exam.questions.some(q => q.type === filterQuestionType);
       }
 
-      return matchesSearch && matchesSubject && matchesGrade && matchesTopic && matchesDate && matchesDuration && matchesDifficulty && matchesType;
+      return matchesSearch && matchesSubject && matchesGrade && matchesTopic && matchesDate && matchesDuration && matchesDifficulty && matchesType && matchesCategory;
     });
-  }, [exams, searchTerm, filterSubject, filterGrade, filterTopic, filterDate, filterDuration, filterDifficulty, filterQuestionType]);
+  }, [exams, searchTerm, filterSubject, filterGrade, filterTopic, filterDate, filterDuration, filterDifficulty, filterQuestionType, filterCategory]);
 
   const trashedExams = useMemo(() => exams.filter(e => e.deletedAt), [exams]);
-
-  const handleStartEdit = (exam: Exam) => {
-    navigate(`/create-exam?edit=${exam.id}`);
-  };
 
   const getDifficultyLabel = (diff: ExamDifficulty | undefined) => {
     switch (diff) {
@@ -102,6 +100,15 @@ export const ExamList: React.FC = () => {
       case 'VAN_DUNG': return { label: 'Mức 3', color: 'bg-red-100 text-red-700' };
       default: return { label: 'Khác', color: 'bg-gray-100 text-gray-500' };
     }
+  };
+
+  const getCategoryLabel = (cat: 'EXAM' | 'TASK' | undefined) => {
+    if (cat === 'TASK') return { label: 'NHIỆM VỤ', color: 'bg-amber-500 text-white shadow-sm' };
+    return { label: 'ĐỀ KT', color: 'bg-indigo-600 text-white shadow-sm' };
+  };
+
+  const handleStartEdit = (exam: Exam) => {
+    navigate(`/create-exam?edit=${exam.id}`);
   };
 
   // --- STUDENT VIEW: Show Assignments ---
@@ -196,7 +203,7 @@ export const ExamList: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Ngân hàng bài tập</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Kho Đề KT & Nhiệm vụ</h1>
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -331,6 +338,21 @@ export const ExamList: React.FC = () => {
                 />
               </div>
             </div>
+            {/* 7. Category */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">Loại bộ đề</label>
+              <div className="relative">
+                <Bookmark className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3" />
+                <select
+                  value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+                  className="w-full pl-8 pr-2 py-2 border rounded-lg text-xs bg-white text-gray-900 outline-none focus:border-indigo-500 appearance-none font-bold"
+                >
+                  <option value="">Tất cả</option>
+                  <option value="EXAM" className="text-indigo-600">ĐỀ KT</option>
+                  <option value="TASK" className="text-amber-600">NHIỆM VỤ</option>
+                </select>
+              </div>
+            </div>
           </div>
           <div className="mt-4 pt-3 border-t flex justify-end">
             <button
@@ -364,8 +386,15 @@ export const ExamList: React.FC = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-gray-900 text-lg">{exam.title}</h3>
-                      {/* Hidden difficulty label as per user request */}
+                      {(() => {
+                        const { label, color } = getCategoryLabel(exam.category);
+                        return (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider ${color}`}>
+                            {label}
+                          </span>
+                        );
+                      })()}
+                      <h3 className="font-bold text-gray-900 text-lg hover:text-indigo-600 transition-colors cursor-pointer">{exam.title}</h3>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
@@ -397,7 +426,7 @@ export const ExamList: React.FC = () => {
                         className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-pink-700 bg-pink-50 rounded-lg hover:bg-pink-100 transition-colors border border-pink-100"
                         title="Tổ chức thi Live (Tại lớp)"
                       >
-                        <Radio className="h-4 w-4" /> <span className="hidden sm:inline">Tổ chức thi</span>
+                        <Radio className="h-4 w-4" /> <span className="hidden sm:inline">Tổ chức KT</span>
                       </button>
                       <button
                         onClick={() => handleOpenAssign(exam)}

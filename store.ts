@@ -72,6 +72,7 @@ export const useStore = create<AppState>((set, get) => ({
           createdAt: e.createdAt || e.created_at || e.createdat,
           updatedAt: e.updatedAt || e.updated_at || e.updatedat,
           questionCount: e.questionCount || e.question_count || e.questioncount,
+          category: e.category || 'EXAM',
           classId: String(e.classId || e.class_id || e.classid || '')
         }));
         set({ exams: mappedExams as Exam[] });
@@ -527,6 +528,7 @@ export const useStore = create<AppState>((set, get) => ({
       class_id: String(exam.classId || ''),
       description: (exam as any).description,
       questions: exam.questions,
+      category: exam.category || 'EXAM',
       deleted_at: exam.deletedAt
     };
     const { error } = await supabase.from('exams').insert(payload);
@@ -576,6 +578,7 @@ export const useStore = create<AppState>((set, get) => ({
       classId: updatedExam.classId,
       description: (updatedExam as any).description,
       questions: updatedExam.questions,
+      category: updatedExam.category || 'EXAM',
       deletedAt: updatedExam.deletedAt
     };
     const { error } = await supabase.from('exams').update(payload).eq('id', updatedExam.id);
@@ -619,7 +622,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     console.log("[Sync] Start syncing from", exams.length, "exams");
     
-    exams.forEach(exam => {
+    exams.filter(e => e.category === 'TASK').forEach(exam => {
       let qList = exam.questions;
       if (!qList) return;
       
@@ -793,8 +796,8 @@ export const useStore = create<AppState>((set, get) => ({
           id,
           user_id: sid,
           type: 'INFO',
-          title: 'Bài tập mới',
-          message: `Giáo viên đã giao bài tập: ${exam.title}`,
+          title: 'Bài đề KT mới',
+          message: `Giáo viên đã giao bài đề KT: ${exam.title}`,
           is_read: false,
           created_at: createdAt,
           link

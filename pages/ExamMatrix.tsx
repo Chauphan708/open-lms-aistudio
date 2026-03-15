@@ -19,6 +19,7 @@ export const ExamMatrix: React.FC = () => {
     const [grade, setGrade] = useState('5');
     const [duration, setDuration] = useState(35);
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [examCategory, setExamCategory] = useState<'EXAM' | 'TASK'>('EXAM');
     const [error, setError] = useState<string | null>(null);
     const [printType, setPrintType] = useState<PrintType | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -65,12 +66,13 @@ export const ExamMatrix: React.FC = () => {
             questionCount: questions.length,
             createdAt: new Date().toISOString(),
             status: 'PUBLISHED' as const,
+            category: examCategory,
             questions
         };
 
         addExam(newExam);
         setError(null);
-        alert('Đã lưu đề kiểm tra thành công!');
+        alert(`Đã lưu ${examCategory === 'EXAM' ? 'đề KT' : 'nhiệm vụ'} thành công!`);
     };
 
     // C1: Trộn đề - tạo bản shuffled
@@ -206,12 +208,12 @@ export const ExamMatrix: React.FC = () => {
                                 <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
                                     <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b">Tùy chọn In (PDF)</div>
                                     <button onClick={() => handlePrint('MATRIX')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2"><BarChart3 className="h-4 w-4" /> 1. In Ma trận</button>
-                                    <button onClick={() => handlePrint('EXAM')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. In Đề kiểm tra</button>
+                                    <button onClick={() => handlePrint('EXAM')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. In Đề KT</button>
                                     <button onClick={() => handlePrint('ALL')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2"><Printer className="h-4 w-4" /> 3. In Ma trận & Đề</button>
                                     
                                     <div className="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-t border-b">Tùy chọn Word (.docx)</div>
                                     <button onClick={() => exportToDocx({ questions, title, subject, grade, duration, includeMatrix: true, includeSolution: false })} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2"><Download className="h-4 w-4" /> 1. Word Ma trận</button>
-                                    <button onClick={() => exportToDocx({ questions, title, subject, grade, duration, includeMatrix: false, includeSolution: true })} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. Word Đề kiểm tra</button>
+                                    <button onClick={() => exportToDocx({ questions, title, subject, grade, duration, includeMatrix: false, includeSolution: true })} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2"><FileText className="h-4 w-4" /> 2. Word Đề KT</button>
                                     <button onClick={() => exportToDocx({ questions, title, subject, grade, duration, includeMatrix: true, includeSolution: true })} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2"><Download className="h-4 w-4" /> 3. Word Ma trận & Đề</button>
                                 </div>
                             </div>
@@ -240,8 +242,15 @@ export const ExamMatrix: React.FC = () => {
                                 placeholder="VD: Kiểm tra Giữa Kì 1 Toán Lớp 5"
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none" />
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div>
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="col-span-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Loại bài</label>
+                                <select value={examCategory} onChange={e => setExamCategory(e.target.value as any)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-900 text-sm font-bold">
+                                    <option value="EXAM">ĐỀ KT</option>
+                                    <option value="TASK">NHIỆM VỤ</option>
+                                </select>
+                            </div>
+                            <div className="col-span-1">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Môn</label>
                                 <select value={subject} onChange={e => setSubject(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-900 text-sm">
                                     {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
