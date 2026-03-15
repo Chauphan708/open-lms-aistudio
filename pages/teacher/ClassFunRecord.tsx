@@ -645,9 +645,26 @@ export const ClassFunRecord: React.FC = () => {
 
                     {/* Recent History */}
                     <div className="bg-white rounded-xl shadow-sm border p-5">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            Lịch sử cộng/trừ điểm (Hôm nay)
-                        </h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                Lịch sử cộng/trừ điểm (Hôm nay)
+                            </h2>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={handleExportHistory}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-gray-600 bg-gray-50 border rounded-lg hover:bg-gray-100 transition-all"
+                                    title="Xuất danh sách ra CSV"
+                                >
+                                    <Download className="h-3.5 w-3.5" /> Xuất file
+                                </button>
+                                <button 
+                                    onClick={() => setShowAllHistory(true)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-all"
+                                >
+                                    <List className="h-3.5 w-3.5" /> Xem toàn bộ
+                                </button>
+                            </div>
+                        </div>
                         {logs.filter(l => l.created_at.startsWith(todayStr)).length === 0 ? (
                             <p className="text-center text-gray-400 text-sm py-4">Chưa có bản ghi nào.</p>
                         ) : (
