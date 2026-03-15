@@ -319,7 +319,12 @@ export const ExamMatrix: React.FC = () => {
                                                 <div className="grid grid-cols-2 gap-1.5 mt-1">
                                                     {q.options.map((opt, i) => (
                                                         <div key={i} className={`px-2 py-1 rounded text-xs ${q.correctOptionIndex === i ? 'bg-green-50 border border-green-200 text-green-800 font-bold' : 'bg-gray-50 text-gray-600'}`}>
-                                                            {String.fromCharCode(65 + i)}. {opt}
+                                                            <div className="flex gap-1">
+                                                                <span className="flex-shrink-0">{String.fromCharCode(65 + i)}.</span>
+                                                                <div className="flex-1">
+                                                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -356,13 +361,18 @@ export const ExamMatrix: React.FC = () => {
                                             onChange={() => setEditingQuestion({ ...editingQuestion, correctOptionIndex: i })}
                                             className="w-4 h-4 text-green-600" />
                                         <span className="font-bold w-6">{String.fromCharCode(65 + i)}.</span>
-                                        <input value={opt}
-                                            onChange={e => {
-                                                const newOpts = [...editingQuestion.options];
-                                                newOpts[i] = e.target.value;
-                                                setEditingQuestion({ ...editingQuestion, options: newOpts });
-                                            }}
-                                            className="flex-1 border rounded-lg p-2 text-sm bg-white" />
+                                            <div className="flex-1 space-y-1">
+                                                <input value={opt}
+                                                    onChange={e => {
+                                                        const newOpts = [...editingQuestion.options];
+                                                        newOpts[i] = e.target.value;
+                                                        setEditingQuestion({ ...editingQuestion, options: newOpts });
+                                                    }}
+                                                    className="w-full border rounded-lg p-2 text-sm bg-white focus:ring-1 focus:ring-emerald-500 outline-none" />
+                                                <div className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-dashed truncate max-w-full">
+                                                    Xem trước: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
+                                                </div>
+                                            </div>
                                     </div>
                                 ))}
                             </div>

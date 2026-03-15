@@ -267,20 +267,20 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                                         </datalist>
                                     </div>
                                 </td>
-                                <td className="p-2 align-top"><input type="number" min="0" value={row.level1Percent} onChange={e => updateRow(row.id, 'level1Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
-                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level1McqPercent} onChange={e => updateRow(row.id, 'level1McqPercent', Number(e.target.value))} className="w-12 border rounded p-1.5 text-center text-[10px] mx-auto block bg-white text-gray-900" title="% Trắc nghiệm của mức Nhận biết" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" value={row.level1Percent} onChange={e => updateRow(row.id, 'level1Percent', Number(e.target.value))} className="w-16 border-2 border-blue-200 rounded p-2 text-center text-sm font-bold mx-auto block bg-white text-blue-800 focus:border-blue-500 outline-none" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level1McqPercent} onChange={e => updateRow(row.id, 'level1McqPercent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs font-medium mx-auto block bg-white text-gray-700" title="% Trắc nghiệm của mức Nhận biết" /></td>
                                 <td className="p-1 align-top text-center text-[10px] font-bold text-blue-600">
                                     {Math.round((row.level1McqPercent/100) * getCount(row.level1Percent))}/{getCount(row.level1Percent) - Math.round((row.level1McqPercent/100) * getCount(row.level1Percent))}
                                 </td>
 
-                                <td className="p-2 align-top"><input type="number" min="0" value={row.level2Percent} onChange={e => updateRow(row.id, 'level2Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
-                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level2McqPercent} onChange={e => updateRow(row.id, 'level2McqPercent', Number(e.target.value))} className="w-12 border rounded p-1.5 text-center text-[10px] mx-auto block bg-white text-gray-900" title="% Trắc nghiệm của mức Kết nối" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" value={row.level2Percent} onChange={e => updateRow(row.id, 'level2Percent', Number(e.target.value))} className="w-16 border-2 border-orange-200 rounded p-2 text-center text-sm font-bold mx-auto block bg-white text-orange-800 focus:border-orange-500 outline-none" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level2McqPercent} onChange={e => updateRow(row.id, 'level2McqPercent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs font-medium mx-auto block bg-white text-gray-700" title="% Trắc nghiệm của mức Kết nối" /></td>
                                 <td className="p-1 align-top text-center text-[10px] font-bold text-orange-600">
                                     {Math.round((row.level2McqPercent/100) * getCount(row.level2Percent))}/{getCount(row.level2Percent) - Math.round((row.level2McqPercent/100) * getCount(row.level2Percent))}
                                 </td>
 
-                                <td className="p-2 align-top"><input type="number" min="0" value={row.level3Percent} onChange={e => updateRow(row.id, 'level3Percent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs mx-auto block bg-white text-gray-900" /></td>
-                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level3McqPercent} onChange={e => updateRow(row.id, 'level3McqPercent', Number(e.target.value))} className="w-12 border rounded p-1.5 text-center text-[10px] mx-auto block bg-white text-gray-900" title="% Trắc nghiệm của mức Vận dụng" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" value={row.level3Percent} onChange={e => updateRow(row.id, 'level3Percent', Number(e.target.value))} className="w-16 border-2 border-red-200 rounded p-2 text-center text-sm font-bold mx-auto block bg-white text-red-800 focus:border-red-500 outline-none" /></td>
+                                <td className="p-2 align-top"><input type="number" min="0" max="100" value={row.level3McqPercent} onChange={e => updateRow(row.id, 'level3McqPercent', Number(e.target.value))} className="w-14 border rounded p-1.5 text-center text-xs font-medium mx-auto block bg-white text-gray-700" title="% Trắc nghiệm của mức Vận dụng" /></td>
                                 <td className="p-1 align-top text-center text-[10px] font-bold text-red-600">
                                     {Math.round((row.level3McqPercent/100) * getCount(row.level3Percent))}/{getCount(row.level3Percent) - Math.round((row.level3McqPercent/100) * getCount(row.level3Percent))}
                                 </td>
@@ -296,8 +296,8 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                     <tfoot className="bg-gray-50 font-bold sticky bottom-0 border-t shadow-[0_-2px_4px_rgba(0,0,0,0.02)]">
                         <tr>
                             <td className="p-3 text-right text-gray-700">Tổng tỉ lệ:</td>
-                            <td colSpan={8} className={`p-3 ${totalPercentage === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                                {totalPercentage}% = {totalQuestions} câu {totalPercentage !== 100 && <span className="text-xs font-normal ml-1">(Yêu cầu = 100%)</span>}
+                            <td colSpan={8} className={`p-3 text-lg ${totalPercentage === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                                <span className="font-black">{totalPercentage}%</span> = <span className="underline">{totalQuestions} câu</span> {totalPercentage !== 100 && <span className="text-xs font-normal ml-1">(Yêu cầu = 100%)</span>}
                             </td>
                         </tr>
                     </tfoot>
