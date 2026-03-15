@@ -111,6 +111,35 @@ export const ExamMatrix: React.FC = () => {
         setError(null);
     };
 
+    const sortByLevel = () => {
+        const levelOrder: Record<string, number> = { 'NHAN_BIET': 1, 'KET_NOI': 2, 'VAN_DUNG': 3 };
+        const sorted = [...questions].sort((a, b) => {
+            const levelDiff = (levelOrder[a.level || ''] || 99) - (levelOrder[b.level || ''] || 99);
+            if (levelDiff !== 0) return levelDiff;
+            // Nếu cùng mức độ, giữ nguyên thứ tự hoặc sắp theo ID
+            return 0;
+        });
+        setQuestions(sorted);
+    };
+
+    const sortByType = () => {
+        const TN_TYPES = ['MCQ', 'MATCHING', 'ORDERING', 'DRAG_DROP'];
+        const levelOrder: Record<string, number> = { 'NHAN_BIET': 1, 'KET_NOI': 2, 'VAN_DUNG': 3 };
+        
+        const sorted = [...questions].sort((a, b) => {
+            const isATN = TN_TYPES.includes(a.type);
+            const isBTN = TN_TYPES.includes(b.type);
+            
+            // Ưu tiên TN trước TL
+            if (isATN && !isBTN) return -1;
+            if (!isATN && isBTN) return 1;
+            
+            // Nếu cùng "Loại" (cùng TN hoặc cùng TL), sắp theo mức độ
+            return (levelOrder[a.level || ''] || 99) - (levelOrder[b.level || ''] || 99);
+        });
+        setQuestions(sorted);
+    };
+
     // C2: Xuất text file
     const exportTextFile = () => {
         let text = `ĐỀ KIỂM TRA - ${title || 'Chưa đặt tên'}\nMôn: ${subject} - Lớp ${grade} - Thời gian: ${duration} phút\nĐề: ${examVariant}\n${'='.repeat(50)}\n\n`;
@@ -139,11 +168,10 @@ export const ExamMatrix: React.FC = () => {
     };
 
     const getTypeLabel = (type: QuestionType) => {
-        switch (type) {
-            case 'MCQ': return 'TN';
-            case 'SHORT_ANSWER': return 'TL';
-            default: return type;
-        }
+        const TN_TYPES = ['MCQ', 'MATCHING', 'ORDERING', 'DRAG_DROP'];
+        if (TN_TYPES.includes(type)) return 'TN';
+        if (type === 'SHORT_ANSWER') return 'TL';
+        return type;
     };
 
     return (
@@ -241,6 +269,17 @@ export const ExamMatrix: React.FC = () => {
                                 <input type="checkbox" checked={timerEnabled} onChange={e => setTimerEnabled(e.target.checked)} className="rounded text-indigo-500" />
                                 <Timer className="h-3.5 w-3.5" /> {duration} phút
                             </label>
+                            {questions.length > 0 && (
+                                <div className="flex items-center gap-2 ml-4 border-l pl-3">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Sắp xếp:</span>
+                                    <button onClick={sortByLevel} className="text-[10px] font-bold bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-200 text-gray-600 flex items-center gap-1 transition-colors">
+                                        <BarChart3 className="h-3 w-3" /> Mức độ
+                                    </button>
+                                    <button onClick={sortByType} className="text-[10px] font-bold bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-200 text-gray-600 flex items-center gap-1 transition-colors">
+                                        <FileText className="h-3 w-3" /> Loại câu (TN-TL)
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         {questions.length > 0 && (
                             <button onClick={() => setQuestions([])} className="text-xs text-red-500 hover:underline flex items-center gap-1">

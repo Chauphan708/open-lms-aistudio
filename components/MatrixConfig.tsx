@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store';
 import { Question } from '../types';
 import { generateQuestionsByTopic } from '../services/geminiService';
-import { BarChart3, Plus, Trash2, Wand2, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
+import { BarChart3, Plus, Trash2, Wand2, AlertCircle, Sparkles, Loader2, ChevronDown } from 'lucide-react';
 
 interface MatrixRow {
     id: string;
@@ -104,9 +104,10 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                     const mcqCount = Math.round((mcqPercent / 100) * count);
                     const essayCount = count - mcqCount;
 
+                    const TN_TYPES = ['MCQ', 'MATCHING', 'ORDERING', 'DRAG_DROP'];
                     const levelQuestions = topicQuestions.filter(q => q.level === level);
-                    const mcqs = levelQuestions.filter(q => q.type === 'MCQ');
-                    const essays = levelQuestions.filter(q => q.type !== 'MCQ');
+                    const mcqs = levelQuestions.filter(q => TN_TYPES.includes(q.type));
+                    const essays = levelQuestions.filter(q => q.type === 'SHORT_ANSWER');
 
                     let selected: Question[] = [];
 
@@ -258,8 +259,9 @@ export const MatrixConfig: React.FC<MatrixConfigProps> = ({ onGenerate, subject,
                                             placeholder="Chọn hoặc nhập chủ đề" 
                                             value={row.topic} 
                                             onChange={e => updateRow(row.id, 'topic', e.target.value)} 
-                                            className="w-full min-w-[120px] border rounded p-1.5 text-xs bg-white text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none" 
+                                            className="w-full min-w-[120px] border rounded p-1.5 pr-6 text-xs bg-white text-gray-900 focus:ring-1 focus:ring-emerald-500 outline-none" 
                                         />
+                                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
                                         <datalist id={`topics-${row.id}`}>
                                             {availableTopics.map(t => <option key={t} value={t} />)}
                                         </datalist>
