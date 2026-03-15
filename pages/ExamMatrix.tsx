@@ -174,6 +174,14 @@ export const ExamMatrix: React.FC = () => {
         return type;
     };
 
+    const wrapMath = (text: string) => {
+        if (!text) return '';
+        if ((text.includes('\\frac') || text.includes('\\sqrt') || text.includes('^') || text.includes('\\times')) && !text.includes('$')) {
+            return text.replace(/(\\frac\{[^{}]*\}\{[^{}]*\}|\\sqrt\{[^{}]*\}|cm\^[23]|m\^[23]|\\times|\\div)/g, '$$$1$$');
+        }
+        return text;
+    };
+
     return (
         <div className="h-[calc(100vh-100px)] flex flex-col">
             {/* Header */}
@@ -187,10 +195,10 @@ export const ExamMatrix: React.FC = () => {
                 <div className="flex gap-2">
                     {questions.length > 0 && (
                         <>
-                            {/* C1: Trộn đề */}
-                            <button onClick={shuffleQuestions} className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-100 font-medium shadow-sm border border-amber-200">
-                                <Shuffle className="h-4 w-4" /> Trộn đề {examVariant === 'A' ? '→ B' : examVariant === 'B' ? '→ C' : '→ A'}
-                            </button>
+                             {/* C1: Trộn đề */}
+                             <button onClick={shuffleQuestions} className="flex items-center gap-2 bg-amber-500 text-white px-5 py-2.5 rounded-lg hover:bg-amber-600 font-bold shadow-md transform hover:scale-105 transition-all">
+                                 <Shuffle className="h-5 w-5" /> Trộn đề {examVariant === 'A' ? '→ B' : examVariant === 'B' ? '→ C' : '→ A'}
+                             </button>
                             <div className="relative group">
                                 <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm">
                                     <Printer className="h-4 w-4" /> Xuất File <ChevronDown className="h-3 w-3" />
@@ -270,16 +278,16 @@ export const ExamMatrix: React.FC = () => {
                                 <Timer className="h-3.5 w-3.5" /> {duration} phút
                             </label>
                             {questions.length > 0 && (
-                                <div className="flex items-center gap-2 ml-4 border-l pl-3">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Sắp xếp:</span>
-                                    <button onClick={sortByLevel} className="text-[10px] font-bold bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-200 text-gray-600 flex items-center gap-1 transition-colors">
-                                        <BarChart3 className="h-3 w-3" /> Mức độ
-                                    </button>
-                                    <button onClick={sortByType} className="text-[10px] font-bold bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-200 text-gray-600 flex items-center gap-1 transition-colors">
-                                        <FileText className="h-3 w-3" /> Loại câu (TN-TL)
-                                    </button>
-                                </div>
-                            )}
+                                 <div className="flex items-center gap-3 ml-4 border-l-2 border-emerald-100 pl-4 bg-emerald-50/30 py-1 px-3 rounded-lg">
+                                     <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider">Sắp xếp theo:</span>
+                                     <button onClick={sortByLevel} className="text-[11px] font-bold bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-full border-2 border-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all shadow-sm hover:border-indigo-300">
+                                         <BarChart3 className="h-3.5 w-3.5" /> Mức độ
+                                     </button>
+                                     <button onClick={sortByType} className="text-[11px] font-bold bg-white hover:bg-purple-50 px-3 py-1.5 rounded-full border-2 border-purple-100 text-purple-700 flex items-center gap-1.5 transition-all shadow-sm hover:border-purple-300">
+                                         <FileText className="h-3.5 w-3.5" /> Loại câu (TN-TL)
+                                     </button>
+                                 </div>
+                             )}
                         </div>
                         {questions.length > 0 && (
                             <button onClick={() => setQuestions([])} className="text-xs text-red-500 hover:underline flex items-center gap-1">
@@ -307,9 +315,9 @@ export const ExamMatrix: React.FC = () => {
                                         <span className="flex-shrink-0 w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center font-bold text-emerald-600 text-xs">{idx + 1}</span>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start pr-12 mb-1">
-                                                <p className="text-gray-900 text-sm font-medium">
-                                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.content}</ReactMarkdown>
-                                                </p>
+                                                 <p className="text-gray-900 text-sm font-medium">
+                                                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(q.content)}</ReactMarkdown>
+                                                 </p>
                                                 <div className="flex gap-1">
                                                     {q.level && <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{q.level}</span>}
                                                     <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{getTypeLabel(q.type)}</span>
@@ -321,9 +329,9 @@ export const ExamMatrix: React.FC = () => {
                                                         <div key={i} className={`px-2 py-1 rounded text-xs ${q.correctOptionIndex === i ? 'bg-green-50 border border-green-200 text-green-800 font-bold' : 'bg-gray-50 text-gray-600'}`}>
                                                             <div className="flex gap-1">
                                                                 <span className="flex-shrink-0">{String.fromCharCode(65 + i)}.</span>
-                                                                <div className="flex-1">
-                                                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
-                                                                </div>
+                                                                 <div className="flex-1">
+                                                                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(opt)}</ReactMarkdown>
+                                                                 </div>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -369,9 +377,9 @@ export const ExamMatrix: React.FC = () => {
                                                         setEditingQuestion({ ...editingQuestion, options: newOpts });
                                                     }}
                                                     className="w-full border rounded-lg p-2 text-sm bg-white focus:ring-1 focus:ring-emerald-500 outline-none" />
-                                                <div className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-dashed truncate max-w-full">
-                                                    Xem trước: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
-                                                </div>
+                                                 <div className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-dashed truncate max-w-full">
+                                                     Xem trước: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(opt)}</ReactMarkdown>
+                                                 </div>
                                             </div>
                                     </div>
                                 ))}

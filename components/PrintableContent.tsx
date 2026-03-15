@@ -20,6 +20,25 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
     const displayYear = academicYear || `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`;
     const displayDuration = duration || '...';
 
+    // Helper to ensure LaTeX is wrapped in $ delimiters if needed
+    const wrapMath = (text: string) => {
+        if (!text) return '';
+        // Wrap common patterns if they don't have $
+        // 1. \frac{...}{...}
+        // 2. ^2, ^3 (for units like cm^2, m^3)
+        // 3. common math symbols like \times, \div if they appear with backslash
+        let processed = text;
+        
+        // Match \frac{...}{...} that isn't already inside $ or $$
+        // This is a simple version: wrap if it contains \frac, \sqrt, etc and no $
+        if ((text.includes('\\frac') || text.includes('\\sqrt') || text.includes('^') || text.includes('\\times')) && !text.includes('$')) {
+            // Check if it's a simple case of a single expression or mixed text
+            // For safety, let's wrap specific patterns
+            processed = processed.replace(/(\\frac\{[^{}]*\}\{[^{}]*\}|\\sqrt\{[^{}]*\}|cm\^[23]|m\^[23]|\\times|\\div)/g, '$$$1$$');
+        }
+        return processed;
+    };
+
     const SchoolHeader = () => (
         <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-4">
             <div className="text-center font-bold">
@@ -58,7 +77,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                             <div className="font-bold mb-1 flex gap-1">
                                 <span className="whitespace-nowrap">Câu {idx + 1}:</span>
                                 <span className="font-normal">
-                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.content}</ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(q.content)}</ReactMarkdown>
                                 </span>
                             </div>
 
@@ -74,7 +93,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                                     {q.options.map((opt, oIdx) => (
                                         <div key={oIdx} className="flex gap-1 break-inside-avoid">
                                             <span className="font-bold">{String.fromCharCode(65 + oIdx)}.</span>
-                                            <span><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown></span>
+                                            <span><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(opt)}</ReactMarkdown></span>
                                         </div>
                                     ))}
                                 </div>
@@ -156,10 +175,10 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                             <div key={q.id || idx} className="break-inside-avoid border-b border-dashed border-gray-300 pb-2">
                                 <div className="font-bold">Câu {idx + 1}:</div>
                                 {q.solution && (
-                                    <div className="text-gray-800 ml-4"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.solution}</ReactMarkdown></div>
+                                    <div className="text-gray-800 ml-4"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(q.solution)}</ReactMarkdown></div>
                                 )}
                                 {q.hint && !q.solution && (
-                                    <div className="text-gray-800 ml-4 italic"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.hint}</ReactMarkdown></div>
+                                    <div className="text-gray-800 ml-4 italic"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{wrapMath(q.hint)}</ReactMarkdown></div>
                                 )}
                             </div>
                         );
@@ -170,7 +189,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
     };
 
     const renderMatrix = () => {
-        const topics = Array.from(new Set(questions.map(q => q.topic || 'Chung')));
+        const topics = Array.from(new Set(questions.map(q => (q.topic || 'Chung').trim())));
 
         return (
             <div className="print-section mb-10 pb-10 page-break-after">
@@ -233,10 +252,11 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
           body * { visibility: hidden; }
           .print-layout, .print-layout * { visibility: visible; }
           .print-layout { position: absolute; left: 0; top: 0; width: 100%; }
-          .page-break-after { page-break-after: always; }
-          .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+           .page-break-after { page-break-after: always; }
+           .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
         }
       `}} />
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" />
 
             <div className="print-layout">
                 {(type === 'MATRIX' || type === 'ALL') && renderMatrix()}

@@ -29,11 +29,20 @@ const renderMath = (latex: string) => {
     }
 };
 
+const wrapMath = (text: string) => {
+    if (!text) return '';
+    if ((text.includes('\\frac') || text.includes('\\sqrt') || text.includes('^') || text.includes('\\times')) && !text.includes('$')) {
+        return text.replace(/(\\frac\{[^{}]*\}\{[^{}]*\}|\\sqrt\{[^{}]*\}|cm\^[23]|m\^[23]|\\times|\\div)/g, '$$$1$$');
+    }
+    return text;
+};
+
 /**
  * Parsing nội dung văn bản có chứa ký hiệu $...$
  */
 const parseContentWithMath = (content: string): any[] => {
-    const parts = content.split(/(\$.*?\$)/g);
+    const wrappedContent = wrapMath(content);
+    const parts = wrappedContent.split(/(\$.*?\$)/g);
     return parts.map(part => {
         if (part.startsWith('$') && part.endsWith('$')) {
             const latex = part.slice(1, -1);
@@ -81,7 +90,7 @@ export const exportToDocx = async ({ questions, title, subject, grade, duration,
             spacing: { before: 400, after: 200 }
         }));
 
-        const topics = Array.from(new Set(questions.map(q => q.topic || 'Chung')));
+        const topics = Array.from(new Set(questions.map(q => (q.topic || 'Chung').trim())));
         
         const matrixRows = [
             new TableRow({
@@ -173,11 +182,10 @@ export const exportToDocx = async ({ questions, title, subject, grade, duration,
                 sections.push(new Paragraph({
                     children: [
                         new TextRun({ text: `Câu ${idx + 1}: `, bold: true }),
-                        new TextRun({ 
-                            text: q.type === 'MCQ' ? String.fromCharCode(65 + (q.correctOptionIndex ?? 0)) : (q.solution || ""),
-                            color: "FF0000",
-                            bold: true 
-                        })
+                        ...(q.type === 'MCQ' && q.correctOptionIndex !== undefined 
+                            ? [new TextRun({ text: String.fromCharCode(65 + q.correctOptionIndex), color: "FF0000", bold: true })] 
+                            : []),
+                        ...(q.solution ? [new TextRun({ text: q.type === 'MCQ' ? " - " : "" }), ...parseContentWithMath(q.solution)] : [])
                     ]
                 }));
             }
