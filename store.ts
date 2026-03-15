@@ -23,6 +23,8 @@ export const useStore = create<AppState>((set, get) => ({
   academicYears: [],
   classes: [],
   attempts: [],
+  totalAttemptsCount: 0,
+  customTopics: [],
   notifications: [],
   resources: [],
   discussionSessions: [],
@@ -600,6 +602,12 @@ export const useStore = create<AppState>((set, get) => ({
     await supabase.from('exams').update({ deletedAt: null }).eq('id', id);
   },
 
+  addCustomTopic: (topic) => {
+    set((state) => ({
+      customTopics: Array.from(new Set([...state.customTopics, topic]))
+    }));
+  },
+
   // Question Bank
   fetchQuestionBank: async () => {
     const { data } = await supabase.from('question_bank').select('*');
@@ -874,6 +882,9 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     if (data) {
+      // Also fetch total count for dashboard stats
+      const { count } = await supabase.from('attempts').select('*', { count: 'exact', head: true });
+      
       const mappedAttempts: Attempt[] = data.map((a: any) => ({
         id: String(a.id),
         answers: (a.answers as Record<string, any>) || {},
@@ -888,7 +899,7 @@ export const useStore = create<AppState>((set, get) => ({
         timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
         cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
       }));
-      set({ attempts: mappedAttempts });
+      set({ attempts: mappedAttempts, totalAttemptsCount: count || mappedAttempts.length });
     } else if (lastError) {
       console.error("fetchAttempts failed on all order columns:", lastError);
     }

@@ -11,10 +11,11 @@ import rehypeKatex from 'rehype-katex';
 
 
 export const ExamList: React.FC = () => {
-  const { exams, assignments, user, classes, createLiveSession, updateExam, softDeleteExam, restoreExam, bulkUpdateTopic, bulkDeleteTopic } = useStore();
+  const { exams, assignments, user, classes, createLiveSession, updateExam, softDeleteExam, restoreExam, bulkUpdateTopic, bulkDeleteTopic, customTopics, addCustomTopic } = useStore();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<{ old: string, new: string } | null>(null);
+  const [newTopicName, setNewTopicName] = useState('');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const navigate = useNavigate();
 
@@ -39,7 +40,10 @@ export const ExamList: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const subjects = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.subject).filter(Boolean))), [exams]);
-  const topics = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.topic).filter(Boolean))) as string[], [exams]);
+  const topics = useMemo(() => {
+    const examTopics = exams.filter(e => !e.deletedAt).map(e => e.topic).filter(Boolean);
+    return Array.from(new Set([...examTopics, ...customTopics])) as string[];
+  }, [exams, customTopics]);
   const grades = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.grade).filter(Boolean))).sort((a, b) => Number(a) - Number(b)), [exams]);
 
   const handleOpenAssign = (exam: Exam) => {
@@ -538,6 +542,35 @@ export const ExamList: React.FC = () => {
             </div>
             <div className="p-4 overflow-y-auto">
               <p className="text-sm text-gray-500 mb-4 italic">* Các thay đổi sẽ áp dụng cho tất cả bài tập thuộc chủ đề đó.</p>
+              
+              {/* Add New Topic Input */}
+              <div className="flex gap-2 mb-4 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                <input
+                  type="text"
+                  value={newTopicName}
+                  onChange={(e) => setNewTopicName(e.target.value)}
+                  placeholder="Nhập tên chủ đề mới..."
+                  className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTopicName.trim()) {
+                      addCustomTopic(newTopicName.trim());
+                      setNewTopicName('');
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (newTopicName.trim()) {
+                      addCustomTopic(newTopicName.trim());
+                      setNewTopicName('');
+                    }
+                  }}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1 shadow-sm"
+                >
+                  <Plus className="h-4 w-4" /> Thêm
+                </button>
+              </div>
+
               <div className="space-y-2">
                 {topics.length === 0 ? (
                   <p className="text-center py-8 text-gray-400">Chưa có chủ đề nào.</p>

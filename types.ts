@@ -406,9 +406,13 @@ export interface AppState {
   updateAssignment: (updated: Assignment) => Promise<boolean>;
 
   attempts: Attempt[];
+  totalAttemptsCount: number;
   fetchAttempts: () => Promise<void>;
   addAttempt: (attempt: Attempt) => Promise<boolean>;
   updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void;
+
+  customTopics: string[];
+  addCustomTopic: (topic: string) => void;
 
   notifications: Notification[];
   addNotification: (notif: Notification) => void;

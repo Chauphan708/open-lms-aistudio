@@ -3,7 +3,8 @@ import { useStore } from '../../store';
 import { useClassFunStore, Behavior } from '../../services/classFunStore';
 import {
     ThumbsUp, ThumbsDown, Search, Plus, X, CheckSquare, Square, Zap,
-    Edit2, Trash2, Save, ChevronDown, ChevronUp, Users, Sparkles
+    Edit2, Trash2, Save, ChevronDown, ChevronUp, Users, Sparkles,
+    List, Download, Clock
 } from 'lucide-react';
 
 // --- Default behaviors for seeding ---
@@ -41,6 +42,31 @@ export const ClassFunRecord: React.FC = () => {
     const [showManageBehaviors, setShowManageBehaviors] = useState(false);
     const [showAutoPointConfig, setShowAutoPointConfig] = useState(false);
     const [showSuccess, setShowSuccess] = useState<{ points: number; count: number } | null>(null);
+    const [showAllHistory, setShowAllHistory] = useState(false);
+
+    const handleExportHistory = () => {
+        const headers = ['Học sinh', 'Hành vi/Lý do', 'Điểm', 'Thời gian'];
+        const csvData = (logs || []).map(log => {
+            const student = users.find(u => u.id === log.student_id);
+            return [
+                `"${student?.name || 'HS ẩn'}"`,
+                `"${log.reason || 'Khen ngợi/Nhắc nhở'}"`,
+                log.points,
+                new Date(log.created_at).toLocaleString('vi-VN')
+            ];
+        });
+
+        const csvContent = [headers, ...csvData].map(e => e.join(",")).join("\n");
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `lich_su_diem_${selectedClass?.name || 'class'}_${new Date().toLocaleDateString()}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     // New behavior form
     const [newBehavior, setNewBehavior] = useState({ description: '', type: 'POSITIVE' as 'POSITIVE' | 'NEGATIVE', points: 5 });
@@ -697,6 +723,89 @@ export const ClassFunRecord: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* --- ALL HISTORY MODAL --- */}
+            {showAllHistory && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="p-6 border-b flex justify-between items-center bg-gray-50/50 sticky top-0 z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                                    <List className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-900">Toàn bộ lịch sử điểm</h2>
+                                    <p className="text-sm text-gray-500">Lớp: <span className="font-bold text-indigo-600">{selectedClass?.name}</span></p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={handleExportHistory}
+                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 shadow-sm transition-all"
+                                >
+                                    <Download className="h-5 w-5 text-indigo-500" /> Xuất CSV
+                                </button>
+                                <button onClick={() => setShowAllHistory(false)} className="hover:bg-gray-100 p-2.5 rounded-full transition-colors">
+                                    <X className="h-7 w-7 text-gray-400" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-gray-50/30">
+                            {(logs || []).length === 0 ? (
+                                <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-gray-100">
+                                    <Sparkles className="h-12 w-12 text-gray-200 mx-auto mb-4" />
+                                    <p className="text-gray-400 font-medium italic">Chưa có lịch sử ghi nhận điểm nào.</p>
+                                </div>
+                            ) : (
+                                (logs || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((log: any) => {
+                                    const student = users.find(u => u.id === log.student_id);
+                                    return (
+                                        <div key={log.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all group">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-lg
+                                                    ${log.points >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                                    {log.points > 0 ? `+${log.points}` : log.points}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-black text-gray-900 truncate group-hover:text-indigo-600 transition-colors uppercase text-sm tracking-wide">
+                                                        {student?.name || 'HS ẩn'}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-sm text-gray-600 font-medium italic">"{log.reason || 'Khen ngợi/Nhắc nhở'}"</span>
+                                                        <span className="text-[10px] text-gray-300">•</span>
+                                                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" /> {new Date(log.created_at).toLocaleString('vi-VN')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="mt-4 sm:mt-0 flex items-center gap-2 self-end sm:self-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                 <button 
+                                                    onClick={() => deleteBehaviorLog(log.id)} 
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition" title="Xóa"
+                                                >
+                                                    <Trash2 className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t bg-gray-50/50 text-center rounded-b-3xl">
+                            <button 
+                                onClick={() => setShowAllHistory(false)} 
+                                className="bg-indigo-600 text-white px-12 py-3 rounded-2xl font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95"
+                            >
+                                ĐÓNG
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
