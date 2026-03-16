@@ -655,7 +655,7 @@ export const useStore = create<AppState>((set, get) => ({
           subject: exam.subject || 'Chưa rõ',
           grade: exam.grade || 'Chưa rõ',
           topic: q.topic || exam.topic || '',
-          level: (q.level as string === 'THONG_HIEU' ? 'KET_NOI' : q.level) as any
+          level: q.level as any
         };
         newQuestions.push(newItem);
         existingContents.add(content); // Prevent duplicates within the same sync

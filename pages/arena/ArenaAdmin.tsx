@@ -113,7 +113,7 @@ export const ArenaAdmin: React.FC = () => {
 
     const levelToDifficulty = (level?: string) => {
         if (level === 'NHAN_BIET') return 1;
-        if (level === 'THONG_HIEU') return 2;
+        if (level === 'KET_NOI') return 2;
         return 3;
     };
 
@@ -158,7 +158,7 @@ export const ArenaAdmin: React.FC = () => {
         setAiGenerating(true);
         try {
             const subjectLabel = SUBJECTS.find(s => s.value === aiGenSubject)?.label || 'Toán';
-            const diffLabel = aiGenDifficulty === 1 ? 'Mức 1 (Nhận biết)' : aiGenDifficulty === 2 ? 'Mức 2 (Thông hiểu)' : 'Mức 3 (Vận dụng)';
+            const diffLabel = aiGenDifficulty === 1 ? 'Mức 1 (Nhận biết)' : aiGenDifficulty === 2 ? 'Mức 2 (Kết nối)' : 'Mức 3 (Vận dụng)';
             const questions = await generateQuestionsByTopic(
                 `${subjectLabel}: ${aiGenTopic}`,
                 '5', 'MCQ', diffLabel, aiGenCount,

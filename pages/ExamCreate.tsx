@@ -612,9 +612,9 @@ export const ExamCreate: React.FC = () => {
                         value={difficulty} onChange={e => setDifficulty(e.target.value as ExamDifficulty)}
                         className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white text-gray-900"
                       >
-                        <option value="LEVEL_1">Mức 1 (Nhận biết)</option>
-                        <option value="LEVEL_2">Mức 2 (Kết nối)</option>
-                        <option value="LEVEL_3">Mức 3 (Vận dụng)</option>
+                        <option value="NHAN_BIET">Mức 1 (Nhận biết)</option>
+                        <option value="KET_NOI">Mức 2 (Kết nối)</option>
+                        <option value="VAN_DUNG">Mức 3 (Vận dụng)</option>
                       </select>
                     </div>
                     <div>
@@ -950,9 +950,8 @@ export const ExamCreate: React.FC = () => {
                   onChange={e => setEditingQuestion({ ...editingQuestion, level: (e.target.value as ExamDifficulty) || undefined })}
                   className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
                 >
-                  <option value="">-- Không phân mức --</option>
                   <option value="NHAN_BIET">Mức 1 (Nhận biết)</option>
-                  <option value="THONG_HIEU">Mức 2 (Kết nối)</option>
+                  <option value="KET_NOI">Mức 2 (Kết nối)</option>
                   <option value="VAN_DUNG">Mức 3 (Vận dụng)</option>
                 </select>
               </div>

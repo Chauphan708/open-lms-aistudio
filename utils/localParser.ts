@@ -149,7 +149,7 @@ function parseOneBlock(block: string, index: number): Question | null {
         if (levelMatch && !parsedLevel) {
             const rawLevel = levelMatch[1].toLowerCase().replace(/\s+/g, '');
             if (rawLevel.includes('nhậnbiết') || rawLevel === 'nb') parsedLevel = 'NHAN_BIET';
-            else if (rawLevel.includes('thônghiểu') || rawLevel.includes('kếtnối') || rawLevel === 'th' || rawLevel === 'kn') parsedLevel = 'THONG_HIEU';
+            else if (rawLevel.includes('thônghiểu') || rawLevel.includes('kếtnối') || rawLevel === 'th' || rawLevel === 'kn') parsedLevel = 'KET_NOI';
             else if (rawLevel.includes('vậndụng') || rawLevel.includes('vd')) parsedLevel = 'VAN_DUNG';
             continue;
         }
