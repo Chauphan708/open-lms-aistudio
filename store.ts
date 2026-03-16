@@ -592,9 +592,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Exams
   addExam: async (exam) => {
+    const { user } = get();
     // Optimistic: add to local state immediately so user sees it
     set((state) => ({ exams: [exam, ...state.exams] }));
-    const payload = {
+    const payload: any = {
       id: String(exam.id),
       title: exam.title,
       subject: exam.subject,
@@ -611,6 +612,12 @@ export const useStore = create<AppState>((set, get) => ({
       category: exam.category || 'EXAM',
       deleted_at: exam.deletedAt
     };
+
+    // Only add teacher_id if user exists (proactive ownership)
+    if (user?.id) {
+        payload.teacher_id = user.id;
+    }
+
     const { error } = await supabase.from('exams').insert(payload);
     if (error) {
       console.error("DEBUG: addExam Supabase error details:", {
@@ -646,7 +653,8 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
   updateExam: async (updatedExam) => {
-    const payload = {
+    const { user } = get();
+    const payload: any = {
       title: updatedExam.title,
       subject: updatedExam.subject,
       topic: updatedExam.topic,
@@ -661,6 +669,11 @@ export const useStore = create<AppState>((set, get) => ({
       category: updatedExam.category || (String(updatedExam.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
       deleted_at: updatedExam.deletedAt
     };
+
+    if (user?.id) {
+        payload.teacher_id = user.id;
+    }
+
     const { error } = await supabase.from('exams').update(payload).eq('id', updatedExam.id);
     if (!error) set((state) => ({
       exams: state.exams.map((e) => e.id === updatedExam.id ? updatedExam : e)
