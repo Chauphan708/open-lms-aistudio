@@ -33,25 +33,10 @@ export const useStore = create<AppState>((set, get) => ({
   // --- INITIAL DATA FETCHING ---
   fetchInitialData: async () => {
     set({ isDataLoading: true });
-    try {
-      // 0. Fetch Question Bank
-      try {
-        const { data: qBanks } = await supabase.from('question_bank').select('*');
-        if (qBanks) {
-          const mapped = qBanks.map((q: any) => ({
-            ...q,
-            correctOptionIndex: q.correct_option_index,
-            imageUrl: q.image_url,
-            isArenaEligible: q.is_arena_eligible,
-            teacherId: q.teacher_id
-          }));
-          set({ questionBank: mapped as QuestionBankItem[] });
-        }
-      } catch (err) {
-        console.error("Error fetching question_bank:", err);
-      }
+    const { user } = get();
 
-      // 1. Fetch Users (Profiles)
+    try {
+      // 1. Fetch Users (Profiles) - Needed for custom login logic
       const { data: users, error: userErr } = await supabase.from('profiles').select('*');
       if (users && users.length > 0) {
         set({ users: users as User[] });
@@ -60,13 +45,48 @@ export const useStore = create<AppState>((set, get) => ({
         set({ users: SEED_USERS });
       }
 
-      // 2. Fetch Exams
-      const { data: exams, error: examErr } = await supabase.from('exams').select('*').order('created_at', { ascending: false });
-      if (examErr) {
-        // Fallback for older schemas
-        const { data: fallbackExams } = await supabase.from('exams').select('*').order('createdAt', { ascending: false });
-        if (fallbackExams) set({ exams: fallbackExams });
-      } else if (exams) {
+      // 2. Fetch Academic Years (Public data)
+      const { data: years } = await supabase.from('academic_years').select('*');
+      if (years) set({ academicYears: years as AcademicYear[] });
+
+      // If no user is logged in, clear teacher/student specific data
+      if (!user) {
+        set({ exams: [], assignments: [], classes: [], questionBank: [], notifications: [], attempts: [], resources: [], discussionSessions: [] });
+        return;
+      }
+
+      const isAdmin = user.role === 'ADMIN';
+      const isTeacher = user.role === 'TEACHER';
+      const isStudent = user.role === 'STUDENT';
+
+      // 3. Fetch Question Bank
+      try {
+        let qQuery = supabase.from('question_bank').select('*');
+        if (isTeacher) qQuery = qQuery.eq('teacher_id', user.id);
+        
+        const { data: qBanks } = await qQuery;
+        if (qBanks) {
+          const mapped = qBanks.map((q: any) => ({
+            ...q,
+            correctOptionIndex: q.correct_option_index,
+            imageUrl: q.image_url,
+            isArenaEligible: q.is_arena_eligible,
+            teacherId: q.teacherId || q.teacher_id || q.teacherid
+          }));
+          set({ questionBank: mapped as QuestionBankItem[] });
+        }
+      } catch (err) {
+        console.error("Error fetching question_bank:", err);
+      }
+
+      // 4. Fetch Exams
+      let examQuery = supabase.from('exams').select('*').order('created_at', { ascending: false });
+      if (isTeacher) {
+        examQuery = examQuery.eq('teacher_id', user.id);
+      }
+      
+      const { data: exams, error: examErr } = await examQuery;
+      if (!examErr && exams) {
         const mappedExams = exams.map((e: any) => ({
           ...e,
           id: String(e.id),
@@ -80,10 +100,14 @@ export const useStore = create<AppState>((set, get) => ({
         set({ exams: mappedExams as Exam[] });
       }
 
-      // 3. Fetch Classes
-      const { data: rawClasses } = await supabase.from('classes').select('*');
+      // 5. Fetch Classes
+      let classQuery = supabase.from('classes').select('*');
+      if (isTeacher) classQuery = classQuery.eq('teacher_id', user.id);
+      if (isStudent && user.className) classQuery = classQuery.eq('name', user.className);
+
+      const { data: rawClasses } = await classQuery;
       if (rawClasses) {
-        const classes = rawClasses.map(c => {
+        const mappedClasses = rawClasses.map(c => {
           let ids = c.studentIds || c.student_ids || c.studentids || [];
           if (typeof ids === 'string') {
             try { ids = JSON.parse(ids); } catch (e) { ids = []; }
@@ -98,117 +122,91 @@ export const useStore = create<AppState>((set, get) => ({
             studentIds: ids.map((sid: any) => String(sid))
           };
         });
-        set({ classes: classes as Class[] });
+        set({ classes: mappedClasses as Class[] });
       }
 
-      // 4. Fetch Assignments
-      let { data: assignments, error: assignErr } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
-      if (assignErr) {
-        const { data: fallbackAssignments } = await supabase.from('assignments').select('*').order('createdAt', { ascending: false });
-        assignments = fallbackAssignments;
-      }
-      if (assignments) {
-        const mappedAssignments = assignments.map((a: any) => ({
-          ...a,
-          id: String(a.id),
-          examId: String(a.examId || a.exam_id || a.examid),
-          classId: String(a.classId || a.class_id || a.classid),
-          teacherId: String(a.teacherId || a.teacher_id || a.teacherid),
-          durationMinutes: Number(a.durationMinutes || a.duration_minutes || a.durationminutes || 0),
-          studentIds: Array.isArray(a.studentIds || a.student_ids || a.studentids) 
-            ? (a.studentIds || a.student_ids || a.studentids).map((sid: any) => String(sid)) 
-            : [],
-          createdAt: a.createdAt || a.created_at || a.createdat,
-          startTime: a.startTime || a.start_time || a.starttime,
-          endTime: a.endTime || a.end_time || a.endtime,
-          status: a.status || 'active'
-        }));
-        set({ assignments: mappedAssignments as Assignment[] });
+      // 6. Fetch Assignments
+      let assignQuery = supabase.from('assignments').select('*').order('created_at', { ascending: false });
+      if (isTeacher) {
+        assignQuery = assignQuery.eq('teacher_id', user.id);
+      } else if (isStudent) {
+        const classIds = get().classes.map(c => c.id);
+        if (classIds.length > 0) {
+            assignQuery = assignQuery.in('class_id', classIds);
+        }
       }
 
-      // 5. Fetch Attempts
-      await get().fetchAttempts();
-
-      // --- SETUP REALTIME SUBSCRIPTIONS ---
-      supabase
-        .channel('schema-db-changes')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'attempts' },
-          (payload) => {
-            console.log('REALTIME: New attempt received:', payload.new);
-            const a = payload.new;
-            const mappedAttempt: Attempt = {
+      if (isTeacher || isAdmin || (isStudent && get().classes.length > 0)) {
+          const { data: assignments } = await assignQuery;
+          if (assignments) {
+            const mappedAssignments = assignments.map((a: any) => ({
+              ...a,
               id: String(a.id),
-              answers: (a.answers as Record<string, any>) || {},
-              examId: String(a.exam_id || a.examId || a.examid),
-              assignmentId: String(a.assignment_id || a.assignmentId || a.assignmentid || ''),
-              studentId: String(a.student_id || a.studentId || a.studentid),
-              submittedAt: String(a.submitted_at || a.submittedAt || a.submittedat || new Date().toISOString()),
-              score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
-              teacherFeedback: a.teacher_feedback || a.teacherFeedback || a.teacherfeedback,
-              feedbackAllowViewSolution: !!(a.feedback_allow_view_solution ?? a.feedbackAllowViewSolution ?? a.feedbackallowviewsolution ?? true),
-              totalTimeSpentSec: Number(a.total_time_spent_sec ?? a.totalTimeSpentSec ?? a.totaltimespentsec ?? 0),
-              timeSpentPerQuestion: (a.time_spent_per_question || a.timeSpentPerQuestion || a.timespentperquestion || {}) as Record<string, number>,
-              cheatWarnings: Number(a.cheat_warnings ?? a.cheatWarnings ?? a.cheatwarnings ?? 0)
-            };
+              examId: String(a.examId || a.exam_id || a.examid),
+              classId: String(a.classId || a.class_id || a.classid),
+              teacherId: String(a.teacherId || a.teacher_id || a.teacherid),
+              durationMinutes: Number(a.durationMinutes || a.duration_minutes || a.durationminutes || 0),
+              studentIds: Array.isArray(a.studentIds || a.student_ids || a.studentids) 
+                ? (a.studentIds || a.student_ids || a.studentids).map((sid: any) => String(sid)) 
+                : [],
+              createdAt: a.createdAt || a.created_at || a.createdat,
+              startTime: a.startTime || a.start_time || a.starttime,
+              endTime: a.endTime || a.end_time || a.endtime,
+              status: a.status || 'active'
+            }));
             
-            set((state) => {
-               // Tránh trùng lặp nếu bài nộp đã được addAttempt (local) add vào rồi
-               if (state.attempts.some(att => String(att.id) === mappedAttempt.id)) return state;
-               return { attempts: [...state.attempts, mappedAttempt] };
-            });
+            if (isStudent) {
+                const filtered = mappedAssignments.filter(a => 
+                    !a.studentIds || a.studentIds.length === 0 || a.studentIds.includes(user.id)
+                );
+                set({ assignments: filtered });
+            } else {
+                set({ assignments: mappedAssignments as Assignment[] });
+            }
           }
-        )
-        .subscribe();
-
-      // 6. Fetch Years
-      const { data: years } = await supabase.from('academic_years').select('*');
-      if (years) set({ academicYears: years as AcademicYear[] });
-
-      // 7. Notifications & Realtime Subscription
-      const { data: notifs, error: notifErr } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
-      if (notifErr) console.error("Error fetching notifications:", notifErr);
-      
-      const mapNotif = (n: any): Notification => ({
-        id: String(n.id),
-        userId: String(n.userId || n.user_id || n.userid),
-        type: n.type || 'INFO',
-        title: n.title,
-        message: n.message,
-        isRead: !!(n.isRead ?? n.is_read ?? n.isread ?? false),
-        createdAt: n.createdAt || n.created_at || n.createdat,
-        link: n.link
-      });
-
-      if (notifs) {
-        const mappedNotifs = notifs.map(mapNotif);
-        set({ notifications: mappedNotifs });
+      } else {
+          set({ assignments: [] });
       }
 
-      // Realtime subscription for notifications
-      supabase
-        .channel('notifications-realtime')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'notifications' },
-          (payload) => {
-            const newNotif = mapNotif(payload.new);
-            console.log('REALTIME: New notification received:', newNotif);
-            
-            set((state) => {
-              // Only add if it belongs to current user and not already in state
-              if (state.user && newNotif.userId === state.user.id) {
-                if (state.notifications.some(n => n.id === newNotif.id)) return state;
-                return { notifications: [newNotif, ...state.notifications] };
-              }
-              return state;
-            });
+      // 7. Fetch Attempts
+      if (isTeacher || isAdmin) {
+          await get().fetchAttempts();
+      } else if (isStudent) {
+          const { data: myAttempts } = await supabase.from('attempts').select('*').eq('student_id', user.id);
+          if (myAttempts) {
+              set({ attempts: myAttempts.map((a: any) => ({
+                id: String(a.id),
+                examId: String(a.exam_id || a.examId),
+                assignmentId: String(a.assignment_id || a.assignmentId),
+                studentId: String(a.student_id || a.studentId),
+                submittedAt: a.submitted_at || a.submittedAt,
+                score: a.score,
+                answers: a.answers || {},
+                teacherFeedback: a.teacher_feedback,
+                totalTimeSpentSec: a.total_time_spent_sec
+              })) as Attempt[] });
           }
-        )
-        .subscribe();
+      }
 
-      // 8. Resources
+      // 8. Notifications
+      const { data: notificationData } = await supabase.from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (notificationData) {
+        set({ notifications: notificationData.map(n => ({
+          id: String(n.id),
+          userId: String(n.user_id),
+          type: n.type || 'INFO',
+          title: n.title,
+          message: n.message,
+          isRead: !!n.is_read,
+          createdAt: n.created_at,
+          link: n.link
+        })) });
+      }
+
+      // 9. Resources
       const { data: rawResources } = await supabase.from('resources').select('*');
       if (rawResources) {
         const resources = rawResources.map(r => ({
@@ -219,22 +217,22 @@ export const useStore = create<AppState>((set, get) => ({
         set({ resources: resources as WebResource[] });
       }
 
-      // 9. Fetch Discussions (New)
-      const { data: sessions } = await supabase.from('discussion_sessions').select(`
+      // 10. Fetch Discussions
+      let discussionQuery = supabase.from('discussion_sessions').select(`
             *,
             rounds:discussion_rounds(*),
             participants:discussion_participants(*),
             polls:discussion_polls(*),
             breakoutRooms:discussion_breakout_rooms(*)
         `);
+      if (isTeacher) discussionQuery = discussionQuery.eq('teacher_id', user.id);
 
+      const { data: sessions } = await discussionQuery;
       if (sessions) {
-        // Need to fetch messages separately or just fetch latest? For now fetch all messages for simplicity or lazy load
         const { data: messages } = await supabase.from('discussion_messages').select('*');
-
         const formattedSessions: DiscussionSession[] = sessions.map((s: any) => ({
           id: s.id,
-          teacherId: s.teacher_id, // Map snake_case to camelCase
+          teacherId: s.teacher_id,
           title: s.title,
           status: s.status,
           visibility: s.visibility,
@@ -251,7 +249,6 @@ export const useStore = create<AppState>((set, get) => ({
             ...p,
             isActive: p.is_active,
             isAnonymous: p.is_anonymous
-            // Note: 'options' JSONB should map automatically
           })) || [],
           messages: messages?.filter((m: any) => m.session_id === s.id).map((m: any) => ({
             id: m.id,
@@ -264,14 +261,72 @@ export const useStore = create<AppState>((set, get) => ({
             roundId: m.round_id,
             timestamp: m.created_at
           })) || [],
-          breakoutRooms: s.breakoutRooms || [] // If using table
+          breakoutRooms: s.breakoutRooms || []
         }));
         set({ discussionSessions: formattedSessions });
       }
 
+      // --- SETUP REALTIME SUBSCRIPTIONS ---
+      // Attempts Realtime
+      supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'attempts' },
+          (payload) => {
+            const a = payload.new;
+            // Only add if relevant (teacher sees all, student sees own)
+            if (isTeacher || isAdmin || (isStudent && a.student_id === user.id)) {
+                const mappedAttempt: Attempt = {
+                  id: String(a.id),
+                  answers: (a.answers as Record<string, any>) || {},
+                  examId: String(a.exam_id || a.examId),
+                  assignmentId: String(a.assignment_id || a.assignmentId),
+                  studentId: String(a.student_id || a.studentId),
+                  submittedAt: String(a.submitted_at || a.submittedAt || new Date().toISOString()),
+                  score: (a.score !== undefined && a.score !== null) ? Number(a.score) : 0,
+                  teacherFeedback: a.teacher_feedback,
+                  totalTimeSpentSec: Number(a.total_time_spent_sec || 0)
+                };
+                set((state) => {
+                   if (state.attempts.some(att => att.id === mappedAttempt.id)) return state;
+                   return { attempts: [...state.attempts, mappedAttempt] };
+                });
+            }
+          }
+        )
+        .subscribe();
+
+      // Notifications Realtime
+      supabase
+        .channel('notifications-realtime')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notifications' },
+          (payload) => {
+            const n = payload.new;
+            if (n.user_id === user.id) {
+                const newNotif = {
+                  id: String(n.id),
+                  userId: String(n.user_id),
+                  type: n.type || 'INFO',
+                  title: n.title,
+                  message: n.message,
+                  isRead: !!n.is_read,
+                  createdAt: n.created_at,
+                  link: n.link
+                };
+                set((state) => {
+                  if (state.notifications.some(notif => notif.id === newNotif.id)) return state;
+                  return { notifications: [newNotif, ...state.notifications] };
+                });
+            }
+          }
+        )
+        .subscribe();
+
     } catch (e) {
       console.error("Error fetching initial data (Global):", e);
-      // Don't reset users unless it's absolutely necessary (e.g., users is empty)
       if (get().users.length === 0) set({ users: SEED_USERS });
     } finally {
       set({ isDataLoading: false });
@@ -294,6 +349,7 @@ export const useStore = create<AppState>((set, get) => ({
       localStorage.removeItem('user_session');
     }
     set({ user });
+    get().fetchInitialData(); // Trigger refetch with new user context
   },
 
   // Users

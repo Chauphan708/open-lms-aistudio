@@ -14,7 +14,7 @@ interface Props {
 type ImportMode = 'SINGLE' | 'BULK';
 
 export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
-    const { users, classes, addUser, updateUser, deleteUser, changePassword } = useStore();
+    const { user: currentUser, users, classes, addUser, updateUser, deleteUser, changePassword } = useStore();
     const [mode, setMode] = useState<ImportMode>('SINGLE');
     const [isCreating, setIsCreating] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -84,10 +84,32 @@ export const UserManage: React.FC<Props> = ({ targetRole, title }) => {
         }
     }, [name, className, isAutoEmail, targetRole]);
 
-    const filteredUsers = users.filter(u =>
-        u.role === targetRole &&
-        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.includes(searchTerm) || (u.className && u.className.toLowerCase().includes(searchTerm.toLowerCase())))
-    );
+    const filteredUsers = users.filter(u => {
+        const isTargetRole = u.role === targetRole;
+        if (!isTargetRole) return false;
+
+        const matchesSearch = (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                               u.email.includes(searchTerm) || 
+                               (u.className && u.className.toLowerCase().includes(searchTerm.toLowerCase())));
+        if (!matchesSearch) return false;
+
+        // Data Isolation: If current user is a teacher and looking at students, ONLY show students in THEIR classes
+        if (currentUser?.role === 'TEACHER' && targetRole === 'STUDENT') {
+            const teacherClassIds = classes.filter(c => c.teacherId === currentUser.id).map(c => c.id);
+            const studentInTeacherClass = classes.some(c => 
+                teacherClassIds.includes(c.id) && 
+                (c.studentIds.includes(u.id) || (u.className && (c.name === u.className || (u.className.includes('|') && u.className.split('|')[0] === c.id))))
+            );
+            return studentInTeacherClass;
+        }
+
+        // Teachers should not see other teachers in the "Teacher Manage" view if they somehow got there
+        if (currentUser?.role === 'TEACHER' && targetRole === 'TEACHER') {
+            return u.id === currentUser.id;
+        }
+
+        return true;
+    });
 
     // --- RANDOM & DUCK RACE HANDLERS ---
     const [showRoulette, setShowRoulette] = useState(false);
