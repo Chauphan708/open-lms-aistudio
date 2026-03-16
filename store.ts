@@ -80,24 +80,14 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Exams
-      console.log("DEBUG: Fetching exams for user:", user.id);
+      console.log("DEBUG: Fetching exams...");
+      // Temporarily remove teacher_id filter to avoid 400 error while columns are missing
       let examQuery = supabase.from('exams').select('*');
-      if (isTeacher) examQuery = examQuery.eq('teacher_id', user.id);
       
       let { data: exams, error: examErr } = await examQuery;
       
-      // Fallback: Nếu lỗi, thử lại không có bộ lọc teacher_id hoặc thử teacherId
-      if (isTeacher && (examErr || !exams || exams.length === 0)) {
-          console.log("DEBUG: Retrying exams with teacherId...");
-          const fallback = await supabase.from('exams').select('*').eq('teacherId', user.id);
-          if (!fallback.error && fallback.data && fallback.data.length > 0) {
-              exams = fallback.data;
-              examErr = null;
-          }
-      }
-
       if (!examErr && exams) {
-        // Sort in JS to avoid 400 errors if created_at/createdAt is named differently
+        // Sort in JS
         const sortedExams = [...exams].sort((a, b) => {
           const timeA = new Date(a.created_at || a.createdAt || a.createdat || 0).getTime();
           const timeB = new Date(b.created_at || b.createdAt || b.createdat || 0).getTime();
@@ -107,14 +97,24 @@ export const useStore = create<AppState>((set, get) => ({
         const mappedExams = sortedExams.map((e: any) => ({
           ...e,
           id: String(e.id),
-          teacherId: String(e.teacherId || e.teacher_id || e.teacherid),
+          teacherId: String(e.teacherId || e.teacher_id || e.teacherid || ''),
           createdAt: e.createdAt || e.created_at || e.createdat,
           updatedAt: e.updatedAt || e.updated_at || e.updatedat,
           questionCount: e.questionCount || e.question_count || e.questioncount,
           category: e.category || (String(e.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
           classId: String(e.classId || e.class_id || e.classid || '')
         }));
-        set({ exams: mappedExams as Exam[] });
+        
+        // Final Filter in JS if we want safety, but for now show all to fix disappearance
+        if (isTeacher) {
+            // If we have some way to identify, we could filter here. 
+            // Since we don't have teacher_id in DB yet, we show all.
+            set({ exams: mappedExams as Exam[] });
+        } else {
+            set({ exams: mappedExams as Exam[] });
+        }
+      } else if (examErr) {
+          console.error("DEBUG: exams fetch error", examErr);
       }
 
       // 5. Fetch Classes
@@ -124,6 +124,7 @@ export const useStore = create<AppState>((set, get) => ({
 
       let { data: rawClasses, error: classErr } = await classQuery;
       
+      // Fallback for classes (Bảng này thường đã có teacher_id)
       if (isTeacher && (classErr || !rawClasses || rawClasses.length === 0)) {
           const fallback = await supabase.from('classes').select('*').eq('teacherId', user.id);
           if (!fallback.error && fallback.data && fallback.data.length > 0) {
@@ -133,39 +134,24 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       if (rawClasses) {
-        const mappedClasses = rawClasses.map(c => {
-          let ids = c.studentIds || c.student_ids || c.studentids || [];
-          if (typeof ids === 'string') {
-            try { ids = JSON.parse(ids); } catch (e) { ids = []; }
-          }
-          if (!Array.isArray(ids)) ids = [];
-
-          return {
-            id: String(c.id),
-            name: c.name,
-            academicYearId: String(c.academicYearId || c.academic_year_id || c.academicyearid),
-            teacherId: String(c.teacherId || c.teacher_id || c.teacherid),
-            studentIds: ids.map((sid: any) => String(sid))
-          };
-        });
+        const mappedClasses = rawClasses.map(c => ({
+          id: String(c.id),
+          name: c.name,
+          academicYearId: String(c.academicYearId || c.academic_year_id || c.academicyearid),
+          teacherId: String(c.teacherId || c.teacher_id || c.teacherid),
+          studentIds: Array.isArray(c.studentIds || c.student_ids || c.studentids) ? (c.studentIds || c.student_ids || c.studentids).map((sid: any) => String(sid)) : []
+        }));
         set({ classes: mappedClasses as Class[] });
       }
 
       // 6. Fetch Assignments
+      console.log("DEBUG: Fetching assignments...");
       let assignQuery = supabase.from('assignments').select('*');
-      if (isTeacher) assignQuery = assignQuery.eq('teacher_id', user.id);
-
+      // Temporarily remove teacher_id filter if it causes 400
+      
       if (isTeacher || isAdmin || (isStudent && get().classes.length > 0)) {
           let { data: assignments, error: assignErr } = await assignQuery;
           
-          if (isTeacher && (assignErr || !assignments || assignments.length === 0)) {
-              const fallback = await supabase.from('assignments').select('*').eq('teacherId', user.id);
-              if (!fallback.error && fallback.data && fallback.data.length > 0) {
-                  assignments = fallback.data;
-                  assignErr = null;
-              }
-          }
-
           if (assignments) {
             // Sort in JS
             const sortedAssign = [...assignments].sort((a, b) => {
@@ -179,7 +165,7 @@ export const useStore = create<AppState>((set, get) => ({
               id: String(a.id),
               examId: String(a.examId || a.exam_id || a.examid),
               classId: String(a.classId || a.class_id || a.classid),
-              teacherId: String(a.teacherId || a.teacher_id || a.teacherid),
+              teacherId: String(a.teacherId || a.teacher_id || a.teacherid || ''),
               durationMinutes: Number(a.durationMinutes || a.duration_minutes || a.durationminutes || 0),
               studentIds: Array.isArray(a.studentIds || a.student_ids || a.studentids) 
                 ? (a.studentIds || a.student_ids || a.studentids).map((sid: any) => String(sid)) 
@@ -191,8 +177,9 @@ export const useStore = create<AppState>((set, get) => ({
             }));
             
             if (isStudent) {
+                const classIds = get().classes.map(c => c.id);
                 const filtered = mappedAssignments.filter(a => 
-                    !a.studentIds || a.studentIds.length === 0 || a.studentIds.includes(user.id)
+                    classIds.includes(a.classId) && (!a.studentIds || a.studentIds.length === 0 || a.studentIds.includes(user.id))
                 );
                 set({ assignments: filtered });
             } else {
