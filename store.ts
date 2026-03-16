@@ -574,14 +574,14 @@ export const useStore = create<AppState>((set, get) => ({
       topic: updatedExam.topic,
       grade: updatedExam.grade,
       difficulty: updatedExam.difficulty,
-      durationMinutes: updatedExam.durationMinutes,
-      questionCount: updatedExam.questionCount,
+      duration_minutes: Number(updatedExam.durationMinutes),
+      question_count: Number(updatedExam.questionCount),
       status: updatedExam.status,
-      classId: updatedExam.classId,
+      class_id: String(updatedExam.classId || ''),
       description: (updatedExam as any).description,
       questions: updatedExam.questions,
       category: updatedExam.category || (String(updatedExam.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
-      deletedAt: updatedExam.deletedAt
+      deleted_at: updatedExam.deletedAt
     };
     const { error } = await supabase.from('exams').update(payload).eq('id', updatedExam.id);
     if (!error) set((state) => ({
@@ -593,13 +593,13 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       exams: state.exams.map(e => e.id === id ? { ...e, deletedAt } : e)
     }));
-    await supabase.from('exams').update({ deletedAt }).eq('id', id);
+    await supabase.from('exams').update({ deleted_at: deletedAt }).eq('id', id);
   },
   restoreExam: async (id) => {
     set((state) => ({
       exams: state.exams.map(e => e.id === id ? { ...e, deletedAt: undefined } : e)
     }));
-    await supabase.from('exams').update({ deletedAt: null }).eq('id', id);
+    await supabase.from('exams').update({ deleted_at: null }).eq('id', id);
   },
 
   addCustomTopic: (topic) => {

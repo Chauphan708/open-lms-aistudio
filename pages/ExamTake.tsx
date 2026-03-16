@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
 import { useClassFunStore } from '../services/classFunStore';
-import { Clock, CheckCircle, AlertTriangle, Lock, Ban, ChevronLeft, Radio, Sparkles, MessageSquareQuote, RotateCcw, Lightbulb, BrainCircuit, Book, Send, ShieldAlert, Menu, X, ListOrdered } from 'lucide-react';
-import { Attempt } from '../types';
+import { Clock, CheckCircle, AlertTriangle, Lock, Ban, ChevronLeft, Radio, Sparkles, MessageSquareQuote, RotateCcw, Lightbulb, BrainCircuit, Book, Send, ShieldAlert, Menu, X, ListOrdered, Loader2 } from 'lucide-react';
+import { Attempt, Exam } from '../types';
 import { analyzeStudentAttempt } from '../services/geminiService';
 import { DictionaryWidget } from '../components/DictionaryWidget'; // IMPORT WIDGET
 import ReactMarkdown from 'react-markdown';
@@ -438,8 +438,15 @@ export const ExamTake: React.FC = () => {
   } = useClassFunStore();
   
   // NORMALIZE IDs to String early
-  const exam = useMemo(() => exams.find(e => String(e.id) === String(id)), [exams, id]);
-  const assignment = useMemo(() => assignments.find(a => String(a.id) === String(assignmentId)), [assignments, assignmentId]);
+  const storeExam = useMemo(() => exams.find(e => String(e.id) === String(id)), [exams, id]);
+  const storeAssignment = useMemo(() => assignments.find(a => String(a.id) === String(assignmentId)), [assignments, assignmentId]);
+  
+  const [fetchedExam, setFetchedExam] = useState<Exam | null>(null);
+  const [fetchedAssignment, setFetchedAssignment] = useState<any | null>(null);
+  const [isLoadingDirect, setIsLoadingDirect] = useState(false);
+
+  const exam = fetchedExam || storeExam;
+  const assignment = fetchedAssignment || storeAssignment;
   const liveSession = useMemo(() => liveSessions.find(s => String(s.id) === String(liveSessionId)), [liveSessions, liveSessionId]);
 
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -453,6 +460,63 @@ export const ExamTake: React.FC = () => {
   // AI Analysis State (Only for Teacher view now mostly)
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Robust direct fetching in case store is empty or deep link
+  useEffect(() => {
+    const loadDirectly = async () => {
+      if (!id) return;
+      if (exam && (!assignmentId || assignment)) return; // Already have data
+
+      setIsLoadingDirect(true);
+      try {
+        // Fetch Exam
+        if (!exam) {
+          const { data: eData } = await supabase.from('exams').select('*').eq('id', id).single();
+          if (eData) {
+            const mapped = {
+              ...eData,
+              id: String(eData.id),
+              teacherId: String(eData.teacherId || eData.teacher_id || eData.teacherid),
+              createdAt: eData.createdAt || eData.created_at || eData.createdat,
+              updatedAt: eData.updatedAt || eData.updated_at || eData.updatedat,
+              questionCount: eData.questionCount || eData.question_count || eData.questioncount,
+              category: eData.category || (String(eData.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
+              classId: String(eData.classId || eData.class_id || eData.classid || '')
+            };
+            setFetchedExam(mapped as Exam);
+          }
+        }
+
+        // Fetch Assignment
+        if (assignmentId && !assignment) {
+          const { data: aData } = await supabase.from('assignments').select('*').eq('id', assignmentId).single();
+          if (aData) {
+            const mapped = {
+              ...aData,
+              id: String(aData.id),
+              examId: String(aData.examId || aData.exam_id || aData.examid),
+              classId: String(aData.classId || aData.class_id || aData.classid),
+              teacherId: String(aData.teacherId || aData.teacher_id || aData.teacherid),
+              durationMinutes: Number(aData.durationMinutes || aData.duration_minutes || aData.durationminutes || 0),
+              studentIds: Array.isArray(aData.studentIds || aData.student_id || aData.student_ids || aData.studentids) 
+                ? (aData.studentIds || aData.student_id || aData.student_ids || aData.studentids).map((sid: any) => String(sid)) 
+                : [],
+              createdAt: aData.createdAt || aData.created_at || aData.createdat,
+              startTime: aData.startTime || aData.start_time || aData.starttime,
+              endTime: aData.endTime || aData.end_time || aData.endtime,
+            };
+            setFetchedAssignment(mapped);
+          }
+        }
+      } catch (err) {
+        console.error("ExamTake: Error loading data directly:", err);
+      } finally {
+        setIsLoadingDirect(false);
+      }
+    };
+
+    loadDirectly();
+  }, [id, assignmentId, exam, assignment]);
 
   // Widget State
   const [showDictionary, setShowDictionary] = useState(false);
@@ -1037,6 +1101,15 @@ export const ExamTake: React.FC = () => {
       });
     }
   }, [answers, liveSessionId, user, exam, isSubmitted, updateLiveParticipantProgress]);
+
+  if (isLoadingDirect) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 font-medium tracking-tight">Đang tải nội dung bài tập từ Cloud...</p>
+      </div>
+    </div>
+  );
 
   if (!exam) return <div className="p-8 text-center text-red-500">Không tìm thấy bài tập.</div>;
 

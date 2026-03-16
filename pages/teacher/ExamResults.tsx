@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store';
 import { analyzeClassPerformance, analyzeStudentAttempt } from '../../services/geminiService';
-import { BarChart3, ArrowLeft, Users, BrainCircuit, Sparkles, TrendingUp, TrendingDown, Clock, Settings, X, CheckCircle, XCircle, Search, Send, Save, Eye, EyeOff, ChevronDown, ChevronRight, RefreshCw, Zap } from 'lucide-react';
+import { BarChart3, ArrowLeft, Users, BrainCircuit, Sparkles, TrendingUp, TrendingDown, Clock, Settings, X, CheckCircle, XCircle, Search, Send, Save, Eye, EyeOff, ChevronDown, ChevronRight, RefreshCw, Zap, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Attempt } from '../../types';
+import { Attempt, Exam } from '../../types';
+import { supabase } from '../../services/supabaseClient';
 
 export const ExamResults: React.FC = () => {
     const { id } = useParams();
@@ -23,7 +24,41 @@ export const ExamResults: React.FC = () => {
       setTimeout(() => setIsRefreshing(false), 800);
    };
 
-    const exam = exams.find(e => String(e.id) === String(id));
+    const storeExam = exams.find(e => String(e.id) === String(id));
+    const [fetchedExam, setFetchedExam] = useState<Exam | null>(null);
+    const [isLoadingDirect, setIsLoadingDirect] = useState(false);
+
+    const exam = fetchedExam || storeExam;
+
+    // Robust direct fetching in case store is empty or deep link
+    useEffect(() => {
+       const loadExamDirectly = async () => {
+          if (!id || exam) return;
+          setIsLoadingDirect(true);
+          try {
+             const { data: eData } = await supabase.from('exams').select('*').eq('id', id).single();
+             if (eData) {
+                const mapped = {
+                   ...eData,
+                   id: String(eData.id),
+                   teacherId: String(eData.teacherId || eData.teacher_id || eData.teacherid),
+                   createdAt: eData.createdAt || eData.created_at || eData.createdat,
+                   updatedAt: eData.updatedAt || eData.updated_at || eData.updatedat,
+                   questionCount: eData.questionCount || eData.question_count || eData.questioncount,
+                   category: eData.category || (String(eData.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
+                   classId: String(eData.classId || eData.class_id || eData.classid || '')
+                };
+                setFetchedExam(mapped as Exam);
+             }
+          } catch (err) {
+             console.error("ExamResults: Error loading exam directly:", err);
+          } finally {
+             setIsLoadingDirect(false);
+          }
+       };
+       loadExamDirectly();
+    }, [id, exam]);
+
     const examAttempts = attempts.filter(a => {
         const matchesExam = String(a.examId) === String(id);
         const matchesAssign = !assignmentIdFromUrl || String(a.assignmentId) === String(assignmentIdFromUrl);
@@ -130,6 +165,15 @@ export const ExamResults: React.FC = () => {
 
    const selectedAttempt = attempts.find(a => a.id === selectedAttemptId);
    const selectedStudent = users.find(u => u.id === selectedAttempt?.studentId);
+
+    if (isLoadingDirect) return (
+       <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+             <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mx-auto mb-4" />
+             <p className="text-gray-500 font-medium tracking-tight">Đang tải dữ liệu bài tập...</p>
+          </div>
+       </div>
+    );
 
    if (!exam) return <div className="p-8 text-center">Không tìm thấy bài tập.</div>;
 
