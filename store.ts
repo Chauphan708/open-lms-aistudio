@@ -80,25 +80,31 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Exams
-      console.log("DEBUG: Fetching exams for user:", user.id, "Role:", user.role);
-      let examQuery = supabase.from('exams').select('*').order('created_at', { ascending: false });
+      console.log("DEBUG: Fetching exams for user:", user.id);
+      let examQuery = supabase.from('exams').select('*');
       if (isTeacher) examQuery = examQuery.eq('teacher_id', user.id);
       
       let { data: exams, error: examErr } = await examQuery;
       
-      // Fallback: Nếu lỗi hoặc không có dữ liệu, thử cột teacherId cũ
+      // Fallback: Nếu lỗi, thử lại không có bộ lọc teacher_id hoặc thử teacherId
       if (isTeacher && (examErr || !exams || exams.length === 0)) {
-          console.log("DEBUG: No exams found with teacher_id, trying fallback teacherId...");
-          const fallback = await supabase.from('exams').select('*').eq('teacherId', user.id).order('created_at', { ascending: false });
+          console.log("DEBUG: Retrying exams with teacherId...");
+          const fallback = await supabase.from('exams').select('*').eq('teacherId', user.id);
           if (!fallback.error && fallback.data && fallback.data.length > 0) {
               exams = fallback.data;
               examErr = null;
-              console.log("DEBUG: Fallback successful, found", exams.length, "exams.");
           }
       }
 
       if (!examErr && exams) {
-        const mappedExams = exams.map((e: any) => ({
+        // Sort in JS to avoid 400 errors if created_at/createdAt is named differently
+        const sortedExams = [...exams].sort((a, b) => {
+          const timeA = new Date(a.created_at || a.createdAt || a.createdat || 0).getTime();
+          const timeB = new Date(b.created_at || b.createdAt || b.createdat || 0).getTime();
+          return timeB - timeA;
+        });
+
+        const mappedExams = sortedExams.map((e: any) => ({
           ...e,
           id: String(e.id),
           teacherId: String(e.teacherId || e.teacher_id || e.teacherid),
@@ -146,15 +152,14 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 6. Fetch Assignments
-      let assignQuery = supabase.from('assignments').select('*').order('created_at', { ascending: false });
+      let assignQuery = supabase.from('assignments').select('*');
       if (isTeacher) assignQuery = assignQuery.eq('teacher_id', user.id);
 
       if (isTeacher || isAdmin || (isStudent && get().classes.length > 0)) {
           let { data: assignments, error: assignErr } = await assignQuery;
           
           if (isTeacher && (assignErr || !assignments || assignments.length === 0)) {
-              console.log("DEBUG: No assignments found with teacher_id, trying fallback teacherId...");
-              const fallback = await supabase.from('assignments').select('*').eq('teacherId', user.id).order('created_at', { ascending: false });
+              const fallback = await supabase.from('assignments').select('*').eq('teacherId', user.id);
               if (!fallback.error && fallback.data && fallback.data.length > 0) {
                   assignments = fallback.data;
                   assignErr = null;
@@ -162,7 +167,14 @@ export const useStore = create<AppState>((set, get) => ({
           }
 
           if (assignments) {
-            const mappedAssignments = assignments.map((a: any) => ({
+            // Sort in JS
+            const sortedAssign = [...assignments].sort((a, b) => {
+              const timeA = new Date(a.created_at || a.createdAt || a.createdat || 0).getTime();
+              const timeB = new Date(b.created_at || b.createdAt || b.createdat || 0).getTime();
+              return timeB - timeA;
+            });
+
+            const mappedAssignments = sortedAssign.map((a: any) => ({
               ...a,
               id: String(a.id),
               examId: String(a.examId || a.exam_id || a.examid),
