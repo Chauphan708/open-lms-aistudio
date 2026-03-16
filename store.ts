@@ -81,11 +81,19 @@ export const useStore = create<AppState>((set, get) => ({
 
       // 4. Fetch Exams
       let examQuery = supabase.from('exams').select('*').order('created_at', { ascending: false });
-      if (isTeacher) {
-        examQuery = examQuery.eq('teacher_id', user.id);
-      }
+      if (isTeacher) examQuery = examQuery.eq('teacher_id', user.id);
       
-      const { data: exams, error: examErr } = await examQuery;
+      let { data: exams, error: examErr } = await examQuery;
+      
+      // Fallback if teacher_id column doesn't exist yet
+      if (examErr && isTeacher) {
+          const fallback = await supabase.from('exams').select('*').eq('teacherId', user.id).order('created_at', { ascending: false });
+          if (!fallback.error) {
+              exams = fallback.data;
+              examErr = null;
+          }
+      }
+
       if (!examErr && exams) {
         const mappedExams = exams.map((e: any) => ({
           ...e,
@@ -105,7 +113,17 @@ export const useStore = create<AppState>((set, get) => ({
       if (isTeacher) classQuery = classQuery.eq('teacher_id', user.id);
       if (isStudent && user.className) classQuery = classQuery.eq('name', user.className);
 
-      const { data: rawClasses } = await classQuery;
+      let { data: rawClasses, error: classErr } = await classQuery;
+      
+      // Fallback for classes
+      if (classErr && isTeacher) {
+          const fallback = await supabase.from('classes').select('*').eq('teacherId', user.id);
+          if (!fallback.error) {
+              rawClasses = fallback.data;
+              classErr = null;
+          }
+      }
+
       if (rawClasses) {
         const mappedClasses = rawClasses.map(c => {
           let ids = c.studentIds || c.student_ids || c.studentids || [];
@@ -137,7 +155,17 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       if (isTeacher || isAdmin || (isStudent && get().classes.length > 0)) {
-          const { data: assignments } = await assignQuery;
+          let { data: assignments, error: assignErr } = await assignQuery;
+          
+          // Fallback for assignments
+          if (assignErr && isTeacher) {
+              const fallback = await supabase.from('assignments').select('*').eq('teacherId', user.id).order('created_at', { ascending: false });
+              if (!fallback.error) {
+                  assignments = fallback.data;
+                  assignErr = null;
+              }
+          }
+
           if (assignments) {
             const mappedAssignments = assignments.map((a: any) => ({
               ...a,
