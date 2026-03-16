@@ -460,6 +460,7 @@ export const ExamTake: React.FC = () => {
   // AI Analysis State (Only for Teacher view now mostly)
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // Robust direct fetching in case store is empty or deep link
   useEffect(() => {
@@ -1253,7 +1254,13 @@ export const ExamTake: React.FC = () => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
+    if (isSubmitted) return;
+    setShowSubmitConfirm(true);
+  };
+
+  const performSubmit = async () => {
+    setShowSubmitConfirm(false);
     if (isSubmitted) return;
     setIsSaving(false); // Immediate stop saving indicator
 
@@ -1473,8 +1480,46 @@ export const ExamTake: React.FC = () => {
     return val.toFixed(1).replace('.', ',');
   };
 
+  const unansweredCount = exam.questions.length - answersCount;
+
   return (
     <div className="max-w-5xl mx-auto pb-20 relative select-none">
+      {/* Submission Confirmation Modal */}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSubmitConfirm(false)} />
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in fade-in duration-200 relative z-10 text-center">
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${unansweredCount > 0 ? 'bg-orange-100' : 'bg-indigo-100'} shadow-inner`}>
+              <Send className={`h-10 w-10 ${unansweredCount > 0 ? 'text-orange-600' : 'text-indigo-600'}`} />
+            </div>
+            
+            <h3 className="text-2xl font-black text-gray-900 mb-2">Xác nhận nộp bài?</h3>
+            <p className="text-gray-600 mb-6 font-medium leading-relaxed">
+              Bạn đã hoàn thành <span className="text-indigo-600 font-black">{answersCount}/{exam.questions.length}</span> câu hỏi.
+              {unansweredCount > 0 && (
+                <span className="block mt-2 text-orange-600 font-bold italic">
+                  * Chú ý: Còn {unansweredCount} câu chưa có câu trả lời!
+                </span>
+              )}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setShowSubmitConfirm(false)}
+                className="py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all active:scale-95"
+              >
+                Tiếp tục làm bài
+              </button>
+              <button
+                onClick={performSubmit}
+                className="py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+              >
+                Nộp bài ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* External Widget Button */}
       <button
         onClick={() => setShowDictionary(!showDictionary)}
