@@ -80,17 +80,20 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Exams
+      console.log("DEBUG: Fetching exams for user:", user.id, "Role:", user.role);
       let examQuery = supabase.from('exams').select('*').order('created_at', { ascending: false });
       if (isTeacher) examQuery = examQuery.eq('teacher_id', user.id);
       
       let { data: exams, error: examErr } = await examQuery;
       
-      // Fallback if teacher_id column doesn't exist yet
-      if (examErr && isTeacher) {
+      // Fallback: Nếu lỗi hoặc không có dữ liệu, thử cột teacherId cũ
+      if (isTeacher && (examErr || !exams || exams.length === 0)) {
+          console.log("DEBUG: No exams found with teacher_id, trying fallback teacherId...");
           const fallback = await supabase.from('exams').select('*').eq('teacherId', user.id).order('created_at', { ascending: false });
-          if (!fallback.error) {
+          if (!fallback.error && fallback.data && fallback.data.length > 0) {
               exams = fallback.data;
               examErr = null;
+              console.log("DEBUG: Fallback successful, found", exams.length, "exams.");
           }
       }
 
@@ -115,10 +118,9 @@ export const useStore = create<AppState>((set, get) => ({
 
       let { data: rawClasses, error: classErr } = await classQuery;
       
-      // Fallback for classes
-      if (classErr && isTeacher) {
+      if (isTeacher && (classErr || !rawClasses || rawClasses.length === 0)) {
           const fallback = await supabase.from('classes').select('*').eq('teacherId', user.id);
-          if (!fallback.error) {
+          if (!fallback.error && fallback.data && fallback.data.length > 0) {
               rawClasses = fallback.data;
               classErr = null;
           }
@@ -145,22 +147,15 @@ export const useStore = create<AppState>((set, get) => ({
 
       // 6. Fetch Assignments
       let assignQuery = supabase.from('assignments').select('*').order('created_at', { ascending: false });
-      if (isTeacher) {
-        assignQuery = assignQuery.eq('teacher_id', user.id);
-      } else if (isStudent) {
-        const classIds = get().classes.map(c => c.id);
-        if (classIds.length > 0) {
-            assignQuery = assignQuery.in('class_id', classIds);
-        }
-      }
+      if (isTeacher) assignQuery = assignQuery.eq('teacher_id', user.id);
 
       if (isTeacher || isAdmin || (isStudent && get().classes.length > 0)) {
           let { data: assignments, error: assignErr } = await assignQuery;
           
-          // Fallback for assignments
-          if (assignErr && isTeacher) {
+          if (isTeacher && (assignErr || !assignments || assignments.length === 0)) {
+              console.log("DEBUG: No assignments found with teacher_id, trying fallback teacherId...");
               const fallback = await supabase.from('assignments').select('*').eq('teacherId', user.id).order('created_at', { ascending: false });
-              if (!fallback.error) {
+              if (!fallback.error && fallback.data && fallback.data.length > 0) {
                   assignments = fallback.data;
                   assignErr = null;
               }
