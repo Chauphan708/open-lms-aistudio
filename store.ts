@@ -80,12 +80,20 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 4. Fetch Exams
-      console.log("DEBUG: Fetching exams...");
-      // Temporarily remove teacher_id filter to avoid 400 error while columns are missing
       let examQuery = supabase.from('exams').select('*');
+      if (isTeacher) examQuery = examQuery.eq('teacher_id', user.id);
       
       let { data: exams, error: examErr } = await examQuery;
       
+      // Fallback: Nếu không thấy bằng teacher_id (có thể do dữ liệu cũ chưa update), thử teacherId
+      if (isTeacher && (examErr || !exams || exams.length === 0)) {
+          const fallback = await supabase.from('exams').select('*').eq('teacherId', user.id);
+          if (!fallback.error && fallback.data && fallback.data.length > 0) {
+              exams = fallback.data;
+              examErr = null;
+          }
+      }
+
       if (!examErr && exams) {
         // Sort in JS
         const sortedExams = [...exams].sort((a, b) => {
@@ -104,17 +112,7 @@ export const useStore = create<AppState>((set, get) => ({
           category: e.category || (String(e.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
           classId: String(e.classId || e.class_id || e.classid || '')
         }));
-        
-        // Final Filter in JS if we want safety, but for now show all to fix disappearance
-        if (isTeacher) {
-            // If we have some way to identify, we could filter here. 
-            // Since we don't have teacher_id in DB yet, we show all.
-            set({ exams: mappedExams as Exam[] });
-        } else {
-            set({ exams: mappedExams as Exam[] });
-        }
-      } else if (examErr) {
-          console.error("DEBUG: exams fetch error", examErr);
+        set({ exams: mappedExams as Exam[] });
       }
 
       // 5. Fetch Classes
@@ -124,7 +122,6 @@ export const useStore = create<AppState>((set, get) => ({
 
       let { data: rawClasses, error: classErr } = await classQuery;
       
-      // Fallback for classes (Bảng này thường đã có teacher_id)
       if (isTeacher && (classErr || !rawClasses || rawClasses.length === 0)) {
           const fallback = await supabase.from('classes').select('*').eq('teacherId', user.id);
           if (!fallback.error && fallback.data && fallback.data.length > 0) {
@@ -145,15 +142,21 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       // 6. Fetch Assignments
-      console.log("DEBUG: Fetching assignments...");
       let assignQuery = supabase.from('assignments').select('*');
-      // Temporarily remove teacher_id filter if it causes 400
+      if (isTeacher) assignQuery = assignQuery.eq('teacher_id', user.id);
       
       if (isTeacher || isAdmin || (isStudent && get().classes.length > 0)) {
           let { data: assignments, error: assignErr } = await assignQuery;
           
+          if (isTeacher && (assignErr || !assignments || assignments.length === 0)) {
+              const fallback = await supabase.from('assignments').select('*').eq('teacherId', user.id);
+              if (!fallback.error && fallback.data && fallback.data.length > 0) {
+                  assignments = fallback.data;
+                  assignErr = null;
+              }
+          }
+
           if (assignments) {
-            // Sort in JS
             const sortedAssign = [...assignments].sort((a, b) => {
               const timeA = new Date(a.created_at || a.createdAt || a.createdat || 0).getTime();
               const timeB = new Date(b.created_at || b.createdAt || b.createdat || 0).getTime();
