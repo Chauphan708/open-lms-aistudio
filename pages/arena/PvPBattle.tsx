@@ -65,6 +65,7 @@ export const PvPBattle: React.FC = () => {
     const [hiddenAnswers, setHiddenAnswers] = useState<Set<number>>(new Set());
     const [skillAnim, setSkillAnim] = useState('');
 
+    const shieldActiveRef = useRef(false);
     const channelRef = useRef<any>(null);
     const isPlayer1 = useRef(false);
     const opponentName = useRef('Đối thủ');
@@ -138,6 +139,12 @@ export const PvPBattle: React.FC = () => {
         const channel = supabase.channel(`battle-${matchId}`)
             .on('broadcast', { event: 'damage' }, (payload) => {
                 if (payload.payload.targetId === user!.id) {
+                    if (shieldActiveRef.current) {
+                        // Shield blocks the damage
+                        setShieldActive(false);
+                        shieldActiveRef.current = false;
+                        return;
+                    }
                     const dmg = payload.payload.amount;
                     setMyHp(prev => Math.max(0, prev - dmg));
                     setMyDamageAnim(true);
@@ -236,8 +243,9 @@ export const PvPBattle: React.FC = () => {
             setLastDamage(0);
 
             // Shield (Artist skill) protects from opponent damage effect
-            if (shieldActive) {
+            if (shieldActiveRef.current) {
                 setShieldActive(false);
+                shieldActiveRef.current = false;
             }
         }
 
@@ -296,6 +304,7 @@ export const PvPBattle: React.FC = () => {
             case 'artist': {
                 // Shield
                 setShieldActive(true);
+                shieldActiveRef.current = true;
                 break;
             }
             case 'explorer': {

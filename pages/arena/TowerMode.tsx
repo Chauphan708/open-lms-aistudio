@@ -161,6 +161,7 @@ export const TowerMode: React.FC = () => {
     };
 
     const handleNext = () => {
+        if (!showResult) return;
         if (isCorrect) setFloor(prev => prev + 1);
         pickNextQuestion();
     };
@@ -363,7 +364,7 @@ export const TowerMode: React.FC = () => {
                                     <p className="text-red-700 font-bold mt-1">Sai rồi! Mất 1 mạng ({lives} mạng còn lại)</p>
                                 </div>
                             )}
-                            <button onClick={handleNext} className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
+                            <button onClick={handleNext} disabled={!showResult} className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50">
                                 {isCorrect ? `Lên tầng ${floor + 1} →` : 'Câu tiếp →'}
                             </button>
                         </div>
