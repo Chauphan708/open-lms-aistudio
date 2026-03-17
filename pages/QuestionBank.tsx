@@ -445,29 +445,41 @@ const QuestionBank: React.FC = () => {
                                   </ReactMarkdown>
                               </div>
                               {q.type === 'MCQ' && (
-                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                  {q.options?.map((opt, i) => (
-                                    <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
-                                      <span className="font-bold">{String.fromCharCode(65 + i)}.</span>
-                                      <span>{cleanMath(opt)}</span>
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                {q.options?.map((opt, i) => (
+                                  <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+                                    <span className="font-bold shrink-0">{String.fromCharCode(65 + i)}.</span>
+                                    <div className="prose prose-xs max-w-none">
+                                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                            {opt}
+                                        </ReactMarkdown>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                              {q.type === 'MATCHING' && q.options && (
-                                <div className="space-y-1 mt-2">
-                                  {q.options.map((opt, i) => {
-                                    const [l, r] = opt.split('|||');
-                                    return (
-                                      <div key={i} className="flex items-center gap-3 text-[11px] bg-gray-50 p-2 rounded-lg">
-                                        <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2">{cleanMath(l?.trim() || '')}</div>
-                                        <div className="text-gray-400">... nối với ...</div>
-                                        <div className="flex-1 text-center pl-2">{cleanMath(r?.trim() || '')}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {q.type === 'MATCHING' && q.options && (
+                              <div className="space-y-1 mt-2">
+                                {q.options.map((opt, i) => {
+                                  const [l, r] = opt.split('|||');
+                                  return (
+                                    <div key={i} className="flex items-center gap-3 text-[11px] bg-gray-50 p-2 rounded-lg">
+                                      <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2 prose prose-xs max-w-none">
+                                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                            {l?.trim() || ''}
+                                        </ReactMarkdown>
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
+                                      <div className="text-gray-400 shrink-0">... nối với ...</div>
+                                      <div className="flex-1 text-center pl-2 prose prose-xs max-w-none">
+                                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                            {r?.trim() || ''}
+                                        </ReactMarkdown>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                             </div>
                           </div>
                         )}
