@@ -314,6 +314,8 @@ export interface ArenaTournament {
   filter_grade?: string;
   questions_per_match: number;
   time_per_question: number;
+  current_round?: number;
+  round_questions?: Record<number, string[]>;
   created_at: string;
 }
 

@@ -58,11 +58,18 @@ export const TournamentLobby: React.FC = () => {
         if (!user || !myParticipant || !tournament) return;
         setChallengingId(targetParticipant.id);
 
+        // Get question pool for current round if specified
+        let pool = tournament.question_ids;
+        if (tournament.round_questions && tournament.current_round && (tournament.round_questions as any)[tournament.current_round]) {
+            const roundPool = (tournament.round_questions as any)[tournament.current_round];
+            if (roundPool.length > 0) pool = roundPool;
+        }
+
         // Create a PvP match with tournament settings
         const match = await createMatch(user.id, {
             source: tournament.question_source,
             subject: tournament.filter_subject,
-            providedQuestionIds: tournament.question_ids,
+            providedQuestionIds: pool,
             count: tournament.questions_per_match
         });
 

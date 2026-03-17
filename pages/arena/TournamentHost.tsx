@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { supabase } from '../../services/supabaseClient';
 import { ArenaTournament, TournamentParticipant } from '../../types';
-import { ArrowLeft, Play, StopCircle, Users, Swords, Trophy, Crown, Monitor, Plus, Settings, Eye, X, BookOpen, Brain, Search, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Play, StopCircle, Users, Swords, Trophy, Crown, Monitor, Plus, Settings, Eye, X, BookOpen, Brain, Search, CheckCircle2, Zap } from 'lucide-react';
 import MathText from '../../components/MathText';
 
 const SUBJECTS = [
@@ -41,6 +41,8 @@ export const TournamentHost: React.FC = () => {
     const [questionsPerMatch, setQuestionsPerMatch] = useState(5);
     const [timePerQuestion, setTimePerQuestion] = useState(15);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [roundQuestions, setRoundQuestions] = useState<Record<number, string[]>>({});
+    const [selectingRound, setSelectingRound] = useState<number | null>(null);
     const [showSelector, setShowSelector] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterTopic, setFilterTopic] = useState('');
@@ -78,6 +80,8 @@ export const TournamentHost: React.FC = () => {
             title,
             question_source: source,
             question_ids: selectedIds,
+            round_questions: roundQuestions,
+            current_round: 1,
             filter_subject: subject || undefined,
             questions_per_match: questionsPerMatch,
             time_per_question: timePerQuestion,
@@ -202,6 +206,27 @@ export const TournamentHost: React.FC = () => {
                                 ))}
                             </div>
                         )}
+
+                        {/* Round setup */}
+                        <div className="pt-2 border-t border-purple-100 flex flex-col gap-2">
+                            <h4 className="text-[10px] font-bold text-purple-700 uppercase">Phân bổ theo Vòng (Tùy chọn)</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[1, 2, 3, 4].map(r => (
+                                    <button 
+                                        key={r} 
+                                        onClick={() => {
+                                            setSelectingRound(r);
+                                            setShowSelector(true);
+                                        }}
+                                        className="bg-white p-2 rounded-lg border border-purple-200 text-left hover:border-purple-400 transition-all"
+                                    >
+                                        <div className="text-[10px] font-bold text-gray-400">VÒNG {r}</div>
+                                        <div className="text-xs font-medium text-purple-600">{(roundQuestions[r] || []).length} câu hỏi</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <p className="text-[10px] text-purple-600 opacity-70 leading-relaxed">
                             ⚔️ Sau khi tạo, HS đã đăng nhập sẽ vào phòng với <strong>biệt danh ẩn danh</strong>. Người thua rời phòng, người thắng ở lại đến khi còn 1 Nhà Vô Địch!
                         </p>
@@ -214,9 +239,9 @@ export const TournamentHost: React.FC = () => {
                                 <div className="p-4 border-b flex items-center justify-between">
                                     <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                         {source === 'arena' ? <Brain className="h-5 w-5 text-purple-500" /> : <BookOpen className="h-5 w-5 text-indigo-500" />}
-                                        Chọn câu hỏi ({selectedIds.length})
+                                        {selectingRound ? `Vòng ${selectingRound}: Chọn câu hỏi (${(roundQuestions[selectingRound] || []).length})` : `Chọn kho câu hỏi (${selectedIds.length})`}
                                     </h3>
-                                    <button onClick={() => setShowSelector(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+                                    <button onClick={() => { setShowSelector(false); setSelectingRound(null); }} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
                                 </div>
 
                                 <div className="p-4 border-b">
@@ -276,7 +301,16 @@ export const TournamentHost: React.FC = () => {
                                             <button 
                                                 key={qid}
                                                 onClick={() => {
-                                                    setSelectedIds(prev => isSelected ? prev.filter(id => id !== qid) : [...prev, qid]);
+                                                    if (selectingRound) {
+                                                        const current = roundQuestions[selectingRound] || [];
+                                                        const isNowSelected = current.includes(qid);
+                                                        setRoundQuestions({
+                                                            ...roundQuestions,
+                                                            [selectingRound]: isNowSelected ? current.filter(id => id !== qid) : [...current, qid]
+                                                        });
+                                                    } else {
+                                                        setSelectedIds(prev => isSelected ? prev.filter(id => id !== qid) : [...prev, qid]);
+                                                    }
                                                 }}
                                                 className={`w-full text-left p-3 rounded-xl border-2 transition-all flex gap-3 items-start ${isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
                                             >
@@ -385,7 +419,9 @@ export const TournamentHost: React.FC = () => {
                     <button onClick={() => navigate('/arena/admin')} className="text-gray-400 hover:text-gray-600"><ArrowLeft className="h-5 w-5" /></button>
                     <h1 className="text-xl font-black text-gray-900">⚔️ {tournament?.title || 'Đấu Trường'}</h1>
                     <span className={`text-xs font-bold px-2 py-1 rounded-full ${tournament?.status === 'active' ? 'bg-emerald-100 text-emerald-700' : tournament?.status === 'finished' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'}`}>
-                        {tournament?.status === 'active' ? '🟢 Đang diễn ra' : tournament?.status === 'finished' ? '🏆 Kết thúc' : '⏳ Chờ HS vào'}
+                        {tournament?.current_round && tournament.status === 'active' ? `🔥 Vòng ${tournament.current_round}` : 
+                         tournament?.status === 'active' ? '🟢 Đang diễn ra' : 
+                         tournament?.status === 'finished' ? '🏆 Kết thúc' : '⏳ Chờ HS vào'}
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -398,9 +434,21 @@ export const TournamentHost: React.FC = () => {
                         </button>
                     )}
                     {tournament?.status === 'active' && (
-                        <button onClick={handleFinish} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all">
-                            <StopCircle className="h-4 w-4" /> Kết thúc
-                        </button>
+                        <div className="flex gap-2">
+                             <button 
+                                onClick={async () => {
+                                    const next = (tournament.current_round || 1) + 1;
+                                    await updateTournament(tournament.id, { current_round: next });
+                                    setTournament({ ...tournament, current_round: next });
+                                }} 
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all"
+                            >
+                                <Zap className="h-4 w-4" /> Vòng { (tournament.current_round || 1) + 1 }
+                            </button>
+                            <button onClick={handleFinish} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all">
+                                <StopCircle className="h-4 w-4" /> Kết thúc
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
