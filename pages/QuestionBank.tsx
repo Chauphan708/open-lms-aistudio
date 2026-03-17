@@ -97,6 +97,22 @@ const QuestionBank: React.FC = () => {
     }
   };
 
+  const cleanMath = (text: string) => {
+    if (!text) return '';
+    return text
+      .replace(/\$\$/g, '')
+      .replace(/\$/g, '')
+      .replace(/\\times/g, '×')
+      .replace(/\\div/g, '÷')
+      .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '$1/$2')
+      .replace(/\\sqrt\{([^{}]*)\}/g, '√($1)')
+      .replace(/\^([23])/g, (match, p1) => p1 === '2' ? '²' : '³')
+      .replace(/\\le/g, '≤')
+      .replace(/\\ge/g, '≥')
+      .replace(/\\neq/g, '≠')
+      .trim();
+  };
+
   const handleDownloadDocx = async () => {
     if (filteredQuestions.length === 0) {
       alert("Không có câu hỏi nào để tải về.");
@@ -129,43 +145,82 @@ const QuestionBank: React.FC = () => {
             spacing: { after: 400 },
           }),
           ...filteredQuestions.flatMap((q, index) => {
-            const elements = [];
+            const elements: any[] = [];
             
-            // Question text
+            // Question main content
             elements.push(
               new Paragraph({
                 children: [
                   new TextRun({ text: `Câu ${index + 1}: `, bold: true }),
-                  new TextRun({ text: q.content }),
+                  new TextRun({ text: cleanMath(q.content) }),
                 ],
                 spacing: { before: 200, after: 120 },
               })
             );
 
-            // Options for MCQ
+            // Handle different question types
             if (q.type === 'MCQ' && q.options) {
-              const optionsPara = new Paragraph({
-                children: q.options.flatMap((opt, optIndex) => [
-                  new TextRun({ 
-                    text: `${String.fromCharCode(65 + optIndex)}. `, 
-                    bold: true,
-                    break: optIndex > 0 ? 1 : 0 // Break line for each option to be safe with LaTeX length
-                  }),
-                  new TextRun({ text: `${opt}` }),
-                ]),
-                indent: { left: 720 },
-                spacing: { after: 120 },
+              elements.push(
+                new Paragraph({
+                  children: q.options.flatMap((opt, optIndex) => [
+                    new TextRun({ 
+                      text: `${String.fromCharCode(65 + optIndex)}. `, 
+                      bold: true,
+                      break: optIndex > 0 ? 1 : 0
+                    }),
+                    new TextRun({ text: cleanMath(opt) }),
+                  ]),
+                  indent: { left: 720 },
+                  spacing: { after: 120 },
+                })
+              );
+            } else if (q.type === 'MATCHING' && q.options) {
+              q.options.forEach((opt) => {
+                const [left, right] = opt.split('|||');
+                elements.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({ text: `- ${cleanMath(left || '')}`, italics: true }),
+                      new TextRun({ text: " ... nối với ... " }),
+                      new TextRun({ text: cleanMath(right || ''), italics: true }),
+                    ],
+                    indent: { left: 720 },
+                  })
+                );
               });
-              elements.push(optionsPara);
+            } else if ((q.type === 'ORDERING' || q.type === 'DRAG_DROP') && q.options) {
+              elements.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Các phương án: ", italics: true }),
+                    new TextRun({ text: q.options.map(o => cleanMath(o)).join('; ') }),
+                  ],
+                  indent: { left: 720 },
+                })
+              );
+            } else if (q.type === 'SHORT_ANSWER') {
+                elements.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({ text: "(Tự luận: Học sinh ghi câu trả lời bên dưới)", italics: true, color: "999999" }),
+                    ],
+                    indent: { left: 720 },
+                    spacing: { before: 100, after: 400 }
+                  })
+                );
             }
 
-            // Topic info (Optional but helpful)
+            // Topic info (Metadata)
             elements.push(
               new Paragraph({
                 children: [
-                  new TextRun({ text: `[Chủ đề: ${q.topic || 'Chưa phân loại'} | Mức độ: ${LEVEL_LABELS[q.level as ExamDifficulty] || 'N/A'}]`, size: 18, color: "666666" })
+                  new TextRun({ 
+                    text: `[Chủ đề: ${q.topic || 'Chưa phân loại'} | Loại: ${TYPE_LABELS[q.type]} | Mức độ: ${LEVEL_LABELS[q.level as ExamDifficulty] || 'N/A'}]`, 
+                    size: 18, 
+                    color: "666666" 
+                  })
                 ],
-                spacing: { after: 200 }
+                spacing: { before: 100, after: 200 }
               })
             );
 
