@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { ArenaQuestion } from '../../types';
 import { generateQuestionsByTopic } from '../../services/geminiService';
-import { Brain, Plus, Pencil, Trash2, Save, X, BookOpen, Filter, ArrowLeft, Upload, Download, FileText, CheckCircle, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
+import { Brain, Plus, Pencil, Trash2, Save, X, BookOpen, Filter, ArrowLeft, Upload, Download, FileText, CheckCircle, AlertTriangle, Sparkles, Loader2, Trophy } from 'lucide-react';
 
 const SUBJECTS = [
     { value: 'math', label: '📐 Toán' },
@@ -396,6 +396,9 @@ export const ArenaAdmin: React.FC = () => {
                     </a>
                     <button onClick={openNew} className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
                         <Plus className="h-4 w-4" /> Thêm câu hỏi
+                    </button>
+                    <button onClick={() => navigate('/arena/tournament/host')} className="px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 flex items-center gap-2 shadow-sm transition-all hover:scale-105">
+                        <Trophy className="h-4 w-4" /> Tổ chức Giải đấu
                     </button>
                     {selectedIds.size > 0 && (
                         <button
