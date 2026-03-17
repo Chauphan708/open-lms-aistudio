@@ -724,7 +724,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     console.log("[Sync] Start syncing from", exams.length, "exams");
     
-    exams.filter(e => e.category === 'TASK').forEach(exam => {
+    exams.forEach(exam => {
       let qList = exam.questions;
       if (!qList) return;
       

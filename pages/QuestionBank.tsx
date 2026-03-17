@@ -419,39 +419,56 @@ const QuestionBank: React.FC = () => {
                             )}
                           </div>
                         ) : (
-                          <div className="space-y-2">
-                            <div className="text-gray-800 text-sm font-medium line-clamp-3 prose prose-sm max-w-none">
-                                <ReactMarkdown 
-                                    remarkPlugins={[remarkMath]} 
-                                    rehypePlugins={[rehypeKatex]}
-                                >
-                                    {q.content}
-                                </ReactMarkdown>
-                            </div>
-                            {q.type === 'MCQ' && (
-                              <div className="grid grid-cols-2 gap-2 mt-2">
-                                {q.options?.map((opt, i) => (
-                                  <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
-                                    <span className="font-bold">{String.fromCharCode(65 + i)}.</span>
-                                    <span>{cleanMath(opt)}</span>
-                                  </div>
-                                ))}
+                          <div>
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap gap-2 mb-1">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                      q.type === 'MCQ' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                                  }`}>
+                                      {TYPE_LABELS[q.type]}
+                                  </span>
+                                  {q.level && (
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                          q.level === 'NHAN_BIET' ? 'bg-green-50 text-green-600' : 
+                                          q.level === 'KET_NOI' ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
+                                      }`}>
+                                          {LEVEL_LABELS[q.level as ExamDifficulty] || q.level}
+                                      </span>
+                                  )}
                               </div>
-                            )}
-                            {q.type === 'MATCHING' && q.options && (
-                              <div className="space-y-1 mt-2">
-                                {q.options.map((opt, i) => {
-                                  const [l, r] = opt.split('|||');
-                                  return (
-                                    <div key={i} className="flex items-center gap-3 text-[11px] bg-gray-50 p-2 rounded-lg">
-                                      <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2">{cleanMath(l?.trim() || '')}</div>
-                                      <div className="text-gray-400">... nối với ...</div>
-                                      <div className="flex-1 text-center pl-2">{cleanMath(r?.trim() || '')}</div>
+                              <div className="text-gray-800 text-sm font-medium prose prose-sm max-w-none">
+                                  <ReactMarkdown 
+                                      remarkPlugins={[remarkMath]} 
+                                      rehypePlugins={[rehypeKatex]}
+                                  >
+                                      {q.content}
+                                  </ReactMarkdown>
+                              </div>
+                              {q.type === 'MCQ' && (
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                  {q.options?.map((opt, i) => (
+                                    <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+                                      <span className="font-bold">{String.fromCharCode(65 + i)}.</span>
+                                      <span>{cleanMath(opt)}</span>
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                  ))}
+                                </div>
+                              )}
+                              {q.type === 'MATCHING' && q.options && (
+                                <div className="space-y-1 mt-2">
+                                  {q.options.map((opt, i) => {
+                                    const [l, r] = opt.split('|||');
+                                    return (
+                                      <div key={i} className="flex items-center gap-3 text-[11px] bg-gray-50 p-2 rounded-lg">
+                                        <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2">{cleanMath(l?.trim() || '')}</div>
+                                        <div className="text-gray-400">... nối với ...</div>
+                                        <div className="flex-1 text-center pl-2">{cleanMath(r?.trim() || '')}</div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </td>
