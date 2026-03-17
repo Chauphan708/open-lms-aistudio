@@ -385,39 +385,69 @@ export const ExamList: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y">
-            {filteredExams.map((exam) => (
-              <div key={exam.id} className="p-5 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between group gap-4">
-                <div className="flex gap-4">
-                  <div className="h-14 w-14 bg-indigo-50 border border-indigo-100 rounded-xl flex flex-col items-center justify-center text-indigo-700 flex-shrink-0">
-                    <span className="text-xs font-bold uppercase">{exam.grade ? `Lớp ${exam.grade}` : 'K.Hợp'}</span>
-                    <span className="text-[10px] text-gray-500">{exam.subject?.substring(0, 6) || 'Chung'}</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      {(() => {
-                        const { label, color } = getCategoryLabel(exam.category);
-                        return (
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider ${color}`}>
-                            {label}
-                          </span>
-                        );
-                      })()}
-                      <h3 className="font-bold text-gray-900 text-lg hover:text-indigo-600 transition-colors cursor-pointer">{exam.title}</h3>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {exam.durationMinutes} phút
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Layers className="h-3 w-3" /> {exam.questionCount} câu
-                      </span>
-                      <span>• {new Date(exam.createdAt).toLocaleDateString('vi-VN')}</span>
-                      {exam.subject && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">{exam.subject}</span>}
-                    </div>
-                  </div>
-                </div>
+            {filteredExams.map((exam) => {
+                const examAssignments = assignments.filter(a => a.examId === exam.id);
+                const assignCount = examAssignments.length;
+                const now = new Date();
+                const isCurrentlyAssigning = examAssignments.some(a => {
+                  const start = a.startTime ? new Date(a.startTime) : null;
+                  const end = a.endTime ? new Date(a.endTime) : null;
+                  return (!start || now >= start) && (!end || now <= end);
+                });
 
-                <div className="flex items-center gap-2 self-end md:self-auto">
+                return (
+                  <div key={exam.id} className="p-5 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between group gap-4">
+                    <div className="flex gap-4">
+                      <div className="h-14 w-14 bg-indigo-50 border border-indigo-100 rounded-xl flex flex-col items-center justify-center text-indigo-700 flex-shrink-0">
+                        <span className="text-xs font-bold uppercase">{exam.grade ? `Lớp ${exam.grade}` : 'K.Hợp'}</span>
+                        <span className="text-[10px] text-gray-500">{exam.subject?.substring(0, 6) || 'Chung'}</span>
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          {(() => {
+                            const { label, color } = getCategoryLabel(exam.category);
+                            return (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider ${color}`}>
+                                {label}
+                              </span>
+                            );
+                          })()}
+                          <h3 className="font-bold text-gray-900 text-lg hover:text-indigo-600 transition-colors cursor-pointer">{exam.title}</h3>
+                          
+                          {/* Assignment Status Badges */}
+                          <div className="flex items-center gap-1">
+                            {assignCount === 0 ? (
+                              <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                                CHƯA GIAO
+                              </span>
+                            ) : (
+                              <>
+                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200">
+                                  ĐÃ GIAO {assignCount} LẦN
+                                </span>
+                                {isCurrentlyAssigning && (
+                                  <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm animate-pulse">
+                                    ĐANG GIAO
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> {exam.durationMinutes} phút
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Layers className="h-3 w-3" /> {exam.questionCount} câu
+                          </span>
+                          <span>• {new Date(exam.createdAt).toLocaleDateString('vi-VN')}</span>
+                          {exam.subject && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">{exam.subject}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end md:self-auto">
                   {user?.role === 'TEACHER' && (
                     <>
                       {/* New Results Button */}
@@ -479,9 +509,10 @@ export const ExamList: React.FC = () => {
                       )}
                     </>
                   )}
-                </div>
-              </div>
-            ))}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         )}
       </div>

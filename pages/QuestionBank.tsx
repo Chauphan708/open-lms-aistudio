@@ -281,6 +281,15 @@ const QuestionBank: React.FC = () => {
             <Layers className="h-6 w-6 text-emerald-600" /> Ngân hàng Câu hỏi
           </h1>
           <p className="text-gray-500 text-sm">Quản lý và đồng bộ tập trung tất cả câu hỏi trong hệ thống</p>
+          
+          <div className="flex items-center gap-4 mt-2 text-xs font-medium">
+            <div className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md border border-emerald-100">
+              Hiển thị {filteredQuestions.length} / {questionBank.length} câu hỏi
+            </div>
+            <div className="flex items-center gap-1 text-emerald-600">
+              <Check className="h-3.5 w-3.5" /> Đã lưu đám mây
+            </div>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -564,14 +573,6 @@ const QuestionBank: React.FC = () => {
               )}
             </tbody>
           </table>
-        </div>
-      </div>
-      
-      {/* Bottom info */}
-      <div className="flex justify-between items-center text-xs text-gray-400 px-2">
-        <div>Hiển thị {filteredQuestions.length} / {questionBank.length} câu hỏi</div>
-        <div className="flex items-center gap-4">
-           <div className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-500" /> Đã lưu đám mây</div>
         </div>
       </div>
     </div>

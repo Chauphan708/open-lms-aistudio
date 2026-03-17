@@ -173,11 +173,46 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <GraduationCap className="h-6 w-6" />
           <span>OpenLMS</span>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 relative">
           <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-gray-600">
             <Bell className="h-6 w-6" />
             {unreadCount > 0 && <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border border-white"></span>}
           </button>
+          
+          {/* Mobile Notifications Dropdown */}
+          {isNotifOpen && (
+            <div className="absolute right-12 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border z-50 animate-in fade-in zoom-in-95 origin-top-right">
+              <div className="p-3 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                <h3 className="font-bold text-sm text-gray-800">Thông báo</h3>
+                {unreadCount > 0 && (
+                  <button onClick={() => user && markAllNotificationsRead(user.id)} className="text-xs text-indigo-600 hover:underline">
+                    Đọc tất cả
+                  </button>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {myNotifications.length === 0 ? (
+                  <div className="p-6 text-center text-gray-400 text-xs">
+                    Không có thông báo mới
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {myNotifications.map(n => (
+                      <div
+                        key={n.id}
+                        onClick={() => handleNotifClick(n)}
+                        className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
+                        <p className={`text-xs ${!n.isRead ? 'font-bold text-gray-900' : 'text-gray-600'}`}>{n.title}</p>
+                        <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleDateString('vi-VN')}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-600">
             {isMobileMenuOpen ? <X /> : <Menu />}
           </button>
@@ -187,7 +222,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-30 bg-white border-r shadow-lg transform transition-all duration-300 ease-in-out flex flex-col
-        md:relative md:translate-x-0
+        md:sticky md:top-0 md:h-screen md:translate-x-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         ${isSidebarCollapsed ? 'w-20' : 'w-64'}
       `}>
