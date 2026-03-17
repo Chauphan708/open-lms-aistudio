@@ -1809,7 +1809,11 @@ export const useStore = create<AppState>((set, get) => ({
     const id = `tour_${Date.now()}`;
     const row = { id, ...t, status: 'waiting' };
     const { error } = await supabase.from('arena_tournaments').insert(row);
-    if (error) { console.error('Create tournament error:', error); return null; }
+    if (error) { 
+      console.error('Create tournament error:', error); 
+      alert("Lỗi database: " + error.message);
+      return null; 
+    }
     set((state: any) => ({ tournaments: [row as any, ...state.tournaments] }));
     return row as any;
   },

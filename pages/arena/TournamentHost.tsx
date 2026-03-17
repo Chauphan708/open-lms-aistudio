@@ -81,6 +81,8 @@ export const TournamentHost: React.FC = () => {
             setTournament(t);
             setMode('manage');
             navigate(`/arena/tournament/host/${t.id}`, { replace: true });
+        } else {
+            alert('Không thể tạo đấu trường. Vui lòng kiểm tra lại kết nối hoặc database (Có thể bảng arena_tournaments chưa được tạo).');
         }
     };
 
