@@ -1564,13 +1564,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   createMatch: async (playerId, filters) => {
     let questionIds: string[] = [];
+    const count = filters?.count || 5;
 
-    if (filters?.source === 'exam') {
+    if (filters?.providedQuestionIds && filters.providedQuestionIds.length > 0) {
+      // Use the pool provided, pick 'count' number of questions randomly from it
+      questionIds = [...filters.providedQuestionIds]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, count);
+    } else if (filters?.source === 'exam') {
       // Lấy câu hỏi MCQ từ ngân hàng đề Exam
       const state = get();
       const allMcqQuestions: { id: string }[] = [];
-
-      const difficultyMap: Record<string, number> = { 'LEVEL_1': 1, 'LEVEL_2': 2, 'LEVEL_3': 3 };
 
       state.exams
         .filter(exam => exam.status === 'PUBLISHED')
@@ -1586,7 +1590,7 @@ export const useStore = create<AppState>((set, get) => ({
 
       questionIds = allMcqQuestions
         .sort(() => Math.random() - 0.5)
-        .slice(0, 5)
+        .slice(0, count)
         .map(q => q.id);
     } else {
       // Lấy từ bảng arena_questions
@@ -1595,13 +1599,13 @@ export const useStore = create<AppState>((set, get) => ({
       if (filters?.topic) query = query.eq('topic', filters.topic);
       const { data: questions } = await query;
       const allIds = questions?.map((q: any) => q.id) || [];
-      questionIds = allIds.sort(() => Math.random() - 0.5).slice(0, 5);
+      questionIds = allIds.sort(() => Math.random() - 0.5).slice(0, count);
     }
 
     if (questionIds.length === 0) {
       // Fallback: lấy tất cả arena_questions
       const { data: questions } = await supabase.from('arena_questions').select('id');
-      questionIds = (questions?.map((q: any) => q.id) || []).sort(() => Math.random() - 0.5).slice(0, 5);
+      questionIds = (questions?.map((q: any) => q.id) || []).sort(() => Math.random() - 0.5).slice(0, count);
     }
 
     const matchId = `match_${Date.now()}`;

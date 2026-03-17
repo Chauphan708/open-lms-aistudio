@@ -62,6 +62,8 @@ export const TournamentLobby: React.FC = () => {
         const match = await createMatch(user.id, {
             source: tournament.question_source,
             subject: tournament.filter_subject,
+            providedQuestionIds: tournament.question_ids,
+            count: tournament.questions_per_match
         });
 
         if (match) {

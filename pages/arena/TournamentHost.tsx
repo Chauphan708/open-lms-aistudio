@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { supabase } from '../../services/supabaseClient';
 import { ArenaTournament, TournamentParticipant } from '../../types';
-import { ArrowLeft, Play, StopCircle, Users, Swords, Trophy, Crown, Monitor, Plus, Settings, Eye, X } from 'lucide-react';
+import { ArrowLeft, Play, StopCircle, Users, Swords, Trophy, Crown, Monitor, Plus, Settings, Eye, X, BookOpen, Brain, Search, CheckCircle2 } from 'lucide-react';
 
 const SUBJECTS = [
     { value: '', label: '🎲 Tất cả' },
@@ -39,6 +39,9 @@ export const TournamentHost: React.FC = () => {
     const [subject, setSubject] = useState('');
     const [questionsPerMatch, setQuestionsPerMatch] = useState(5);
     const [timePerQuestion, setTimePerQuestion] = useState(15);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [showSelector, setShowSelector] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const pollRef = useRef<any>(null);
 
@@ -71,7 +74,7 @@ export const TournamentHost: React.FC = () => {
             teacher_id: user.id,
             title,
             question_source: source,
-            question_ids: [],
+            question_ids: selectedIds,
             filter_subject: subject || undefined,
             questions_per_match: questionsPerMatch,
             time_per_question: timePerQuestion,
@@ -179,9 +182,91 @@ export const TournamentHost: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 text-xs text-purple-700">
-                        ⚔️ Sau khi tạo, HS đã đăng nhập sẽ vào phòng với <strong>biệt danh ẩn danh</strong>. Người thua rời phòng, người thắng ở lại đến khi còn 1 Nhà Vô Địch!
+                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-bold text-purple-700">Dòng câu hỏi: {selectedIds.length > 0 ? `${selectedIds.length} câu đã chọn` : 'Ngẫu nhiên theo môn'}</h3>
+                            <button onClick={() => setShowSelector(true)} className="text-xs font-black text-purple-600 underline">
+                                {selectedIds.length > 0 ? 'Sửa' : 'Chọn thủ công'}
+                            </button>
+                        </div>
+                        {selectedIds.length > 0 && (
+                            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto pr-2">
+                                {selectedIds.map(qid => (
+                                    <div key={qid} className="bg-white px-2 py-0.5 rounded border border-purple-200 text-[10px] flex items-center gap-1">
+                                        ID: {qid.split('_').pop()}
+                                        <button onClick={() => setSelectedIds(prev => prev.filter(id => id !== qid))} className="text-red-400 hover:text-red-600">×</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <p className="text-[10px] text-purple-600 opacity-70 leading-relaxed">
+                            ⚔️ Sau khi tạo, HS đã đăng nhập sẽ vào phòng với <strong>biệt danh ẩn danh</strong>. Người thua rời phòng, người thắng ở lại đến khi còn 1 Nhà Vô Địch!
+                        </p>
                     </div>
+
+                    {/* Question Selector Modal */}
+                    {showSelector && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-fade-in">
+                                <div className="p-4 border-b flex items-center justify-between">
+                                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                        {source === 'arena' ? <Brain className="h-5 w-5 text-purple-500" /> : <BookOpen className="h-5 w-5 text-indigo-500" />}
+                                        Chọn câu hỏi ({selectedIds.length})
+                                    </h3>
+                                    <button onClick={() => setShowSelector(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+                                </div>
+
+                                <div className="p-4 border-b">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <input 
+                                            placeholder="Tiềm kiếm nội dung câu hỏi..."
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                    {(source === 'arena' ? useStore.getState().arenaQuestions : 
+                                        useStore.getState().exams.flatMap(e => (e.questions || []).filter(q => q.type === 'MCQ').map(q => ({...q, examTitle: e.title, examId: e.id})))
+                                    ).filter(q => {
+                                        const content = 'content' in q ? q.content : (q as any).question;
+                                        return content?.toLowerCase().includes(searchQuery.toLowerCase());
+                                    }).map((q: any) => {
+                                        const qid = q.id.includes('_') ? q.id : (q.examId ? `exam_${q.examId}_${q.id}` : q.id);
+                                        const isSelected = selectedIds.includes(qid);
+                                        return (
+                                            <button 
+                                                key={qid}
+                                                onClick={() => {
+                                                    setSelectedIds(prev => isSelected ? prev.filter(id => id !== qid) : [...prev, qid]);
+                                                }}
+                                                className={`w-full text-left p-3 rounded-xl border-2 transition-all flex gap-3 items-start ${isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
+                                            >
+                                                <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'border-gray-300'}`}>
+                                                    {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-medium text-gray-900 line-clamp-2">{q.content || q.question}</p>
+                                                    <div className="flex gap-2 mt-1">
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{q.subject || q.examTitle || 'Chung'}</span>
+                                                        <span className="text-[10px] font-bold text-purple-400">ID: {qid.split('_').pop()}</span>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="p-4 border-t flex gap-3">
+                                    <button onClick={() => setSelectedIds([])} className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Xóa hết</button>
+                                    <button onClick={() => setShowSelector(false)} className="flex-1 bg-purple-600 text-white py-2 rounded-xl font-bold">Xác nhận</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <button onClick={handleCreate} disabled={loading || !title.trim()}
                         className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg transition-all disabled:opacity-50">

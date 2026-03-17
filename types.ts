@@ -296,6 +296,8 @@ export interface ArenaMatchFilters {
   subject?: string;
   grade?: string;
   topic?: string;
+  providedQuestionIds?: string[];
+  count?: number;
 }
 
 export type TournamentStatus = 'waiting' | 'active' | 'finished';
