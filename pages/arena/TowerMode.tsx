@@ -7,15 +7,9 @@ import { ArrowLeft, Heart, HeartOff, Star, Zap, GraduationCap, CheckCircle, XCir
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import MathText from '../../components/MathText';
 
-const MathText: React.FC<{ children: string; className?: string }> = ({ children, className }) => (
-    <span className={className}>
-        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}
-            components={{ p: ({ children }) => <span>{children}</span> }}>
-            {children}
-        </ReactMarkdown>
-    </span>
-);
+
 
 const TOWER_FLOORS = [
     { range: [1, 5], name: 'Sân Trường', emoji: '🏫', color: '#10b981' },
@@ -324,7 +318,7 @@ export const TowerMode: React.FC = () => {
                             </span>
                         </div>
                         <div className="text-lg font-bold text-gray-900 mt-3 leading-relaxed">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{currentQ.content}</ReactMarkdown>
+                            <MathText>{currentQ.content}</MathText>
                         </div>
                     </div>
 

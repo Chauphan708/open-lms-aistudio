@@ -5,6 +5,7 @@ import { useStore } from '../../store';
 import { ArenaQuestion } from '../../types';
 import { generateQuestionsByTopic } from '../../services/geminiService';
 import { Brain, Plus, Pencil, Trash2, Save, X, BookOpen, Filter, ArrowLeft, Upload, Download, FileText, CheckCircle, AlertTriangle, Sparkles, Loader2, Trophy } from 'lucide-react';
+import MathText from '../../components/MathText';
 
 const SUBJECTS = [
     { value: 'math', label: '📐 Toán' },
@@ -482,7 +483,7 @@ export const ArenaAdmin: React.FC = () => {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="font-medium text-gray-900 text-sm">{q.content}</p>
+                                    <MathText className="font-medium text-gray-900 text-sm" inline>{q.content}</MathText>
                                 </div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => openEdit(q)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Pencil className="h-4 w-4" /></button>
@@ -491,8 +492,9 @@ export const ArenaAdmin: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-1.5 mt-2">
                                 {q.answers.map((a, i) => (
-                                    <div key={i} className={`text-xs px-2.5 py-1.5 rounded-lg ${i === q.correct_index ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-gray-50 text-gray-600'}`}>
-                                        {String.fromCharCode(65 + i)}. {a}
+                                    <div key={i} className={`text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${i === q.correct_index ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-gray-50 text-gray-600'}`}>
+                                        <span className="flex-shrink-0">{String.fromCharCode(65 + i)}.</span>
+                                        <MathText inline>{a}</MathText>
                                     </div>
                                 ))}
                             </div>

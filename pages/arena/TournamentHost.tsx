@@ -5,6 +5,7 @@ import { useStore } from '../../store';
 import { supabase } from '../../services/supabaseClient';
 import { ArenaTournament, TournamentParticipant } from '../../types';
 import { ArrowLeft, Play, StopCircle, Users, Swords, Trophy, Crown, Monitor, Plus, Settings, Eye, X, BookOpen, Brain, Search, CheckCircle2 } from 'lucide-react';
+import MathText from '../../components/MathText';
 
 const SUBJECTS = [
     { value: '', label: '🎲 Tất cả' },
@@ -249,7 +250,7 @@ export const TournamentHost: React.FC = () => {
                                                     {isSelected && <CheckCircle2 className="h-4 w-4" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-medium text-gray-900 line-clamp-2">{q.content || q.question}</p>
+                                                    <MathText className="text-xs font-medium text-gray-900 line-clamp-2" inline>{q.content || q.question}</MathText>
                                                     <div className="flex gap-2 mt-1">
                                                         <span className="text-[10px] font-bold text-gray-400 uppercase">{q.subject || q.examTitle || 'Chung'}</span>
                                                         <span className="text-[10px] font-bold text-purple-400">ID: {qid.split('_').pop()}</span>

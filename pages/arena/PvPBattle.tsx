@@ -8,15 +8,9 @@ import { Brain, Clock, Zap, BookOpen, CheckCircle, XCircle, Shield, Wand2 } from
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import MathText from '../../components/MathText';
 
-const MathText: React.FC<{ children: string; className?: string }> = ({ children, className }) => (
-    <span className={className}>
-        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}
-            components={{ p: ({ children }) => <span>{children}</span> }}>
-            {children}
-        </ReactMarkdown>
-    </span>
-);
+
 
 const AVATAR_EMOJIS: Record<string, string> = {
     scholar: '📖', scientist: '🔬', artist: '🎨', explorer: '🌍'
@@ -472,7 +466,7 @@ export const PvPBattle: React.FC = () => {
                             </span>
                         </div>
                         <div className="text-lg font-bold text-gray-900 leading-relaxed">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{currentQuestion.content}</ReactMarkdown>
+                            <MathText>{currentQuestion.content}</MathText>
                         </div>
                     </div>
 
