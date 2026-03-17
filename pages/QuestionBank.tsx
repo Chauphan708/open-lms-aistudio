@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 import { saveAs } from 'file-saver';
 
 const TYPE_LABELS: Record<QuestionType, string> = {
@@ -110,6 +110,7 @@ const QuestionBank: React.FC = () => {
       .replace(/\\le/g, '≤')
       .replace(/\\ge/g, '≥')
       .replace(/\\neq/g, '≠')
+      .replace(/\{,\}/g, ',') // Fix for decimal comma like 2{,}5
       .trim();
   };
 
@@ -175,19 +176,50 @@ const QuestionBank: React.FC = () => {
                 })
               );
             } else if (q.type === 'MATCHING' && q.options) {
-              q.options.forEach((opt) => {
+              const rows = q.options.map((opt) => {
                 const [left, right] = opt.split('|||');
-                elements.push(
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: `- ${cleanMath(left || '')}`, italics: true }),
-                      new TextRun({ text: " ... nối với ... " }),
-                      new TextRun({ text: cleanMath(right || ''), italics: true }),
-                    ],
-                    indent: { left: 720 },
-                  })
-                );
+                return new TableRow({
+                  children: [
+                    new TableCell({
+                      children: [new Paragraph({ children: [new TextRun({ text: cleanMath(left?.trim() || '') })] })],
+                      width: { size: 45, type: WidthType.PERCENTAGE },
+                      borders: {
+                        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+                        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
+                      }
+                    }),
+                    new TableCell({
+                      children: [new Paragraph({ children: [new TextRun({ text: " ............. " })], alignment: AlignmentType.CENTER })],
+                      width: { size: 10, type: WidthType.PERCENTAGE },
+                      borders: {
+                        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+                        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
+                      }
+                    }),
+                    new TableCell({
+                      children: [new Paragraph({ children: [new TextRun({ text: cleanMath(right?.trim() || '') })], alignment: AlignmentType.RIGHT })],
+                      width: { size: 45, type: WidthType.PERCENTAGE },
+                      borders: {
+                        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+                        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
+                      }
+                    }),
+                  ]
+                });
               });
+
+              elements.push(new Table({
+                rows: rows,
+                width: { size: 90, type: WidthType.PERCENTAGE },
+                alignment: AlignmentType.CENTER,
+                borders: {
+                  top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+                  left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+                  insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE }
+                }
+              }));
+
+              elements.push(new Paragraph({ text: "", spacing: { after: 200 } }));
             } else if ((q.type === 'ORDERING' || q.type === 'DRAG_DROP') && q.options) {
               elements.push(
                 new Paragraph({
@@ -396,21 +428,30 @@ const QuestionBank: React.FC = () => {
                                     {q.content}
                                 </ReactMarkdown>
                             </div>
-                            <div className="flex flex-wrap gap-2 pt-1">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    q.type === 'MCQ' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
-                                }`}>
-                                    {TYPE_LABELS[q.type]}
-                                </span>
-                                {q.level && (
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                        q.level === 'NHAN_BIET' ? 'bg-green-50 text-green-600' : 
-                                        q.level === 'KET_NOI' ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
-                                    }`}>
-                                        {LEVEL_LABELS[q.level]}
-                                    </span>
-                                )}
-                            </div>
+                            {q.type === 'MCQ' && (
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                {q.options?.map((opt, i) => (
+                                  <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+                                    <span className="font-bold">{String.fromCharCode(65 + i)}.</span>
+                                    <span>{opt}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {q.type === 'MATCHING' && q.options && (
+                              <div className="space-y-1 mt-2">
+                                {q.options.map((opt, i) => {
+                                  const [l, r] = opt.split('|||');
+                                  return (
+                                    <div key={i} className="flex items-center gap-3 text-[11px] bg-gray-50 p-2 rounded-lg">
+                                      <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2">{l?.trim()}</div>
+                                      <div className="text-gray-400">... nối với ...</div>
+                                      <div className="flex-1 text-center pl-2">{r?.trim()}</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
