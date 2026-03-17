@@ -43,6 +43,8 @@ export const TournamentHost: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [showSelector, setShowSelector] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterTopic, setFilterTopic] = useState('');
+    const [filterDifficulty, setFilterDifficulty] = useState<number | ''>('');
 
     const pollRef = useRef<any>(null);
 
@@ -229,12 +231,44 @@ export const TournamentHost: React.FC = () => {
                                     </div>
                                 </div>
 
+                                <div className="px-4 pb-4 border-b flex gap-2">
+                                    <select 
+                                        value={filterTopic} 
+                                        onChange={e => setFilterTopic(e.target.value)}
+                                        className="flex-1 bg-gray-50 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                                    >
+                                        <option value="">Tất cả chủ đề</option>
+                                        {Array.from(new Set(
+                                            (source === 'arena' ? useStore.getState().arenaQuestions : 
+                                            useStore.getState().exams.flatMap(e => e.questions || []))
+                                            .map(q => q.topic).filter(Boolean)
+                                        )).sort().map(t => (
+                                            <option key={t} value={t}>{t}</option>
+                                        ))}
+                                    </select>
+                                    <select 
+                                        value={filterDifficulty} 
+                                        onChange={e => setFilterDifficulty(e.target.value === '' ? '' : Number(e.target.value))}
+                                        className="flex-1 bg-gray-50 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                                    >
+                                        <option value="">Tất cả độ khó</option>
+                                        <option value="1">Dễ</option>
+                                        <option value="2">Trung bình</option>
+                                        <option value="3">Khó</option>
+                                    </select>
+                                </div>
+
                                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                                     {(source === 'arena' ? useStore.getState().arenaQuestions : 
                                         useStore.getState().exams.flatMap(e => (e.questions || []).filter(q => q.type === 'MCQ').map(q => ({...q, examTitle: e.title, examId: e.id})))
                                     ).filter(q => {
                                         const content = 'content' in q ? q.content : (q as any).question;
-                                        return content?.toLowerCase().includes(searchQuery.toLowerCase());
+                                        const matchesSearch = content?.toLowerCase().includes(searchQuery.toLowerCase());
+                                        const matchesTopic = !filterTopic || q.topic === filterTopic;
+                                        const qAny = q as any;
+                                        const qDiff = qAny.difficulty || (qAny.level === 'NHAN_BIET' ? 1 : qAny.level === 'KET_NOI' ? 2 : 3);
+                                        const matchesDiff = filterDifficulty === '' || qDiff === filterDifficulty;
+                                        return matchesSearch && matchesTopic && matchesDiff;
                                     }).map((q: any) => {
                                         const qid = q.id.includes('_') ? q.id : (q.examId ? `exam_${q.examId}_${q.id}` : q.id);
                                         const isSelected = selectedIds.includes(qid);
@@ -246,7 +280,7 @@ export const TournamentHost: React.FC = () => {
                                                 }}
                                                 className={`w-full text-left p-3 rounded-xl border-2 transition-all flex gap-3 items-start ${isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
                                             >
-                                                <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'border-gray-300'}`}>
+                                                <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center ${isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'border-gray-300'}`}>
                                                     {isSelected && <CheckCircle2 className="h-4 w-4" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
