@@ -417,7 +417,7 @@ export const ExamList: React.FC = () => {
                           {/* Assignment Status Badges */}
                           <div className="flex items-center gap-1">
                             {assignCount === 0 ? (
-                              <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                              <span className="bg-pink-50 text-pink-700 px-2 py-0.5 rounded text-[10px] font-bold border border-pink-200">
                                 CHƯA GIAO
                               </span>
                             ) : (
