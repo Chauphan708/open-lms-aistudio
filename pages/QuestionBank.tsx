@@ -11,6 +11,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
+import { saveAs } from 'file-saver';
 
 const TYPE_LABELS: Record<QuestionType, string> = {
   MCQ: 'Trắc nghiệm',
@@ -95,6 +97,94 @@ const QuestionBank: React.FC = () => {
     }
   };
 
+  const handleDownloadDocx = async () => {
+    if (filteredQuestions.length === 0) {
+      alert("Không có câu hỏi nào để tải về.");
+      return;
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "NGÂN HÀNG CÂU HỎI",
+                bold: true,
+                size: 32,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Môn: ${filterSubject === 'all' ? 'Tất cả' : filterSubject} | Khối: ${filterGrade === 'all' ? 'Tất cả' : 'Lớp ' + filterGrade}`,
+                italic: true,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 },
+          }),
+          ...filteredQuestions.flatMap((q, index) => {
+            const elements = [];
+            
+            // Question text
+            elements.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `Câu ${index + 1}: `, bold: true }),
+                  new TextRun({ text: q.content }),
+                ],
+                spacing: { before: 200, after: 120 },
+              })
+            );
+
+            // Options for MCQ
+            if (q.type === 'MCQ' && q.options) {
+              const optionsPara = new Paragraph({
+                children: q.options.flatMap((opt, optIndex) => [
+                  new TextRun({ 
+                    text: `${String.fromCharCode(65 + optIndex)}. `, 
+                    bold: true,
+                    break: optIndex > 0 ? 1 : 0 // Break line for each option to be safe with LaTeX length
+                  }),
+                  new TextRun({ text: `${opt}` }),
+                ]),
+                indent: { left: 720 },
+                spacing: { after: 120 },
+              });
+              elements.push(optionsPara);
+            }
+
+            // Topic info (Optional but helpful)
+            elements.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `[Chủ đề: ${q.topic || 'Chưa phân loại'} | Mức độ: ${LEVEL_LABELS[q.level as ExamDifficulty] || 'N/A'}]`, size: 18, color: "666666" })
+                ],
+                spacing: { after: 200 }
+              })
+            );
+
+            return elements;
+          }),
+        ],
+      }],
+    });
+
+    try {
+      const blob = await Packer.toBlob(doc);
+      const fileName = `NganHangCauHoi_${filterSubject !== 'all' ? filterSubject : 'TongHop'}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.docx`;
+      saveAs(blob, fileName);
+    } catch (error) {
+      console.error("Export DOCX failed:", error);
+      alert("Có lỗi xảy ra khi xuất file Word.");
+    }
+  };
+
   return (
     <div className="h-full flex flex-col p-4 space-y-4 bg-gray-50/50">
       {/* Header & Stats */}
@@ -119,6 +209,13 @@ const QuestionBank: React.FC = () => {
           >
             <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ từ Bài tập'}
+          </button>
+          <button
+            onClick={handleDownloadDocx}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-md"
+          >
+            <Download className="h-4 w-4" />
+            Tải file Word
           </button>
         </div>
       </div>
