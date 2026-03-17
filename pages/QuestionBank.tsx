@@ -122,7 +122,7 @@ const QuestionBank: React.FC = () => {
             children: [
               new TextRun({
                 text: `Môn: ${filterSubject === 'all' ? 'Tất cả' : filterSubject} | Khối: ${filterGrade === 'all' ? 'Tất cả' : 'Lớp ' + filterGrade}`,
-                italic: true,
+                italics: true,
               }),
             ],
             alignment: AlignmentType.CENTER,
