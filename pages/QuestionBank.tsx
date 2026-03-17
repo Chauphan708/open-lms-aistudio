@@ -182,15 +182,15 @@ const QuestionBank: React.FC = () => {
                   children: [
                     new TableCell({
                       children: [new Paragraph({ children: [new TextRun({ text: cleanMath(left?.trim() || '') })] })],
-                      width: { size: 45, type: WidthType.PERCENTAGE },
+                      width: { size: 40, type: WidthType.PERCENTAGE },
                       borders: {
                         top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
                         left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
                       }
                     }),
                     new TableCell({
-                      children: [new Paragraph({ children: [new TextRun({ text: " ............. " })], alignment: AlignmentType.CENTER })],
-                      width: { size: 10, type: WidthType.PERCENTAGE },
+                      children: [new Paragraph({ children: [new TextRun({ text: "" })], alignment: AlignmentType.CENTER })],
+                      width: { size: 20, type: WidthType.PERCENTAGE },
                       borders: {
                         top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
                         left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
@@ -198,7 +198,7 @@ const QuestionBank: React.FC = () => {
                     }),
                     new TableCell({
                       children: [new Paragraph({ children: [new TextRun({ text: cleanMath(right?.trim() || '') })], alignment: AlignmentType.RIGHT })],
-                      width: { size: 45, type: WidthType.PERCENTAGE },
+                      width: { size: 40, type: WidthType.PERCENTAGE },
                       borders: {
                         top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
                         left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
@@ -433,7 +433,7 @@ const QuestionBank: React.FC = () => {
                                 {q.options?.map((opt, i) => (
                                   <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
                                     <span className="font-bold">{String.fromCharCode(65 + i)}.</span>
-                                    <span>{opt}</span>
+                                    <span>{cleanMath(opt)}</span>
                                   </div>
                                 ))}
                               </div>
@@ -444,9 +444,9 @@ const QuestionBank: React.FC = () => {
                                   const [l, r] = opt.split('|||');
                                   return (
                                     <div key={i} className="flex items-center gap-3 text-[11px] bg-gray-50 p-2 rounded-lg">
-                                      <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2">{l?.trim()}</div>
+                                      <div className="flex-1 text-center border-r border-dashed border-gray-300 pr-2">{cleanMath(l?.trim() || '')}</div>
                                       <div className="text-gray-400">... nối với ...</div>
-                                      <div className="flex-1 text-center pl-2">{r?.trim()}</div>
+                                      <div className="flex-1 text-center pl-2">{cleanMath(r?.trim() || '')}</div>
                                     </div>
                                   );
                                 })}
