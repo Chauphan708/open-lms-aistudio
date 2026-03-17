@@ -42,6 +42,7 @@ export const TournamentHost: React.FC = () => {
     const [timePerQuestion, setTimePerQuestion] = useState(15);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [roundQuestions, setRoundQuestions] = useState<Record<number, string[]>>({});
+    const [roundIds, setRoundIds] = useState<number[]>([1, 2, 3, 4]);
     const [selectingRound, setSelectingRound] = useState<number | null>(null);
     const [showSelector, setShowSelector] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -147,6 +148,27 @@ export const TournamentHost: React.FC = () => {
     const eliminatedCount = participants.filter(p => p.status === 'eliminated').length;
     const ranking = getRanking();
 
+    const addRound = () => {
+        const nextId = roundIds.length > 0 ? Math.max(...roundIds) + 1 : 1;
+        setRoundIds([...roundIds, nextId]);
+    };
+
+    const deleteRound = (idToDelete: number) => {
+        const newRoundIds = roundIds.filter(id => id !== idToDelete);
+        // Re-index remaining rounds
+        const newMapping: Record<number, string[]> = {};
+        newRoundIds.sort((a, b) => a - b).forEach((oldId, index) => {
+            const newId = index + 1;
+            if (roundQuestions[oldId]) {
+                newMapping[newId] = roundQuestions[oldId];
+            }
+        });
+        
+        // Finalize re-indexed IDs
+        setRoundIds(newRoundIds.map((_, i) => i + 1));
+        setRoundQuestions(newMapping);
+    };
+
     // ========== CREATE FORM ==========
     if (mode === 'create') {
         return (
@@ -211,19 +233,32 @@ export const TournamentHost: React.FC = () => {
                         <div className="pt-2 border-t border-purple-100 flex flex-col gap-2">
                             <h4 className="text-[10px] font-bold text-purple-700 uppercase">Phân bổ theo Vòng (Tùy chọn)</h4>
                             <div className="grid grid-cols-2 gap-2">
-                                {[1, 2, 3, 4].map(r => (
-                                    <button 
-                                        key={r} 
-                                        onClick={() => {
-                                            setSelectingRound(r);
-                                            setShowSelector(true);
-                                        }}
-                                        className="bg-white p-2 rounded-lg border border-purple-200 text-left hover:border-purple-400 transition-all"
-                                    >
-                                        <div className="text-[10px] font-bold text-gray-400">VÒNG {r}</div>
-                                        <div className="text-xs font-medium text-purple-600">{(roundQuestions[r] || []).length} câu hỏi</div>
-                                    </button>
+                                {roundIds.map(r => (
+                                    <div key={r} className="relative group">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectingRound(r);
+                                                setShowSelector(true);
+                                            }}
+                                            className="w-full bg-white p-2 rounded-lg border border-purple-200 text-left hover:border-purple-400 transition-all"
+                                        >
+                                            <div className="text-[10px] font-bold text-gray-400">VÒNG {r}</div>
+                                            <div className="text-xs font-medium text-purple-600">{(roundQuestions[r] || []).length} câu hỏi</div>
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); deleteRound(r); }}
+                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
                                 ))}
+                                <button 
+                                    onClick={addRound}
+                                    className="p-2 rounded-lg border-2 border-dashed border-purple-200 text-purple-400 flex items-center justify-center gap-1 hover:border-purple-400 hover:text-purple-600 transition-all font-bold text-xs"
+                                >
+                                    <Plus className="h-4 w-4" /> Thêm vòng
+                                </button>
                             </div>
                         </div>
 
