@@ -33,10 +33,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Database,
-  Layers
+  Layers,
+  HelpCircle
 } from 'lucide-react';
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
+import UserGuideModal from './UserGuideModal';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, setUser, notifications, markNotificationRead, markAllNotificationsRead } = useStore();
@@ -45,6 +47,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // State to track expanded custom tools
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
@@ -175,6 +178,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <span>OpenLMS</span>
         </div>
         <div className="flex gap-4 relative">
+          <button onClick={() => setIsGuideOpen(true)} className="text-gray-600" title="Hướng dẫn sử dụng">
+            <HelpCircle className="h-6 w-6" />
+          </button>
           <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-gray-600">
             <Bell className="h-6 w-6" />
             {unreadCount > 0 && <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border border-white"></span>}
@@ -500,15 +506,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             )}
           </div>
-        </div >
-      </aside >
+        </div>
+      </aside>
 
       {/* Main Content */}
-      < main className="flex-1 p-4 md:p-8 overflow-x-hidden relative flex flex-col" >
+      <main className="flex-1 p-4 md:p-8 overflow-x-hidden relative flex flex-col" >
         {/* Top Bar for Desktop */}
-        < div className="hidden md:flex justify-end items-center mb-6 gap-4" >
+        <div className="hidden md:flex justify-end items-center mb-6 gap-4" >
           {/* Notifications */}
-          < div className="relative" >
+          <div className="relative" >
             <button
               onClick={() => setIsNotifOpen(!isNotifOpen)}
               className="relative p-2 rounded-full bg-white text-gray-600 hover:bg-gray-100 border shadow-sm transition-all"
@@ -562,11 +568,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </div>
               )
             }
-          </div >
-        </div >
+          </div>
+
+          {/* User Guide */}
+          <button
+            onClick={() => setIsGuideOpen(true)}
+            className="p-2 rounded-full bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-100 shadow-sm transition-all flex items-center gap-2 px-4 group"
+            title="Hướng dẫn sử dụng"
+          >
+            <HelpCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold">Hướng dẫn</span>
+          </button>
+        </div>
 
         {/* Toasts Popup (Bottom Right) */}
-        < div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" >
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" >
           {
             myNotifications.filter(n => !n.isRead && new Date(n.createdAt).getTime() > Date.now() - 5000).map(n => (
               <div key={n.id} className="bg-white p-4 rounded-xl shadow-2xl border-l-4 border-indigo-500 w-80 animate-in slide-in-from-right pointer-events-auto flex gap-3">
@@ -579,10 +595,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             ))
           }
-        </div >
+        </div>
 
         {children}
-      </main >
+        
+        <UserGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+      </main>
 
       {/* Mobile Overlay */}
       {
@@ -593,6 +611,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           />
         )
       }
-    </div >
+    </div>
   );
 };
