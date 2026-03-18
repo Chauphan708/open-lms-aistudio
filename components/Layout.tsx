@@ -39,6 +39,7 @@ import {
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
 import UserGuideModal from './UserGuideModal';
+import Footer from './Footer';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, setUser, notifications, markNotificationRead, markAllNotificationsRead } = useStore();
@@ -598,6 +599,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
 
         {children}
+        
+        <Footer />
         
         <UserGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
       </main>

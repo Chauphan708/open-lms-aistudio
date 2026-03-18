@@ -1,6 +1,15 @@
 
 export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT';
 
+export interface SiteSettings {
+  slogan: string;
+  hotline: string;
+  email: string;
+  facebook: string;
+  zalo: string;
+  address: string;
+}
+
 export interface CustomToolMenu {
   id: string;
   title: string;
@@ -411,7 +420,7 @@ export interface AppState {
 
   attempts: Attempt[];
   totalAttemptsCount: number;
-  fetchAttempts: () => Promise<void>;
+  fetchAttempts: (examIds?: string[]) => Promise<void>;
   addAttempt: (attempt: Attempt) => Promise<boolean>;
   updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void;
 
@@ -480,6 +489,13 @@ export interface AppState {
   finishMatch: (matchId: string, winnerId: string | null) => Promise<void>;
   updateMatchHp: (matchId: string, player1Hp: number, player2Hp: number) => Promise<void>;
   fetchLeaderboard: () => Promise<ArenaProfile[]>;
+
+  // ============================================
+  // SITE SETTINGS STATE & ACTIONS
+  // ============================================
+  siteSettings: SiteSettings | null;
+  fetchSiteSettings: () => Promise<void>;
+  updateSiteSettings: (settings: SiteSettings) => Promise<boolean>;
 
   // ============================================
   // TOURNAMENT STATE & ACTIONS

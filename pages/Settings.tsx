@@ -31,7 +31,7 @@ import {
 import { CustomToolMenu } from '../types';
 
 export const Settings: React.FC = () => {
-  const { user, updateUser, changePassword, updateUserCustomTools } = useStore();
+  const { user, updateUser, changePassword, updateUserCustomTools, siteSettings, updateSiteSettings } = useStore();
 
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'SYSTEM' | 'TEACHING' | 'TOOLS' | 'APIKEY'>('PROFILE');
   const [loading, setLoading] = useState(false);
@@ -56,6 +56,25 @@ export const Settings: React.FC = () => {
   // System Settings (Admin only)
   const [schoolName, setSchoolName] = useState('Trường Tiểu Học OpenLMS');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  
+  // Site Footer Settings
+  const [footerSlogan, setFooterSlogan] = useState(siteSettings?.slogan || '');
+  const [footerHotline, setFooterHotline] = useState(siteSettings?.hotline || '');
+  const [footerEmail, setFooterEmail] = useState(siteSettings?.email || '');
+  const [footerFacebook, setFooterFacebook] = useState(siteSettings?.facebook || '');
+  const [footerZalo, setFooterZalo] = useState(siteSettings?.zalo || '');
+  const [footerAddress, setFooterAddress] = useState(siteSettings?.address || '');
+
+  useEffect(() => {
+    if (siteSettings) {
+      setFooterSlogan(siteSettings.slogan);
+      setFooterHotline(siteSettings.hotline);
+      setFooterEmail(siteSettings.email);
+      setFooterFacebook(siteSettings.facebook);
+      setFooterZalo(siteSettings.zalo);
+      setFooterAddress(siteSettings.address);
+    }
+  }, [siteSettings]);
 
   // API Key State
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -116,12 +135,22 @@ export const Settings: React.FC = () => {
     setLoading(false);
   };
 
-  const handleSaveSystem = () => {
+  const handleSaveSystem = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      alert('Đã lưu cấu hình hệ thống!');
-    }, 800);
+    const success = await updateSiteSettings({
+      slogan: footerSlogan,
+      hotline: footerHotline,
+      email: footerEmail,
+      facebook: footerFacebook,
+      zalo: footerZalo,
+      address: footerAddress
+    });
+    setLoading(false);
+    if (success) {
+      alert('Đã lưu cấu hình hệ thống và chân trang thành công!');
+    } else {
+      alert('Lỗi khi lưu cấu hình hệ thống.');
+    }
   };
 
   const handleSaveTools = () => {
@@ -704,6 +733,64 @@ export const Settings: React.FC = () => {
                   <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-100">
                     Tải xuống (.json)
                   </button>
+                </div>
+
+                {/* Footer / Website Config */}
+                <div className="mt-8 space-y-6 pt-6 border-t">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-indigo-600" /> Cấu hình Chân trang (Footer)
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Câu Slogan / Giới thiệu</label>
+                      <input
+                        value={footerSlogan} onChange={e => setFooterSlogan(e.target.value)}
+                        placeholder="VD: Nâng tầm giáo dục số Việt Nam"
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Địa chỉ</label>
+                      <input
+                        value={footerAddress} onChange={e => setFooterAddress(e.target.value)}
+                        placeholder="VD: TP. Cần Thơ, Việt Nam"
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Hotline</label>
+                      <input
+                        value={footerHotline} onChange={e => setFooterHotline(e.target.value)}
+                        placeholder="1900 xxxx"
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Email Hỗ trợ</label>
+                      <input
+                        value={footerEmail} onChange={e => setFooterEmail(e.target.value)}
+                        placeholder="support@openlms.vn"
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Link Facebook</label>
+                      <input
+                        value={footerFacebook} onChange={e => setFooterFacebook(e.target.value)}
+                        placeholder="https://facebook.com/..."
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Link Zalo</label>
+                      <input
+                        value={footerZalo} onChange={e => setFooterZalo(e.target.value)}
+                        placeholder="https://zalo.me/..."
+                        className="w-full border border-gray-300 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

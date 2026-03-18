@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, CustomToolMenu, Poll, BreakoutRoom, ArenaMatchFilters, QuestionBankItem } from './types';
+import { AppState, Exam, Attempt, User, AcademicYear, Class, Assignment, LiveSession, DiscussionSession, DiscussionRound, Notification, WebResource, ChatMessage, CustomToolMenu, Poll, BreakoutRoom, ArenaMatchFilters, QuestionBankItem, SiteSettings } from './types';
 import { supabase } from './services/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -29,6 +29,7 @@ export const useStore = create<AppState>((set, get) => ({
   resources: [],
   discussionSessions: [],
   questionBank: [],
+  siteSettings: null,
 
   // --- INITIAL DATA FETCHING ---
   fetchInitialData: async () => {
@@ -352,6 +353,9 @@ export const useStore = create<AppState>((set, get) => ({
         )
         .subscribe();
 
+      // 11. Fetch Site Settings
+      await get().fetchSiteSettings();
+
     } catch (e) {
       console.error("Error fetching initial data (Global):", e);
       if (get().users.length === 0) set({ users: SEED_USERS });
@@ -543,6 +547,43 @@ export const useStore = create<AppState>((set, get) => ({
     localStorage.setItem('user_session', JSON.stringify(updatedUser));
     return { user: updatedUser, users: updatedUsers };
   }),
+
+  // Site Settings
+  fetchSiteSettings: async () => {
+    try {
+      const { data, error } = await supabase.from('system_settings').select('*').eq('key', 'footer_config').single();
+      if (data && data.value) {
+        set({ siteSettings: data.value as SiteSettings });
+      } else if (!error) {
+        // Fallback or Initial Data if table exists but key doesn't
+        const initial = {
+          slogan: "Nâng tầm giáo dục số Việt Nam",
+          hotline: "1900 xxxx",
+          email: "support@openlms.vn",
+          facebook: "https://facebook.com/openlms",
+          zalo: "https://zalo.me/xxxx",
+          address: "TP. Cần Thơ, Việt Nam"
+        };
+        set({ siteSettings: initial });
+      }
+    } catch (err) {
+      console.error("Error fetching site settings:", err);
+    }
+  },
+
+  updateSiteSettings: async (settings: SiteSettings) => {
+    const { error } = await supabase.from('system_settings').upsert({
+      key: 'footer_config',
+      value: settings,
+      updated_at: new Date().toISOString()
+    });
+    if (!error) {
+      set({ siteSettings: settings });
+      return true;
+    }
+    console.error("Error updating site settings:", error);
+    return false;
+  },
 
   // Academic Years
   addAcademicYear: async (year) => {
