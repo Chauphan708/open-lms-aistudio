@@ -195,7 +195,8 @@ export const useStore = create<AppState>((set, get) => ({
 
       // 7. Fetch Attempts
       if (isTeacher || isAdmin) {
-          await get().fetchAttempts();
+          const teacherExamIds = isTeacher ? get().exams.map(e => e.id) : undefined;
+          await get().fetchAttempts(teacherExamIds);
       } else if (isStudent) {
           const { data: myAttempts } = await supabase.from('attempts').select('*').eq('student_id', user.id);
           if (myAttempts) {
@@ -300,8 +301,9 @@ export const useStore = create<AppState>((set, get) => ({
           { event: 'INSERT', schema: 'public', table: 'attempts' },
           (payload) => {
             const a = payload.new;
-            // Only add if relevant (teacher sees all, student sees own)
-            if (isTeacher || isAdmin || (isStudent && a.student_id === user.id)) {
+            // Only add if relevant: admin sees all, teacher sees their own exams, student sees own
+            const isMyExam = get().exams.some(e => e.id === String(a.exam_id || a.examId));
+            if (isAdmin || (isTeacher && isMyExam) || (isStudent && a.student_id === user.id)) {
                 const mappedAttempt: Attempt = {
                   id: String(a.id),
                   answers: (a.answers as Record<string, any>) || {},
@@ -956,17 +958,21 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Attempts
-  fetchAttempts: async () => {
+  fetchAttempts: async (examIds?: string[]) => {
     // Try ordering by different potential columns to handle various schema versions
     const orderColumns = ['submitted_at', 'created_at', 'submittedAt'];
     let data: any[] | null = null;
     let lastError: any = null;
 
     for (const col of orderColumns) {
-      const { data: result, error } = await supabase
-        .from('attempts')
-        .select('*')
-        .order(col, { ascending: false });
+      let query = supabase.from('attempts').select('*');
+      
+      // Filter by examIds if provided (for teacher isolation)
+      if (examIds && examIds.length > 0) {
+        query = query.in('exam_id', examIds);
+      }
+
+      const { data: result, error } = await query.order(col, { ascending: false });
       
       if (!error) {
         data = result;
@@ -976,8 +982,12 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     if (data) {
-      // Also fetch total count for dashboard stats
-      const { count } = await supabase.from('attempts').select('*', { count: 'exact', head: true });
+      // Also fetch total count for dashboard stats (filtered by examIds)
+      let countQuery = supabase.from('attempts').select('*', { count: 'exact', head: true });
+      if (examIds && examIds.length > 0) {
+        countQuery = countQuery.in('exam_id', examIds);
+      }
+      const { count } = await countQuery;
       
       const mappedAttempts: Attempt[] = data.map((a: any) => ({
         id: String(a.id),

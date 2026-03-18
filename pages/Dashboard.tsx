@@ -531,9 +531,20 @@ export const Dashboard: React.FC = () => {
     return true;
   };
 
+  const teacherStudentsCount = useMemo(() => {
+    if (user?.role !== 'TEACHER') return users.filter(u => u.role === 'STUDENT').length;
+    const myClasses = classes.filter(c => c.teacherId === user.id);
+    const studentIdsArr = myClasses.flatMap(c => c.studentIds);
+    // Convert all to standard string IDs
+    const studentIdsSet = new Set(studentIdsArr.map(id => String(id)));
+    return users.filter(u => u.role === 'STUDENT' && studentIdsSet.has(String(u.id))).length;
+  }, [user, users, classes]);
+
   const filteredExams = exams.filter(e => filterByTime(e.createdAt));
   const filteredAttempts = attempts.filter(a => filterByTime(a.submittedAt));
-  const filteredResources = resources.filter(r => filterByTime(r.createdAt));
+  const filteredResources = resources
+    .filter(r => user?.role !== 'TEACHER' || r.addedBy === user.id)
+    .filter(r => filterByTime(r.createdAt));
   // Users cannot be filtered by time as they lack createdAt in this demo, showing total.
 
   return (
@@ -581,7 +592,7 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Replaced Teacher Stats with Resource Stats */}
         <StatCard icon={BookOpen} label="Tài liệu" value={filteredResources.length} color="bg-orange-500" />
-        <StatCard icon={Users} label="Tổng học sinh" value={users.filter(u => u.role === 'STUDENT').length} color="bg-green-500" />
+        <StatCard icon={Users} label="Tổng học sinh" value={teacherStudentsCount} color="bg-green-500" />
         <StatCard icon={BookOpen} label="Tổng số bài tập" value={filteredExams.length} color="bg-blue-500" />
         <StatCard icon={TrendingUp} label="Lượt nộp bài" value={totalAttemptsCount} color="bg-indigo-500" />
       </div>
@@ -589,7 +600,9 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl border shadow-sm">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900">Hoạt động gần đây (Toàn hệ thống)</h2>
+            <h2 className="text-lg font-bold text-gray-900">
+              Hoạt động gần đây {user?.role === 'ADMIN' ? '(Toàn hệ thống)' : '(Của bạn)'}
+            </h2>
             <div className="flex gap-2">
               <button 
                 onClick={handleExportActivities}
