@@ -13,7 +13,9 @@ import {
   FileText,
   Users,
   Brain,
-  Zap
+  Zap,
+  Layout,
+  Dices
 } from 'lucide-react';
 
 interface UserGuideModalProps {
@@ -118,9 +120,26 @@ const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose }) => {
                 <p className="text-xs text-gray-600">Thực hiện điểm danh nhanh chóng ngay trên ứng dụng và tự động lưu lịch sử cho phụ huynh.</p>
               </div>
             </div>
+            <div className="bg-white border p-4 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-bold text-sm mb-2 flex items-center gap-2 text-indigo-900">
+                  <Layout className="h-4 w-4 text-indigo-500" />
+                  Sơ đồ lớp
+                </h4>
+                <p className="text-xs text-gray-600">Sắp xếp vị trí chỗ ngồi của học sinh một cách trực quan để dễ dàng quản lý và ghi nhớ mặt học sinh.</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-sm mb-2 flex items-center gap-2 text-orange-600">
+                  <Dices className="h-4 w-4 text-orange-500" />
+                  Gọi tên ngẫu nhiên
+                </h4>
+                <p className="text-xs text-gray-600">Kích thích sự tập trung của cả lớp bằng công cụ chọn học sinh trả lời bài ngẫu nhiên, công bằng.</p>
+              </div>
+            </div>
+            
             <div className="bg-white border p-4 rounded-xl">
-              <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                <ChevronRight className="h-4 w-4 text-indigo-500" />
+              <h4 className="font-bold text-sm mb-2 flex items-center gap-2 text-red-600">
+                <ChevronRight className="h-4 w-4 text-red-500" />
                 Cảnh báo hành vi
               </h4>
               <p className="text-xs text-gray-600">Nhắc nhở kịp thời các trường hợp vi phạm nội quy lớp học bằng các thông báo trực quan.</p>
