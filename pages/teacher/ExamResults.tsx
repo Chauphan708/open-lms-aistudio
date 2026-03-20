@@ -2,19 +2,21 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store';
 import { analyzeClassPerformance, analyzeStudentAttempt } from '../../services/geminiService';
-import { BarChart3, ArrowLeft, Users, BrainCircuit, Sparkles, TrendingUp, TrendingDown, Clock, Settings, X, CheckCircle, XCircle, Search, Send, Save, Eye, EyeOff, ChevronDown, ChevronRight, RefreshCw, Zap, Loader2 } from 'lucide-react';
+import { BarChart3, ArrowLeft, Users, BrainCircuit, Sparkles, TrendingUp, TrendingDown, Clock, Settings, X, CheckCircle, XCircle, Search, Send, Save, Eye, EyeOff, ChevronDown, ChevronRight, RefreshCw, Zap, Loader2, Target, BookOpen, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Attempt, Exam } from '../../types';
 import { supabase } from '../../services/supabaseClient';
+import { computeStudentAnalytics } from '../../utils/analyticsEngine';
+import { getRecommendations, getRecentExamIds } from '../../utils/recommendationEngine';
 
 export const ExamResults: React.FC = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const assignmentIdFromUrl = searchParams.get('assign');
     const navigate = useNavigate();
-    const { exams, attempts, users, assignments, classes, user, saveUserPrompt, updateAttemptFeedback, fetchAttempts } = useStore();
+    const { exams, attempts, users, assignments, classes, user, saveUserPrompt, updateAttemptFeedback, fetchAttempts, addNotification } = useStore();
    
    const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -80,6 +82,8 @@ export const ExamResults: React.FC = () => {
    // Toggle states
    const [showQuestionStats, setShowQuestionStats] = useState(false);
    const [showStudentStats, setShowStudentStats] = useState(false);
+   const [showRecommendPanel, setShowRecommendPanel] = useState(false);
+   const [activeModalTab, setActiveModalTab] = useState<'feedback' | 'recommend'>('feedback');
 
    // New State for Feedback Settings
    const [allowViewSolution, setAllowViewSolution] = useState(true);
@@ -98,6 +102,8 @@ export const ExamResults: React.FC = () => {
 
    // Helper to format score
    const fmt = (n: number) => n.toFixed(1).replace('.', ',');
+
+
 
    const stats = useMemo(() => {
       if (examAttempts.length === 0) return null;
@@ -163,8 +169,80 @@ export const ExamResults: React.FC = () => {
       setSelectedAttemptId(attId);
    };
 
+   const [isSendingRec, setIsSendingRec] = useState(false);
+
+   const handleSendRecommendations = async () => {
+      if (!selectedAttempt || !selectedStudent || !studentRecommendations) return;
+      setIsSendingRec(true);
+      try {
+         const recCount = studentRecommendations.recommendedExams.length;
+         const titles = studentRecommendations.recommendedExams.map(r => r.exam.title).slice(0, 2).join(', ') + (recCount > 2 ? '...' : '');
+         
+         await addNotification({
+            id: `notif_rec_${Date.now()}`,
+            userId: selectedStudent.id,
+            type: 'INFO',
+            title: 'Gợi ý học tập mới',
+            message: `Giáo viên đã gửi cho bạn ${recCount} gợi ý bài tập mới: ${titles}. Hãy xem trong mục Phân tích học tập!`,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            link: '/student/analytics'
+         });
+         alert(`Đã gửi thông báo cho học sinh ${selectedStudent.name}!`);
+      } catch (err) {
+         console.error("Error sending recommendations:", err);
+         alert("Lỗi khi gửi thông báo.");
+      } finally {
+         setIsSendingRec(false);
+      }
+   };
+
    const selectedAttempt = attempts.find(a => a.id === selectedAttemptId);
    const selectedStudent = users.find(u => u.id === selectedAttempt?.studentId);
+
+   // Tính gợi ý bài tập cho HS đang chọn trong modal
+   const studentRecommendations = useMemo(() => {
+      if (!selectedAttempt || !selectedStudent) return null;
+      const analytics = computeStudentAnalytics(
+         selectedAttempt.studentId,
+         attempts,
+         exams,
+         [], // questionBank không cần thiết ở đây
+         90  // phân tích 3 tháng gần nhất
+      );
+      const recentExamIds = getRecentExamIds(selectedAttempt.studentId, attempts, 7);
+      return getRecommendations(analytics, exams, [], recentExamIds, 4, 0);
+   }, [selectedAttempt, selectedStudent, attempts, exams]);
+
+   // Tính danh sách HS cần được gợi ý (điểm < 6.5)
+   const studentsNeedingHelp = useMemo(() => {
+      if (examAttempts.length === 0) return [];
+      return Array.from(new Set(examAttempts.map(a => a.studentId)))
+         .map(studentId => {
+            const studentAttempts = examAttempts.filter(a => a.studentId === studentId);
+            const avgScore = studentAttempts.reduce((s, a) => s + (a.score || 0), 0) / studentAttempts.length;
+            const student = users.find(u => u.id === studentId);
+            // Phân tích câu hay sai
+            const wrongTopics = new Set<string>();
+            studentAttempts.forEach(att => {
+               exam?.questions.forEach(q => {
+                  const userAns = att.answers[q.id];
+                  let correct = false;
+                  if (!q.type || q.type === 'MCQ') correct = userAns === q.correctOptionIndex;
+                  if (!correct && q.topic) wrongTopics.add(q.topic);
+               });
+            });
+            // Gợi ý bài từ exams có chủ đề liên quan
+            const topicSet = wrongTopics;
+            const suggested = exams
+               .filter(e => e.id !== exam?.id && !e.deletedAt)
+               .filter(e => Array.isArray(e.questions) && e.questions.some(q => q.topic && topicSet.has(q.topic)))
+               .slice(0, 3);
+            return { student, avgScore, wrongTopics: [...wrongTopics].slice(0, 3), suggested };
+         })
+         .filter(s => s.avgScore < 6.5 && s.student)
+         .sort((a, b) => a.avgScore - b.avgScore);
+   }, [examAttempts, exams, exam, users]);
 
     if (isLoadingDirect) return (
        <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -602,6 +680,83 @@ export const ExamResults: React.FC = () => {
             </div>
          )}
 
+         {/* Panel gợi ý bài tập cho HS điểm thấp */}
+         {exam && exam.questions && examAttempts.length > 0 && (
+            <div className="mt-6 bg-white rounded-xl border shadow-sm overflow-hidden">
+               <div
+                  className="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowRecommendPanel(!showRecommendPanel)}
+               >
+                  <div className="flex items-center gap-3">
+                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Target className="h-5 w-5 text-purple-500" />
+                        Gợi ý bài tập cho học sinh cần cải thiện
+                     </h3>
+                     {studentsNeedingHelp.length > 0 && (
+                        <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                           {studentsNeedingHelp.length} HS cần lưu ý
+                        </span>
+                     )}
+                  </div>
+                  {showRecommendPanel ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
+               </div>
+
+               {showRecommendPanel && (
+                  <div className="px-6 pb-6 border-t pt-4">
+                     {studentsNeedingHelp.length === 0 ? (
+                        <div className="py-8 text-center text-gray-400">
+                           <CheckCircle className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                           <p className="text-sm">Tất cả học sinh đạt điểm tốt (≥6,5). Tuyệt vời!</p>
+                        </div>
+                     ) : (
+                        <div className="space-y-4">
+                           {studentsNeedingHelp.map((item, idx) => (
+                              <div key={idx} className="border border-orange-100 rounded-xl p-4 bg-gradient-to-br from-orange-50/40 to-white hover:from-orange-50 transition">
+                                 <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="flex items-center gap-2">
+                                       <div className="w-9 h-9 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+                                          {item.student?.name.charAt(0) || '?'}
+                                       </div>
+                                       <div>
+                                          <div className="font-bold text-gray-900">{item.student?.name}</div>
+                                          <div className="text-xs text-gray-500">Điểm bài này: <span className="text-red-600 font-bold">{item.avgScore.toFixed(1)}/10</span></div>
+                                       </div>
+                                    </div>
+                                    {item.wrongTopics.length > 0 && (
+                                       <div className="flex flex-wrap gap-1 justify-end">
+                                          <span className="text-xs text-gray-500 self-center">Chủ đề yếu:</span>
+                                          {item.wrongTopics.map((t, ti) => (
+                                             <span key={ti} className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{t}</span>
+                                          ))}
+                                       </div>
+                                    )}
+                                 </div>
+                                 {item.suggested.length > 0 ? (
+                                    <div>
+                                       <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
+                                          <BookOpen className="h-3 w-3" /> Bài tập liên quan gợi ý:
+                                       </p>
+                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                          {item.suggested.map(e => (
+                                             <div key={e.id} className="bg-white rounded-lg border border-indigo-100 p-3 shadow-sm hover:border-indigo-300 transition">
+                                                <div className="font-bold text-xs text-gray-800 truncate">{e.title}</div>
+                                                <div className="text-[10px] text-gray-500 mt-0.5">{e.subject} • {e.durationMinutes} phút</div>
+                                             </div>
+                                          ))}
+                                       </div>
+                                    </div>
+                                 ) : (
+                                    <p className="text-xs text-gray-400 italic">Chưa có bài tập liên quan trong kho đề.</p>
+                                 )}
+                              </div>
+                           ))}
+                        </div>
+                     )}
+                  </div>
+               )}
+            </div>
+         )}
+
          {/* AI Config Modal */}
          {showConfigModal && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
@@ -671,7 +826,25 @@ export const ExamResults: React.FC = () => {
                      </div>
                   </div>
 
+               {/* Tab Navigation trong Modal */}
+               <div className="flex border-b border-gray-200 bg-white px-5">
+                  <button
+                     onClick={() => setActiveModalTab('feedback')}
+                     className={`py-2.5 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeModalTab === 'feedback' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                  >
+                     <BrainCircuit className="h-4 w-4" /> Nhận xét &amp; Bài làm
+                  </button>
+                  <button
+                     onClick={() => setActiveModalTab('recommend')}
+                     className={`py-2.5 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeModalTab === 'recommend' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                  >
+                     <Target className="h-4 w-4" /> Gợi ý Bài tập
+                  </button>
+               </div>
+
                   <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                     {activeModalTab === 'feedback' ? (
+                     <>
                      {/* Feedback Section */}
                      <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm mb-6 animate-fade-in">
                         <h4 className="font-bold text-indigo-800 mb-3 flex items-center gap-2">
@@ -843,6 +1016,65 @@ export const ExamResults: React.FC = () => {
                            );
                         })}
                      </div>
+                     </>
+                     ) : (
+                     /* Tab Gợi ý Bài tập */
+                     <div className="space-y-4">
+                        <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 flex justify-between items-center">
+                           <div>
+                              <h4 className="font-bold text-purple-800 text-sm mb-1 flex items-center gap-2">
+                                 <Target className="h-4 w-4" /> Gợi ý dành riêng cho {selectedStudent?.name}
+                              </h4>
+                              <p className="text-xs text-purple-600">Dựa trên lịch sử 3 tháng gần nhất của học sinh</p>
+                           </div>
+                           <button
+                              onClick={handleSendRecommendations}
+                              disabled={isSendingRec || !studentRecommendations || studentRecommendations.recommendedExams.length === 0}
+                              className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm no-print"
+                           >
+                              {isSendingRec ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                              Gửi cho HS
+                           </button>
+                        </div>
+
+                        {studentRecommendations && studentRecommendations.recommendedExams.length > 0 ? (
+                           <div className="grid grid-cols-1 gap-3">
+                              {studentRecommendations.recommendedExams.map((rec, i) => (
+                                 <div key={rec.exam.id} className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition">
+                                    <div className="flex items-start gap-3">
+                                       <div className="bg-purple-100 text-purple-700 font-bold text-sm w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">
+                                          #{i + 1}
+                                       </div>
+                                       <div className="flex-1 min-w-0">
+                                          <div className="font-bold text-gray-900 text-sm truncate">{rec.exam.title}</div>
+                                          <div className="flex flex-wrap gap-1.5 mt-1">
+                                             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{rec.exam.subject}</span>
+                                             <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-bold">{rec.difficulty}</span>
+                                          </div>
+                                          <div className="text-xs text-gray-500 mt-1.5">
+                                             {rec.reasons.map((r, ri) => (
+                                                <div key={ri} className="flex items-start gap-1">
+                                                   <span className="text-purple-400">•</span>
+                                                   <span>{r}</span>
+                                                </div>
+                                             ))}
+                                          </div>
+                                       </div>
+                                       <div className="text-xs text-gray-400 flex items-center gap-1 flex-shrink-0">
+                                          <Clock className="h-3 w-3" />{rec.exam.durationMinutes}p
+                                       </div>
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        ) : (
+                           <div className="py-10 text-center text-gray-400">
+                              <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">Chưa có bài tập phù hợp để gợi ý.</p>
+                           </div>
+                        )}
+                     </div>
+                     )}
                   </div>
                </div>
             </div>

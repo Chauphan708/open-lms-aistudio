@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { useStore } from '../../store';
 import {
   TrendingUp, TrendingDown, Minus, BookOpen, Brain, Target, AlertTriangle,
-  Star, Zap, Clock, ChevronDown, Sparkles, RefreshCw, Award, BarChart3
+  Star, Zap, Clock, ChevronDown, Sparkles, RefreshCw, Award, BarChart3, Printer, Share2, Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { computeStudentAnalytics, TIME_PERIODS, TimePeriod, StudentAnalytics } from '../../utils/analyticsEngine';
@@ -191,6 +191,10 @@ export const LearningAnalytics: React.FC = () => {
     }
   }, [analytics]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const trendIcon = (trend: string) => {
     if (trend === 'UP') return <TrendingUp className="h-4 w-4 text-emerald-500" />;
     if (trend === 'DOWN') return <TrendingDown className="h-4 w-4 text-red-500" />;
@@ -215,23 +219,29 @@ export const LearningAnalytics: React.FC = () => {
             <p className="text-indigo-200 mt-1 text-sm">Dữ liệu dựa trên lịch sử nộp bài của bạn</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handlePrint}
+              className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 text-sm font-bold flex items-center gap-2 hover:bg-white/30 transition-all no-print"
+            >
+              <Printer className="h-4 w-4" /> In báo cáo
+            </button>
             {/* Bộ lọc thời gian */}
-            <div className="relative">
+            <div className="relative no-print">
               <select
                 value={selectedPeriod.days}
                 onChange={e => {
                   const p = TIME_PERIODS.find(t => t.days === Number(e.target.value));
                   if (p) setSelectedPeriod(p);
                 }}
-                className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 text-sm font-bold outline-none appearance-none cursor-pointer hover:bg-white/30 transition-all pr-8"
+                className="bg-white text-gray-900 border border-white/30 rounded-xl px-4 py-2 text-sm font-bold outline-none appearance-none cursor-pointer hover:bg-gray-100 transition-all pr-8"
               >
                 {TIME_PERIODS.map(p => (
-                  <option key={p.days} value={p.days} className="text-gray-900">
+                  <option key={p.days} value={p.days}>
                     {p.label}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white pointer-events-none" />
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -400,11 +410,16 @@ export const LearningAnalytics: React.FC = () => {
 
             {/* AI Insight */}
             {aiInsight && (
-              <div className="mb-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-wrap">
-                <div className="flex items-center gap-2 font-bold text-purple-700 mb-2">
-                  <Sparkles className="h-4 w-4" /> AI Phân tích cá nhân hóa
+              <div className="mb-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-white border border-purple-100 rounded-2xl p-5 shadow-inner animate-in slide-in-from-top-4 duration-500">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-700 to-indigo-700">
+                    <Sparkles className="h-5 w-5 text-purple-600" /> AI Phân tích cá nhân hóa
+                  </div>
+                  <div className="text-[10px] text-purple-400 font-medium uppercase tracking-wider bg-purple-100/50 px-2 py-0.5 rounded">Gemini Optimized</div>
                 </div>
-                {aiInsight}
+                <div className="text-sm text-gray-800 leading-relaxed italic border-l-4 border-purple-300 pl-4 py-1">
+                  "{aiInsight}"
+                </div>
               </div>
             )}
 
