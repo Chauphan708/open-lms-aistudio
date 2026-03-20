@@ -226,6 +226,18 @@ export const ExamCreate: React.FC = () => {
       return;
     }
 
+    // Check for duplicate title
+    const isDuplicate = exams.some(e => 
+      e.title.trim().toLowerCase() === title.trim().toLowerCase() && 
+      (!isEditMode || e.id !== editExamId) &&
+      !e.deletedAt
+    );
+
+    if (isDuplicate) {
+      const confirmSave = window.confirm(`Tên bài tập "${title.trim()}" đã tồn tại trong kho đề của bạn. Bạn có chắc chắn muốn lưu trùng tên không?`);
+      if (!confirmSave) return;
+    }
+
     if (isEditMode && editExamId) {
       // Update logic
       const updatedExam = exams.find(e => e.id === editExamId);

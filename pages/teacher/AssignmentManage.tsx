@@ -92,6 +92,20 @@ export const AssignmentManage: React.FC = () => {
 
     const handleSaveEdit = async () => {
         if (!editingAssignment) return;
+
+        // Check for duplicate title if changed
+        if (editTitle.trim()) {
+            const isDuplicate = exams.some(e => 
+                e.title.trim().toLowerCase() === editTitle.trim().toLowerCase() && 
+                e.id !== editingAssignment.examId &&
+                !e.deletedAt
+            );
+            if (isDuplicate) {
+                const confirmSave = window.confirm(`Tên bài tập "${editTitle.trim()}" đã tồn tại. Bạn có chắc chắn muốn lưu trùng tên không?`);
+                if (!confirmSave) return;
+            }
+        }
+
         const updated: Assignment = {
             ...editingAssignment,
             startTime: editStartTime ? new Date(editStartTime).toISOString() : undefined,
