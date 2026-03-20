@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+﻿import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Question, Attempt } from '../types';
 
 // Helper: Clean JSON string from Markdown code blocks
@@ -771,7 +771,6 @@ export const generateSeatingChart = async (
     const cleanedText = cleanJsonString(response.text || "[]");
     const parsedChart = JSON.parse(cleanedText);
 
-    // Validate output
     if (!Array.isArray(parsedChart)) {
       throw new Error("AI returned invalid structure. Expected Array.");
     }
@@ -779,6 +778,58 @@ export const generateSeatingChart = async (
     return parsedChart;
   } catch (error) {
     console.error("Gemini Seating Error:", error);
-    throw new Error("Lỗi khi tạo sơ đồ bằng AI. Vui lòng thử lại hoặc xếp tay.");
+    throw new Error("Loi khi tao so do bang AI. Vui long thu lai hoac xep tay.");
+  }
+};
+
+/**
+ * Tao goi y hoc tap ca nhan hoa cho hoc sinh dua tren du lieu analytics.
+ */
+export const generatePersonalizedRecommendation = async (
+  analytics: {
+    avgScore: number;
+    totalAttempts: number;
+    bySubject: { subject: string; avgScore: number; trend: string }[];
+    weakTopics: { topic: string; subject: string; incorrectRate: number }[];
+    byDifficulty: { label: string; correctRate: number }[];
+    studyStreak: number;
+  }
+): Promise<string> => {
+  const ai = getAiClient();
+  const modelId = "gemini-2.0-flash";
+
+  const subjectSummary = analytics.bySubject
+    .map(s => s.subject + ": TB " + s.avgScore + "/10 (xu huong: " + (s.trend === "UP" ? "tot len" : s.trend === "DOWN" ? "giam" : "on dinh") + ")")
+    .join(", ");
+
+  const weakTopicsSummary = analytics.weakTopics.slice(0, 5)
+    .map(t => t.topic + " (" + t.subject + ") - sai " + t.incorrectRate + "%")
+    .join(", ");
+
+  const difficultySummary = analytics.byDifficulty
+    .map(d => d.label + ": " + d.correctRate + "%")
+    .join(", ");
+
+  const prompt = "Ban la gia su AI than thien, dang tu van hoc tap cho mot hoc sinh Viet Nam. " +
+    "Hay dua ra loi khuyen hoc tap ca nhan hoa, am ap va khuyen khich. " +
+    "Du lieu hoc sinh: Diem TB: " + analytics.avgScore + "/10, " +
+    "So bai da lam: " + analytics.totalAttempts + ", " +
+    "Streak: " + analytics.studyStreak + " ngay, " +
+    "Theo mon: " + (subjectSummary || "Chua co du lieu") + ". " +
+    "Chu de hay sai nhat: " + (weakTopicsSummary || "Khong co") + ". " +
+    "Ti le dung theo muc do: " + difficultySummary + ". " +
+    "Yeu cau: Viet bang tieng Viet, tong giong nhu mot nguoi thay quan tam. Do dai 3-5 cau ngan gon. " +
+    "Cau truc: (1) Nhan xet diem tot, (2) Chi ra 1-2 diem can cai thien, (3) Goi y hanh dong cu the. " +
+    "Neu HS gioi (>=8.5), hay thach thuc. Neu HS trung binh, hay khuyen khich. Neu HS yeu (<5), hay an can.";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+    });
+    return response.text || "AI khong the tao goi y luc nay.";
+  } catch (error) {
+    console.error("Gemini Personalized Recommendation Error:", error);
+    throw new Error("Khong the ket noi AI. Vui long kiem tra API Key trong Cai dat.");
   }
 };

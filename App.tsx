@@ -30,6 +30,8 @@ import { AssignmentManage } from './pages/teacher/AssignmentManage';
 import { StudentXPStats } from './pages/teacher/StudentXPStats';
 // Student History
 import { StudentHistory } from './pages/student/StudentHistory';
+// Student Analytics
+import { LearningAnalytics } from './pages/student/LearningAnalytics';
 // Settings
 import { Settings } from './pages/Settings';
 // Resources
@@ -372,6 +374,12 @@ function App() {
         <Route path="/student/history" element={
           <ProtectedRoute roles={['STUDENT']}>
             <StudentHistory />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/student/analytics" element={
+          <ProtectedRoute roles={['STUDENT']}>
+            <LearningAnalytics />
           </ProtectedRoute>
         } />
 

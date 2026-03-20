@@ -130,6 +130,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Quản lý Bài đã giao', path: '/teacher/assignments', icon: ClipboardList, roles: ['TEACHER'] },
         { label: 'Chấm bài AI', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
         { label: 'Lịch sử Làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
+        { label: 'Phân tích Học tập', path: '/student/analytics', icon: BarChart3, roles: ['STUDENT'] },
       ]
     },
     {
