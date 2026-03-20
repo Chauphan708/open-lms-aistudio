@@ -160,6 +160,9 @@ export const LearningAnalytics: React.FC = () => {
     return <div className="p-8 text-center text-gray-500">Trang này chỉ dành cho học sinh.</div>;
   }
 
+  // Định dạng số: 10.0 -> 10,0
+  const fmt = (n: number) => n.toFixed(1).replace('.', ',');
+
   // Tính toán analytics
   const analytics: StudentAnalytics = useMemo(() => {
     return computeStudentAnalytics(
@@ -269,8 +272,8 @@ export const LearningAnalytics: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { icon: Target, label: 'Số bài đã làm', value: analytics.totalAttempts, color: 'bg-indigo-100 text-indigo-600' },
-              { icon: Star, label: 'Điểm TB', value: `${analytics.avgScore}/10`, color: 'bg-amber-100 text-amber-600' },
-              { icon: TrendingUp, label: 'Cao nhất', value: `${analytics.maxScore}/10`, color: 'bg-emerald-100 text-emerald-600' },
+              { icon: Star, label: 'Điểm TB', value: `${fmt(analytics.avgScore)}/10`, color: 'bg-amber-100 text-amber-600' },
+              { icon: TrendingUp, label: 'Cao nhất', value: `${fmt(analytics.maxScore)}/10`, color: 'bg-emerald-100 text-emerald-600' },
               { icon: Zap, label: 'Chuỗi ngày học', value: `${analytics.studyStreak} ngày`, color: 'bg-purple-100 text-purple-600' },
             ].map((card, i) => (
               <div key={i} className="bg-white rounded-xl border shadow-sm p-5 flex items-center gap-3">
@@ -313,7 +316,7 @@ export const LearningAnalytics: React.FC = () => {
                           <span className="text-xs text-gray-400">({s.attempts} bài)</span>
                         </div>
                         <span className={`font-bold text-sm ${s.avgScore >= 6.5 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {s.avgScore}/10
+                          {fmt(s.avgScore)}/10
                         </span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-2.5">

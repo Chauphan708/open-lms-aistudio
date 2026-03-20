@@ -82,7 +82,7 @@ export const StudentHistory: React.FC = () => {
                                        <span className={`inline-block w-10 py-1 rounded font-bold ${(att.score || 0) >= 8 ? 'bg-green-100 text-green-700' :
                                           (att.score || 0) >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                                           }`}>
-                                          {(att.score || 0).toFixed(1)}
+                                          {(att.score || 0).toFixed(1).replace('.', ',')}
                                        </span>
                                     </td>
                                     <td className="px-6 py-4">
