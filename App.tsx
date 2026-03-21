@@ -28,6 +28,7 @@ import { DiscussionCreate } from './pages/teacher/DiscussionCreate';
 import { ExamResults } from './pages/teacher/ExamResults';
 import { AssignmentManage } from './pages/teacher/AssignmentManage';
 import { StudentXPStats } from './pages/teacher/StudentXPStats';
+import { TeacherAnalytics } from './pages/teacher/TeacherAnalytics';
 // Student History
 import { StudentHistory } from './pages/student/StudentHistory';
 // Student Analytics
@@ -303,6 +304,11 @@ function App() {
         <Route path="/teacher/xp-stats" element={
           <ProtectedRoute roles={['TEACHER']}>
             <StudentXPStats />
+          </ProtectedRoute>
+        } />
+        <Route path="/teacher/analytics" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <TeacherAnalytics />
           </ProtectedRoute>
         } />
 

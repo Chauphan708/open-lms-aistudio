@@ -145,6 +145,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Ghi nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
         { label: 'Cảnh báo Hành vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
         { label: 'Thống kê Kinh nghiệm', path: '/teacher/xp-stats', icon: Zap, roles: ['TEACHER'] },
+        { label: 'Phân tích Học tập', path: '/teacher/analytics', icon: BarChart3, roles: ['TEACHER'] },
       ]
     },
     {

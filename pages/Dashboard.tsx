@@ -597,6 +597,25 @@ export const Dashboard: React.FC = () => {
         <StatCard icon={TrendingUp} label="Lượt nộp bài" value={totalAttemptsCount} color="bg-indigo-500" />
       </div>
 
+      {/* QUICK ACTIONS FOR TEACHER */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-white p-3 rounded-2xl shadow-sm text-indigo-600">
+            <BarChart3 className="h-8 w-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Phân tích học tập chuyên sâu</h3>
+            <p className="text-sm text-gray-600">Xem báo cáo chi tiết, điểm mạnh/yếu và gợi ý AI cho từng học sinh.</p>
+          </div>
+        </div>
+        <Link 
+          to="/teacher/analytics" 
+          className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2 whitespace-nowrap"
+        >
+          <BarChart3 className="h-5 w-5" /> Xem Phân Tích Ngay
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl border shadow-sm">
           <div className="flex justify-between items-center mb-4">

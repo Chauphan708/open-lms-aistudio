@@ -1,4 +1,4 @@
-﻿import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Question, Attempt } from '../types';
 
 // Helper: Clean JSON string from Markdown code blocks
@@ -831,5 +831,61 @@ export const generatePersonalizedRecommendation = async (
   } catch (error) {
     console.error("Gemini Personalized Recommendation Error:", error);
     throw new Error("Khong the ket noi AI. Vui long kiem tra API Key trong Cai dat.");
+  }
+};
+
+/**
+ * Phân tích học sinh dành cho giáo viên.
+ */
+export const generateTeacherStudentAnalysis = async (
+  studentName: string,
+  analytics: {
+    avgScore: number;
+    totalAttempts: number;
+    bySubject: { subject: string; avgScore: number; trend: string }[];
+    weakTopics: { topic: string; subject: string; incorrectRate: number }[];
+    byDifficulty: { label: string; correctRate: number }[];
+    studyStreak: number;
+  }
+): Promise<string> => {
+  const ai = getAiClient();
+  const modelId = "gemini-2.0-flash";
+
+  const subjectSummary = analytics.bySubject
+    .map(s => s.subject + ": TB " + s.avgScore + "/10 (" + (s.trend === "UP" ? "tốt lên" : s.trend === "DOWN" ? "giảm" : "ổn định") + ")")
+    .join(", ");
+
+  const weakTopicsSummary = analytics.weakTopics.slice(0, 5)
+    .map(t => t.topic + " (" + t.subject + ") - sai " + t.incorrectRate + "%")
+    .join(", ");
+
+  const prompt = `Bạn là một Cố vấn Sư phạm kỳ cựu. Hãy phân tích kết quả học tập của học sinh "${studentName}" để báo cáo cho Giáo viên chủ nhiệm/Giảng viên.
+    
+    Dữ liệu học tập:
+    - Điểm trung bình: ${analytics.avgScore}/10
+    - Tổng số bài tập đã hoàn thành: ${analytics.totalAttempts}
+    - Chuỗi ngày học tập: ${analytics.studyStreak} ngày
+    - Kết quả theo môn: ${subjectSummary || "Chưa có dữ liệu"}
+    - Các mảng kiến thức yếu nhất: ${weakTopicsSummary || "Không có"}
+    
+    Yêu cầu:
+    1. Ngôn ngữ: Tiếng Việt, chuyên nghiệp, khách quan nhưng có tính hỗ trợ sư phạm.
+    2. Độ dài: Khoảng 4-6 câu.
+    3. Cấu trúc: 
+       - Đánh giá tổng quan năng lực hiện tại của học sinh.
+       - Chỉ ra nguyên nhân cốt lõi dẫn đến các lỗ hổng kiến thức (nếu có).
+       - Đưa ra các biện pháp can thiệp/hỗ trợ cụ thể mà giáo viên nên áp dụng để giúp học sinh này tiến bộ.
+    
+    Lưu ý: Nếu học sinh giỏi, hãy gợi ý cách bồi dưỡng thêm. Nếu học sinh yếu, hãy gợi ý cách kèm cặp sát sao.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+    });
+    return response.text || "AI không thể tạo phân tích lúc này.";
+  } catch (error) {
+    console.error("Gemini Teacher Student Analysis Error:", error);
+    throw new Error("Không thể kết nối AI. Vui lòng kiểm tra API Key.");
   }
 };
