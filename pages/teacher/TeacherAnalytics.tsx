@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import {
   TrendingUp, TrendingDown, Minus, BookOpen, Brain, Target, AlertTriangle,
@@ -98,8 +98,22 @@ const WeakTopicCard: React.FC<{ topic: string; subject: string; rate: number; at
   </div>
 );
 
-const ComparisonView: React.FC<{ data: { student: any; stats: StudentAnalytics }[] }> = ({ data }) => {
+const ComparisonView: React.FC<{ 
+  data: { student: any; stats: StudentAnalytics }[];
+  exams: any[];
+  questionBank: any[];
+  attempts: any[];
+}> = ({ data, exams, questionBank, attempts }) => {
   const fmt = (n: number) => n.toFixed(1).replace('.', ',');
+
+  // Aggregate recommendations for the group
+  const groupRecs = useMemo(() => {
+    return data.map(item => {
+      const recentExamIds = getRecentExamIds(item.student.id, attempts, 7);
+      const recs = getRecommendations(item.stats, exams, questionBank, recentExamIds, 2);
+      return { student: item.student, recs };
+    }).filter(r => r.recs.recommendedExams.length > 0);
+  }, [data, exams, questionBank, attempts]);
   
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -107,7 +121,7 @@ const ComparisonView: React.FC<{ data: { student: any; stats: StudentAnalytics }
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="p-6 border-b bg-gray-50/50">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-indigo-500" /> Bảng so sánh chỉ số
+            <TrendingUp className="h-5 w-5 text-indigo-500" /> Bảng so sánh chỉ số năng lực
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -118,7 +132,7 @@ const ComparisonView: React.FC<{ data: { student: any; stats: StudentAnalytics }
                 <th className="px-6 py-4 text-center">Số bài làm</th>
                 <th className="px-6 py-4 text-center">Điểm TB</th>
                 <th className="px-6 py-4 text-center">Điểm Cao Nhất</th>
-                <th className="px-6 py-4 text-center">Thứ hạng (Lớp)</th>
+                <th className="px-6 py-4 text-center">Thứ hạng</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -155,7 +169,7 @@ const ComparisonView: React.FC<{ data: { student: any; stats: StudentAnalytics }
         {data.map((item, i) => (
           <div key={i} className="bg-white rounded-2xl border shadow-sm p-6 flex flex-col h-full">
             <h3 className="font-bold text-gray-800 mb-4 flex items-center justify-between">
-              <span>Biểu đồ: {item.student.name}</span>
+              <span className="flex items-center gap-2"><Target className="h-4 w-4 text-indigo-400" /> {item.student.name}</span>
               <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">TB: {fmt(item.stats.avgScore)}</span>
             </h3>
             <div className="flex-1">
@@ -164,6 +178,34 @@ const ComparisonView: React.FC<{ data: { student: any; stats: StudentAnalytics }
           </div>
         ))}
       </div>
+
+      {/* Group Recommendations */}
+      {groupRecs.length > 0 && (
+        <div className="bg-white rounded-2xl border shadow-sm p-6 no-print">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <Brain className="h-5 w-5 text-purple-500" /> Đề xuất bài tập can thiệp cho nhóm
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {groupRecs.map((gr, idx) => (
+              <div key={idx} className="space-y-3">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <div className="h-6 w-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-[10px] font-bold">
+                    {gr.student.name.charAt(0)}
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">{gr.student.name}</span>
+                </div>
+                {gr.recs.recommendedExams.slice(0, 2).map((rec, rIdx) => (
+                  <div key={rIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-purple-200 transition-all">
+                    <div className="text-xs font-bold text-gray-900 mb-1 line-clamp-1">{rec.exam.title}</div>
+                    <div className="text-[10px] text-purple-600 font-medium uppercase mb-1">{rec.exam.subject}</div>
+                    <div className="text-[10px] text-gray-500 italic line-clamp-2">"{rec.reasons[0]}"</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -184,7 +226,22 @@ export const TeacherAnalytics: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const { addNotification } = useStore();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsStudentDropdownOpen(false);
+      }
+    };
+    if (isStudentDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isStudentDropdownOpen]);
 
   // Filter classes taught by this teacher
   const myClasses = useMemo(() => classes.filter(c => c.teacherId === currentUser?.id), [classes, currentUser]);
@@ -217,7 +274,7 @@ export const TeacherAnalytics: React.FC = () => {
     return selectedStudentIds.map(id => ({
       student: users.find(u => u.id === id),
       stats: computeStudentAnalytics(id, attempts, exams, questionBank, selectedPeriod.days)
-    })).filter(item => item.student && item.stats);
+    })).filter((item): item is { student: any; stats: StudentAnalytics } => item.student !== undefined && item.stats !== null);
   }, [selectedStudentIds, attempts, exams, questionBank, selectedPeriod, users]);
 
   // Selected student object (only if 1 selected)
@@ -271,163 +328,43 @@ export const TeacherAnalytics: React.FC = () => {
     }
   }, [selectedStudentIds, teacherComment, addNotification]);
 
-  if (!currentUser || currentUser.role !== 'TEACHER') {
-    return <div className="p-8 text-center text-gray-500">Trang này dành cho giáo viên.</div>;
-  }
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-10 relative">
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          body { background: white !important; }
-          .max-w-6xl { max-width: 100% !important; margin: 0 !important; }
-          .shadow-sm, .shadow-md, .shadow-xl { shadow: none !important; border: 1px solid #eee !important; }
-          .bg-gradient-to-r { background: #4f46e5 !important; color: white !important; -webkit-print-color-adjust: exact; }
-          .animate-in { animation: none !important; }
-        }
-        .print-only { display: none; }
-      `}</style>
-
-      {/* PRINT HEADER (HIDDEN ON SCREEN) */}
-      <div className="print-only mb-8 text-center border-b-2 border-indigo-600 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">BÁO CÁO PHÂN TÍCH HỌC TẬP</h1>
-        <p className="text-gray-600">Lớp: {myClasses.find(c => c.id === selectedClassId)?.name || 'N/A'}</p>
-        <p className="text-gray-500 text-xs">Ngày xuất: {new Date().toLocaleDateString('vi-VN')}</p>
-      </div>
-      
-      {/* SELECTION HEADER */}
-      <div className="bg-white rounded-2xl border shadow-sm p-6 no-print">
-        <div className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 space-y-2">
-            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-              <School className="h-4 w-4" /> Chọn Lớp học
-            </label>
-            <select
-              value={selectedClassId}
-              onChange={e => setSelectedClassId(e.target.value)}
-              className="w-full p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              <option value="">-- Chọn lớp --</option>
-              {myClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-
-          <div className="flex-1 space-y-2">
-            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-              <Users className="h-4 w-4" /> Chọn Học sinh
-            </label>
-            <div className="relative">
-              <button
-                disabled={!selectedClassId}
-                onClick={() => setIsStudentDropdownOpen(!isStudentDropdownOpen)}
-                className="w-full flex items-center justify-between p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-50 text-sm"
-              >
-                <div className="flex flex-wrap gap-1">
-                  {selectedStudentIds.length === 0 ? (
-                    <span className="text-gray-400">-- Chọn học sinh (1 hoặc nhiều) --</span>
-                  ) : (
-                    <span className="font-bold text-indigo-600">Đã chọn {selectedStudentIds.length} học sinh</span>
-                  )}
-                </div>
-                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isStudentDropdownOpen && (
-                <div className="absolute z-50 mt-2 w-full bg-white border rounded-xl shadow-xl max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex justify-between p-2 border-b mb-2">
-                    <button 
-                      onClick={() => setSelectedStudentIds(studentsInClass.map(s => s.id))}
-                      className="text-xs text-indigo-600 font-bold hover:underline"
-                    >
-                      Chọn tất cả
-                    </button>
-                    <button 
-                      onClick={() => setSelectedStudentIds([])}
-                      className="text-xs text-red-600 font-bold hover:underline"
-                    >
-                      Bỏ chọn hết
-                    </button>
-                  </div>
-                  {studentsInClass.map(s => (
-                    <label key={s.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudentIds.includes(s.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedStudentIds([...selectedStudentIds, s.id]);
-                          } else {
-                            setSelectedStudentIds(selectedStudentIds.filter(id => id !== s.id));
-                          }
-                        }}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
-                        <div className="text-[10px] text-gray-400">{s.email}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-shrink-0 space-y-2 min-w-[150px]">
-            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-              <Clock className="h-4 w-4" /> Thời gian
-            </label>
-            <select
-              value={selectedPeriod.days}
-              onChange={e => {
-                const p = TIME_PERIODS.find(t => t.days === Number(e.target.value));
-                if (p) setSelectedPeriod(p);
-              }}
-              className="w-full p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              {TIME_PERIODS.map(p => <option key={p.days} value={p.days}>{p.label}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {selectedStudentIds.length === 0 ? (
+  const renderMainContent = () => {
+    if (selectedStudentIds.length === 0) {
+      return (
         <div className="bg-gray-50 rounded-2xl border border-dashed p-16 text-center no-print">
           <BarChart3 className="h-16 w-16 mx-auto text-gray-300 mb-4" />
           <h3 className="text-xl font-bold text-gray-600">Phân tích học tập chi tiết</h3>
           <p className="text-gray-400">Vui lòng chọn lớp và ít nhất một học sinh để bắt đầu xem báo cáo.</p>
         </div>
-      ) : selectedStudentIds.length > 1 ? (
-        <ComparisonView data={comparisonAnalytics} />
-      ) : (analytics && (
+      );
+    }
+
+    if (selectedStudentIds.length > 1) {
+      return (
+        <ComparisonView 
+          data={comparisonAnalytics} 
+          exams={exams} 
+          questionBank={questionBank} 
+          attempts={attempts} 
+        />
+      );
+    }
+
+    if (analytics && selectedStudent) {
+      return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-          
           {/* STUDENT INFO HEADER */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white flex justify-between items-center">
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold border-2 border-white/30">
-                {selectedStudent?.name.charAt(0)}
+                {selectedStudent.name.charAt(0)}
               </div>
               <div>
-                <h1 className="text-2xl font-bold">{selectedStudent?.name}</h1>
+                <h1 className="text-2xl font-bold">{selectedStudent.name}</h1>
                 <p className="text-indigo-100 text-sm flex items-center gap-2">
-                  {selectedStudent?.email} • {selectedPeriod.label} qua
+                  {selectedStudent.email} • {selectedPeriod.label} qua
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-4 no-print">
-              <button 
-                onClick={() => {
-                  setIsStudentDropdownOpen(false); // Close dropdown before printing
-                  setTimeout(() => window.print(), 100);
-                }} 
-                className="bg-white/20 hover:bg-white/30 p-2.5 rounded-xl border border-white/30 transition-all"
-                title="In báo cáo (PDF)"
-              >
-                <Printer className="h-5 w-5" />
-              </button>
             </div>
           </div>
 
@@ -453,10 +390,8 @@ export const TeacherAnalytics: React.FC = () => {
 
           {/* TWO COLUMN CONTENT */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             {/* Left Col: Chart & AI */}
             <div className="lg:col-span-2 space-y-6">
-              
               {/* CHART */}
               <div className="bg-white rounded-2xl border shadow-sm p-6">
                 <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -517,7 +452,6 @@ export const TeacherAnalytics: React.FC = () => {
 
             {/* Right Col: Weak Topics & Subjects */}
             <div className="space-y-6">
-              
               {/* WEAK TOPICS */}
               <div className="bg-white rounded-2xl border shadow-sm p-6">
                 <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 text-red-600">
@@ -579,7 +513,165 @@ export const TeacherAnalytics: React.FC = () => {
             </div>
           )}
         </div>
-      ))}
+      );
+    }
+
+    return null;
+  };
+
+  if (!currentUser || currentUser.role !== 'TEACHER') {
+    return <div className="p-8 text-center text-gray-500">Trang này dành cho giáo viên.</div>;
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6 pb-10 relative">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          body { background: white !important; }
+          .max-w-6xl { max-width: 100% !important; margin: 0 !important; }
+          .shadow-sm, .shadow-md, .shadow-xl { border: 1px solid #eee !important; box-shadow: none !important; }
+          .bg-gradient-to-r { background: #4f46e5 !important; color: white !important; -webkit-print-color-adjust: exact; }
+          .animate-in { animation: none !important; }
+        }
+        .print-only { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+      `}</style>
+
+      {/* PRINT HEADER */}
+      <div className="print-only mb-8 text-center border-b-2 border-indigo-600 pb-4">
+        <h1 className="text-2xl font-bold text-gray-900">BÁO CÁO PHÂN TÍCH HỌC TẬP</h1>
+        <p className="text-gray-600">Lớp: {myClasses.find(c => c.id === selectedClassId)?.name || 'N/A'}</p>
+        <p className="text-gray-500 text-xs">Ngày xuất: {new Date().toLocaleDateString('vi-VN')}</p>
+      </div>
+      
+      {/* SELECTION HEADER */}
+      <div className="bg-white rounded-2xl border shadow-sm p-6 no-print">
+        <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-1 space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <School className="h-4 w-4" /> Chọn Lớp học
+            </label>
+            <select
+              value={selectedClassId}
+              onChange={e => setSelectedClassId(e.target.value)}
+              className="w-full p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            >
+              <option value="">-- Chọn lớp --</option>
+              {myClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div className="flex-1 space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <Users className="h-4 w-4" /> Chọn Học sinh
+            </label>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                disabled={!selectedClassId}
+                onClick={() => setIsStudentDropdownOpen(!isStudentDropdownOpen)}
+                className="w-full flex items-center justify-between p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-50 text-sm h-[46px]"
+              >
+                <div className="flex flex-wrap gap-1 max-w-[90%] overflow-hidden">
+                  {selectedStudentIds.length === 0 ? (
+                    <span className="text-gray-400">-- Chọn học sinh (dạng lưới) --</span>
+                  ) : (
+                    <span className="font-bold text-indigo-600 truncate">Đã chọn {selectedStudentIds.length} học sinh</span>
+                  )}
+                </div>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isStudentDropdownOpen && (
+                <div className="absolute z-50 mt-2 w-[300px] md:w-[600px] right-0 md:left-0 bg-white border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex justify-between items-center p-4 bg-gray-50 border-b">
+                    <h4 className="font-bold text-gray-700 text-sm">Danh sách học sinh</h4>
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => setSelectedStudentIds(studentsInClass.map(s => s.id))}
+                        className="text-xs text-indigo-600 font-bold hover:underline"
+                      >
+                        Chọn tất cả
+                      </button>
+                      <button 
+                        onClick={() => setSelectedStudentIds([])}
+                        className="text-xs text-red-600 font-bold hover:underline"
+                      >
+                        Bỏ chọn hết
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto p-4 custom-scrollbar">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                      {studentsInClass.map(s => (
+                        <label 
+                          key={s.id} 
+                          className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer border transition-all duration-200 ${
+                            selectedStudentIds.includes(s.id) 
+                              ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-200' 
+                              : 'bg-white border-gray-100 hover:border-indigo-100 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentIds.includes(s.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedStudentIds([...selectedStudentIds, s.id]);
+                              } else {
+                                setSelectedStudentIds(selectedStudentIds.filter(id => id !== s.id));
+                              }
+                            }}
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-xs font-semibold text-gray-700 truncate" title={s.name}>{s.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {selectedStudentIds.length > 0 && (
+                    <div className="p-3 bg-indigo-600 text-white text-center text-xs font-bold">
+                       ĐÃ CHỌN {selectedStudentIds.length} HỌC SINH
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-shrink-0 space-y-2 min-w-[150px]">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Thời gian
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={selectedPeriod.days}
+                onChange={e => {
+                  const p = TIME_PERIODS.find(t => t.days === Number(e.target.value));
+                  if (p) setSelectedPeriod(p);
+                }}
+                className="w-full p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white h-[46px]"
+              >
+                {TIME_PERIODS.map(p => <option key={p.days} value={p.days}>{p.label}</option>)}
+              </select>
+              <button 
+                onClick={() => window.print()}
+                disabled={selectedStudentIds.length === 0}
+                className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:bg-gray-400 no-print transition-all"
+                title="In báo cáo (PDF)"
+              >
+                <Printer className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {renderMainContent()}
     </div>
   );
 };
