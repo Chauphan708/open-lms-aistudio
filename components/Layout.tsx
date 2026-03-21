@@ -131,6 +131,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Chấm bài AI', path: '/teacher/ai-grading', icon: Bot, roles: ['TEACHER'] },
         { label: 'Lịch sử Làm bài', path: '/student/history', icon: History, roles: ['STUDENT'] },
         { label: 'Phân tích Học tập', path: '/student/analytics', icon: BarChart3, roles: ['STUDENT'] },
+        { label: 'Phân tích Học tập', path: '/teacher/analytics', icon: BarChart3, roles: ['TEACHER'] },
       ]
     },
     {
@@ -144,8 +145,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Điểm danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
         { label: 'Ghi nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },
         { label: 'Cảnh báo Hành vi', path: '/teacher/class-fun/warning', icon: MessageSquare, roles: ['TEACHER'] },
-        { label: 'Thống kê Kinh nghiệm', path: '/teacher/xp-stats', icon: Zap, roles: ['TEACHER'] },
-        { label: 'Phân tích Học tập', path: '/teacher/analytics', icon: BarChart3, roles: ['TEACHER'] },
+        { label: ' Thống kê Kinh nghiệm', path: '/teacher/xp-stats', icon: Zap, roles: ['TEACHER'] },
       ]
     },
     {

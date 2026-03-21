@@ -98,6 +98,76 @@ const WeakTopicCard: React.FC<{ topic: string; subject: string; rate: number; at
   </div>
 );
 
+const ComparisonView: React.FC<{ data: { student: any; stats: StudentAnalytics }[] }> = ({ data }) => {
+  const fmt = (n: number) => n.toFixed(1).replace('.', ',');
+  
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Comparison Table */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div className="p-6 border-b bg-gray-50/50">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-indigo-500" /> Bảng so sánh chỉ số
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
+                <th className="px-6 py-4">Học sinh</th>
+                <th className="px-6 py-4 text-center">Số bài làm</th>
+                <th className="px-6 py-4 text-center">Điểm TB</th>
+                <th className="px-6 py-4 text-center">Điểm Cao Nhất</th>
+                <th className="px-6 py-4 text-center">Thứ hạng (Lớp)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.map((item, i) => (
+                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                        {item.student.name.charAt(0)}
+                      </div>
+                      <div className="font-bold text-gray-900 text-sm">{item.student.name}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center text-sm font-medium text-gray-600">{item.stats.totalAttempts}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      item.stats.avgScore >= 8 ? 'bg-emerald-100 text-emerald-700' :
+                      item.stats.avgScore >= 5 ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {fmt(item.stats.avgScore)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center text-sm font-bold text-gray-700">{fmt(item.stats.maxScore)}</td>
+                  <td className="px-6 py-4 text-center text-sm font-medium text-gray-500">#{i + 1}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Grid of charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {data.map((item, i) => (
+          <div key={i} className="bg-white rounded-2xl border shadow-sm p-6 flex flex-col h-full">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center justify-between">
+              <span>Biểu đồ: {item.student.name}</span>
+              <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">TB: {fmt(item.stats.avgScore)}</span>
+            </h3>
+            <div className="flex-1">
+               <ComboChart data={item.stats.chartData} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ============================================================
 // MAIN PAGE
 // ============================================================
@@ -106,12 +176,13 @@ export const TeacherAnalytics: React.FC = () => {
   const { user: currentUser, classes, users, attempts, exams, questionBank } = useStore();
   
   const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(TIME_PERIODS[1]);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [teacherComment, setTeacherComment] = useState('');
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
 
   const { addNotification } = useStore();
 
@@ -125,30 +196,42 @@ export const TeacherAnalytics: React.FC = () => {
     return users.filter(u => cls.studentIds.includes(u.id));
   }, [selectedClassId, classes, users]);
 
-  // Selected student object
-  const selectedStudent = useMemo(() => users.find(u => u.id === selectedStudentId), [selectedStudentId, users]);
-
   // Reset student selection when class changes
   useEffect(() => {
-    setSelectedStudentId('');
+    setSelectedStudentIds([]);
     setAiInsight(null);
   }, [selectedClassId]);
 
   // Formatting helper
   const fmt = (n: number) => n.toFixed(1).replace('.', ',');
 
-  // Analytics calculation
+  // Analytics calculation for a single student (when length === 1)
   const analytics: StudentAnalytics | null = useMemo(() => {
-    if (!selectedStudentId) return null;
-    return computeStudentAnalytics(selectedStudentId, attempts, exams, questionBank, selectedPeriod.days);
-  }, [selectedStudentId, attempts, exams, questionBank, selectedPeriod]);
+    if (selectedStudentIds.length !== 1) return null;
+    return computeStudentAnalytics(selectedStudentIds[0], attempts, exams, questionBank, selectedPeriod.days);
+  }, [selectedStudentIds, attempts, exams, questionBank, selectedPeriod]);
+
+  // Analytics for ALL selected students (for comparison)
+  const comparisonAnalytics = useMemo(() => {
+    if (selectedStudentIds.length <= 1) return [];
+    return selectedStudentIds.map(id => ({
+      student: users.find(u => u.id === id),
+      stats: computeStudentAnalytics(id, attempts, exams, questionBank, selectedPeriod.days)
+    })).filter(item => item.student && item.stats);
+  }, [selectedStudentIds, attempts, exams, questionBank, selectedPeriod, users]);
+
+  // Selected student object (only if 1 selected)
+  const selectedStudent = useMemo(() => 
+    selectedStudentIds.length === 1 ? users.find(u => u.id === selectedStudentIds[0]) : null
+  , [selectedStudentIds, users]);
 
   // Recommendation calculation
   const recommendations = useMemo(() => {
-    if (!analytics || !selectedStudentId) return null;
-    const recentExamIds = getRecentExamIds(selectedStudentId, attempts, 7);
+    if (!analytics || selectedStudentIds.length !== 1) return null;
+    const sid = selectedStudentIds[0];
+    const recentExamIds = getRecentExamIds(sid, attempts, 7);
     return getRecommendations(analytics, exams, questionBank, recentExamIds, 6, 8);
-  }, [analytics, selectedStudentId, attempts, exams, questionBank]);
+  }, [analytics, selectedStudentIds, attempts, exams, questionBank]);
 
   // AI Insight handle
   const handleGetAIInsight = useCallback(async () => {
@@ -166,12 +249,13 @@ export const TeacherAnalytics: React.FC = () => {
   }, [analytics, selectedStudent]);
 
   const handleSendComment = useCallback(async () => {
-    if (!selectedStudentId || !teacherComment.trim()) return;
+    if (selectedStudentIds.length !== 1 || !teacherComment.trim()) return;
+    const sid = selectedStudentIds[0];
     setIsSending(true);
     try {
       await addNotification({
         id: `notif_ana_${Date.now()}`,
-        userId: selectedStudentId,
+        userId: sid,
         type: 'INFO',
         title: 'Nhận xét từ Giáo viên (Phân tích học tập)',
         message: teacherComment.trim(),
@@ -185,17 +269,36 @@ export const TeacherAnalytics: React.FC = () => {
     } finally {
       setIsSending(false);
     }
-  }, [selectedStudentId, teacherComment, addNotification]);
+  }, [selectedStudentIds, teacherComment, addNotification]);
 
   if (!currentUser || currentUser.role !== 'TEACHER') {
     return <div className="p-8 text-center text-gray-500">Trang này dành cho giáo viên.</div>;
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-10">
+    <div className="max-w-6xl mx-auto space-y-6 pb-10 relative">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          body { background: white !important; }
+          .max-w-6xl { max-width: 100% !important; margin: 0 !important; }
+          .shadow-sm, .shadow-md, .shadow-xl { shadow: none !important; border: 1px solid #eee !important; }
+          .bg-gradient-to-r { background: #4f46e5 !important; color: white !important; -webkit-print-color-adjust: exact; }
+          .animate-in { animation: none !important; }
+        }
+        .print-only { display: none; }
+      `}</style>
+
+      {/* PRINT HEADER (HIDDEN ON SCREEN) */}
+      <div className="print-only mb-8 text-center border-b-2 border-indigo-600 pb-4">
+        <h1 className="text-2xl font-bold text-gray-900">BÁO CÁO PHÂN TÍCH HỌC TẬP</h1>
+        <p className="text-gray-600">Lớp: {myClasses.find(c => c.id === selectedClassId)?.name || 'N/A'}</p>
+        <p className="text-gray-500 text-xs">Ngày xuất: {new Date().toLocaleDateString('vi-VN')}</p>
+      </div>
       
       {/* SELECTION HEADER */}
-      <div className="bg-white rounded-2xl border shadow-sm p-6">
+      <div className="bg-white rounded-2xl border shadow-sm p-6 no-print">
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 space-y-2">
             <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -215,15 +318,61 @@ export const TeacherAnalytics: React.FC = () => {
             <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
               <Users className="h-4 w-4" /> Chọn Học sinh
             </label>
-            <select
-              disabled={!selectedClassId}
-              value={selectedStudentId}
-              onChange={e => setSelectedStudentId(e.target.value)}
-              className="w-full p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-50"
-            >
-              <option value="">-- Chọn học sinh --</option>
-              {studentsInClass.map(s => <option key={s.id} value={s.id}>{s.name} ({s.email})</option>)}
-            </select>
+            <div className="relative">
+              <button
+                disabled={!selectedClassId}
+                onClick={() => setIsStudentDropdownOpen(!isStudentDropdownOpen)}
+                className="w-full flex items-center justify-between p-2.5 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-50 text-sm"
+              >
+                <div className="flex flex-wrap gap-1">
+                  {selectedStudentIds.length === 0 ? (
+                    <span className="text-gray-400">-- Chọn học sinh (1 hoặc nhiều) --</span>
+                  ) : (
+                    <span className="font-bold text-indigo-600">Đã chọn {selectedStudentIds.length} học sinh</span>
+                  )}
+                </div>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isStudentDropdownOpen && (
+                <div className="absolute z-50 mt-2 w-full bg-white border rounded-xl shadow-xl max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex justify-between p-2 border-b mb-2">
+                    <button 
+                      onClick={() => setSelectedStudentIds(studentsInClass.map(s => s.id))}
+                      className="text-xs text-indigo-600 font-bold hover:underline"
+                    >
+                      Chọn tất cả
+                    </button>
+                    <button 
+                      onClick={() => setSelectedStudentIds([])}
+                      className="text-xs text-red-600 font-bold hover:underline"
+                    >
+                      Bỏ chọn hết
+                    </button>
+                  </div>
+                  {studentsInClass.map(s => (
+                    <label key={s.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(s.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedStudentIds([...selectedStudentIds, s.id]);
+                          } else {
+                            setSelectedStudentIds(selectedStudentIds.filter(id => id !== s.id));
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
+                        <div className="text-[10px] text-gray-400">{s.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex-shrink-0 space-y-2 min-w-[150px]">
@@ -244,13 +393,15 @@ export const TeacherAnalytics: React.FC = () => {
         </div>
       </div>
 
-      {!selectedStudentId ? (
-        <div className="bg-gray-50 rounded-2xl border border-dashed p-16 text-center">
+      {selectedStudentIds.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl border border-dashed p-16 text-center no-print">
           <BarChart3 className="h-16 w-16 mx-auto text-gray-300 mb-4" />
           <h3 className="text-xl font-bold text-gray-600">Phân tích học tập chi tiết</h3>
-          <p className="text-gray-400">Vui lòng chọn lớp và học sinh để bắt đầu xem báo cáo phân tích.</p>
+          <p className="text-gray-400">Vui lòng chọn lớp và ít nhất một học sinh để bắt đầu xem báo cáo.</p>
         </div>
-      ) : analytics && (
+      ) : selectedStudentIds.length > 1 ? (
+        <ComparisonView data={comparisonAnalytics} />
+      ) : (analytics && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
           
           {/* STUDENT INFO HEADER */}
@@ -266,9 +417,18 @@ export const TeacherAnalytics: React.FC = () => {
                 </p>
               </div>
             </div>
-            <button onClick={() => window.print()} className="bg-white/20 hover:bg-white/30 p-2.5 rounded-xl border border-white/30 transition-all no-print">
-              <Printer className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-4 no-print">
+              <button 
+                onClick={() => {
+                  setIsStudentDropdownOpen(false); // Close dropdown before printing
+                  setTimeout(() => window.print(), 100);
+                }} 
+                className="bg-white/20 hover:bg-white/30 p-2.5 rounded-xl border border-white/30 transition-all"
+                title="In báo cáo (PDF)"
+              >
+                <Printer className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* STATS CARDS */}
@@ -314,7 +474,7 @@ export const TeacherAnalytics: React.FC = () => {
                   <button
                     onClick={handleGetAIInsight}
                     disabled={isLoadingAI}
-                    className="flex items-center gap-2 bg-purple-50 text-purple-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-100 transition-all"
+                    className="flex items-center gap-2 bg-purple-50 text-purple-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-100 transition-all no-print"
                   >
                     {isLoadingAI ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     Phân tích qua AI
@@ -325,13 +485,13 @@ export const TeacherAnalytics: React.FC = () => {
                     {aiInsight}
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-sm text-center py-6 border border-dashed rounded-xl">
+                  <p className="text-gray-400 text-sm text-center py-6 border border-dashed rounded-xl no-print">
                     Nhấn nút "Phân tích qua AI" để xem nhận xét chuyên sâu về học sinh này.
                   </p>
                 )}
 
                 {/* TEACHER COMMENT BOX */}
-                <div className="mt-6 pt-6 border-t space-y-3">
+                <div className="mt-6 pt-6 border-t space-y-3 no-print">
                   <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-indigo-500" /> Nhận xét & Gợi ý gửi học sinh
                   </label>
@@ -401,7 +561,7 @@ export const TeacherAnalytics: React.FC = () => {
 
           {/* RECOMMENDATIONS */}
           {recommendations && recommendations.recommendedExams.length > 0 && (
-            <div className="bg-white rounded-2xl border shadow-sm p-6">
+            <div className="bg-white rounded-2xl border shadow-sm p-6 no-print">
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-500" /> Bài tập can thiệp đề xuất
               </h2>
@@ -418,9 +578,8 @@ export const TeacherAnalytics: React.FC = () => {
               </div>
             </div>
           )}
-
         </div>
-      )}
+      ))}
     </div>
   );
 };
