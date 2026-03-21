@@ -159,23 +159,29 @@ function calcStreak(attempts: Attempt[]): number {
 function buildChartData(attempts: Attempt[], exams: Exam[], days: number): ScoreDataPoint[] {
   if (attempts.length === 0) return [];
 
-  // Với <= 30 ngày: phân theo tuần; > 30 ngày: phân theo tháng; <= 15 ngày: phân theo ngày
+  // 1. Sắp xếp từ cũ nhất đến mới nhất để biểu đồ tăng dần từ trái sang phải
+  const sortedByDate = [...attempts].sort((a, b) => 
+    new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
+  );
+
   const getBucketKey = (date: Date): string => {
-    if (days <= 15) {
+    // Nếu chọn khoảng thời gian <= 1 tháng (31 ngày), hiển thị chi tiết từng ngày
+    if (days <= 31) {
       return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     }
-    if (days <= 60) {
-      // Tuần trong tháng
+    // Nếu chọn khoảng thời gian <= 3 tháng (90 ngày), hiển thị theo tuần
+    if (days <= 90) {
       const weekNum = Math.ceil(date.getDate() / 7);
       return `T${date.getMonth() + 1} - Tuần ${weekNum}`;
     }
+    // Còn lại hiển thị theo tháng
     return `T${date.getMonth() + 1}/${date.getFullYear().toString().slice(-2)}`;
   };
 
   const buckets: Map<string, number[]> = new Map();
   const bucketOrder: string[] = [];
 
-  attempts.forEach(att => {
+  sortedByDate.forEach(att => {
     const d = new Date(att.submittedAt);
     const key = getBucketKey(d);
     if (!buckets.has(key)) {
