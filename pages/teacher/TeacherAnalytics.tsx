@@ -27,7 +27,9 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const maxVal = 10;
-  const barWidth = Math.max(8, Math.min(40, chartW / data.length - 6));
+  
+  // Điều chỉnh barWidth: Giới hạn tối đa nhỏ hơn (28px) và tăng khoảng cách (gap = 14)
+  const barWidth = Math.max(6, Math.min(28, (chartW / data.length) - 14));
 
   const xPos = (i: number) => padL + (i + 0.5) * (chartW / data.length);
   const yPos = (v: number) => padT + chartH - (v / maxVal) * chartH;
@@ -43,8 +45,12 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
   };
 
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: Math.max(300, data.length * 60) + 'px' }}>
+    <div className="overflow-x-auto custom-scrollbar">
+      <svg 
+        viewBox={`0 0 ${W} ${H}`} 
+        className="w-full" 
+        style={{ minWidth: Math.max(400, data.length * 32) + 'px' }}
+      >
         {[0, 2, 4, 6, 8, 10].map(v => (
           <g key={v}>
             <line x1={padL} y1={yPos(v)} x2={W - padR} y2={yPos(v)} stroke="#f0f0f0" strokeWidth="1" />
