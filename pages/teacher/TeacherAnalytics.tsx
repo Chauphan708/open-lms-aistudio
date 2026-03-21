@@ -28,8 +28,8 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
   const chartH = H - padT - padB;
   const maxVal = 10;
   
-  // Điều chỉnh barWidth: Giới hạn tối đa nhỏ hơn (28px) và tăng khoảng cách (gap = 14)
-  const barWidth = Math.max(6, Math.min(28, (chartW / data.length) - 14));
+  // Cột to hơn: Tăng giới hạn tối đa (40px) và giảm khoảng cách (gap = 8)
+  const barWidth = Math.max(8, Math.min(40, (chartW / data.length) - 8));
 
   const xPos = (i: number) => padL + (i + 0.5) * (chartW / data.length);
   const yPos = (v: number) => padT + chartH - (v / maxVal) * chartH;
@@ -49,7 +49,7 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
       <svg 
         viewBox={`0 0 ${W} ${H}`} 
         className="w-full" 
-        style={{ minWidth: Math.max(400, data.length * 32) + 'px' }}
+        style={{ minWidth: Math.max(500, data.length * 45) + 'px' }}
       >
         {[0, 2, 4, 6, 8, 10].map(v => (
           <g key={v}>

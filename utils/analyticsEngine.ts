@@ -165,16 +165,11 @@ function buildChartData(attempts: Attempt[], exams: Exam[], days: number): Score
   );
 
   const getBucketKey = (date: Date): string => {
-    // Nếu chọn khoảng thời gian <= 1 tháng (31 ngày), hiển thị chi tiết từng ngày
-    if (days <= 31) {
+    // Nếu chọn khoảng thời gian <= 3 tháng (90 ngày), hiển thị chi tiết từng ngày theo yêu cầu
+    if (days <= 90) {
       return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     }
-    // Nếu chọn khoảng thời gian <= 3 tháng (90 ngày), hiển thị theo tuần
-    if (days <= 90) {
-      const weekNum = Math.ceil(date.getDate() / 7);
-      return `T${date.getMonth() + 1} - Tuần ${weekNum}`;
-    }
-    // Còn lại hiển thị theo tháng
+    // Còn lại hiển thị theo tháng (ví dụ cho 6, 9 tháng)
     return `T${date.getMonth() + 1}/${date.getFullYear().toString().slice(-2)}`;
   };
 
