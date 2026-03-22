@@ -101,19 +101,27 @@ export const ClassManage: React.FC = () => {
       ungrouped: [] as User[]
     };
 
+    const map: { [key: string]: (User & { _sort_order?: number })[] } = {};
+    result.groups.forEach(g => (map[g.id] = g.students));
+
     studentsInClass.forEach(s => {
-      const member = groupMembers.find(m => m.student_id === s.id);
-      if (member) {
-        const groupIndex = result.groups.findIndex(g => g.id === member.group_id);
-        if (groupIndex !== -1) {
-          result.groups[groupIndex].students.push(s);
-        } else {
-          result.ungrouped.push(s);
-        }
+      const gMember = groupMembers.find(gm => gm.student_id === s.id);
+      if (gMember && map[gMember.group_id]) {
+        // Gán sort_order vào để sắp xếp
+        map[gMember.group_id].push({ ...s, _sort_order: gMember.sort_order });
       } else {
         result.ungrouped.push(s);
       }
     });
+
+    // Sắp xếp các tổ theo sort_order
+    result.groups.forEach(g => {
+      g.students.sort((a: any, b: any) => (a._sort_order || 0) - (b._sort_order || 0));
+    });
+
+    // Sắp xếp chưa phân tổ theo tên A-Z
+    result.ungrouped.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
     return result;
   }, [studentsInClass, groups, groupMembers]);
 
@@ -128,9 +136,13 @@ export const ClassManage: React.FC = () => {
     const studentId = e.dataTransfer.getData('studentId');
     const fromGroupId = e.dataTransfer.getData('fromGroupId');
 
-    if (!studentId || !fromGroupId || fromGroupId === toGroupId) return;
+    if (!studentId || fromGroupId === toGroupId) return;
 
-    await moveStudentToGroup(fromGroupId, toGroupId, studentId);
+    if (fromGroupId === 'ungrouped') {
+      await addStudentToGroup(toGroupId, studentId);
+    } else {
+      await moveStudentToGroup(fromGroupId, toGroupId, studentId);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -429,9 +441,14 @@ export const ClassManage: React.FC = () => {
                         {groupedStudents.ungrouped.map(s => {
                           const selected = selectedStudentIds.includes(s.id);
                           return (
-                            <div key={s.id} onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
-                              className={`p-3 flex items-center gap-4 cursor-pointer transition-colors ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
-                              {selected ? <CheckSquare className="h-5 w-5 text-indigo-600" /> : <div className="h-5 w-5 border-2 rounded text-transparent" />}
+                            <div 
+                              key={s.id} 
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, s.id, 'ungrouped')}
+                              onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
+                              className={`p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-colors group ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
+                              <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+                              {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <div className="h-5 w-5 border-2 rounded text-transparent flex-shrink-0" />}
                               <div className="flex-1">
                                 <p className={`font-bold text-sm ${selected ? 'text-indigo-900' : 'text-gray-800'}`}>{s.name}</p>
                                 <p className="text-xs text-gray-400 font-mono">{s.email}</p>
