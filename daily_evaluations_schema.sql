@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.daily_evaluations (
     created_at timestamptz default now(),
     updated_at timestamptz default now(),
     -- Mỗi học sinh chỉ có 1 bản đánh giá từ 1 giáo viên trong 1 ngày
-    unique(student_id, teacher_id, evaluation_date)
+    CONSTRAINT daily_evaluations_unique_record UNIQUE(student_id, teacher_id, evaluation_date)
 );
 
 -- Indexes cho hiệu suất truy vấn
@@ -28,18 +28,18 @@ CREATE INDEX IF NOT EXISTS idx_daily_evaluations_date ON public.daily_evaluation
 -- RLS Policies
 ALTER TABLE public.daily_evaluations ENABLE ROW LEVEL SECURITY;
 
--- 1. Read: Chỉ giáo viên được xem đánh giá do mình lập
+-- 1. Read: Chỉ giáo viên được xem đánh giá do mình lập (Ép kiểu UUID sang TEXT)
 DROP POLICY IF EXISTS "Teacher read access" ON public.daily_evaluations;
 CREATE POLICY "Teacher read access" ON public.daily_evaluations 
 FOR SELECT TO authenticated 
-USING (auth.uid() = teacher_id);
+USING (auth.uid()::text = teacher_id);
 
 -- 2. Modify: Chỉ giáo viên được thêm/sửa/xoá đánh giá do mình tạo
 DROP POLICY IF EXISTS "Teacher full access" ON public.daily_evaluations;
 CREATE POLICY "Teacher full access" ON public.daily_evaluations 
 FOR ALL TO authenticated 
-USING (auth.uid() = teacher_id) 
-WITH CHECK (auth.uid() = teacher_id);
+USING (auth.uid()::text = teacher_id) 
+WITH CHECK (auth.uid()::text = teacher_id);
 
 -- Enable Realtime cho bảng mới
 ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_evaluations;

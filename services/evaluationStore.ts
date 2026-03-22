@@ -149,33 +149,33 @@ export const useEvaluationStore = create<EvaluationState>((set, get) => ({
   // --- Lưu 1 đánh giá (upsert) ---
   saveEvaluation: async (evaluation) => {
     try {
-      const id = `eval_${evaluation.student_id}_${evaluation.evaluation_date}`;
       const now = new Date().toISOString();
-
       const payload = {
-        id,
         ...evaluation,
         updated_at: now,
       };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('daily_evaluations')
-        .upsert(payload, { onConflict: 'student_id,teacher_id,evaluation_date' });
+        .upsert(payload, { onConflict: 'student_id,teacher_id,evaluation_date' })
+        .select();
 
-      if (error) {
+      if (error || !data || data.length === 0) {
         console.error('Error saving evaluation:', error);
         return false;
       }
 
+      const savedEval = data[0] as DailyEvaluation;
+
       // Cập nhật local state
       set(s => {
-        const existing = s.evaluations.findIndex(e => e.student_id === evaluation.student_id && e.evaluation_date === evaluation.evaluation_date);
-        if (existing >= 0) {
+        const existingIdx = s.evaluations.findIndex(e => e.student_id === savedEval.student_id && e.evaluation_date === savedEval.evaluation_date);
+        if (existingIdx >= 0) {
           const updated = [...s.evaluations];
-          updated[existing] = { ...payload, created_at: updated[existing].created_at || now } as DailyEvaluation;
+          updated[existingIdx] = savedEval;
           return { evaluations: updated };
         }
-        return { evaluations: [...s.evaluations, { ...payload, created_at: now } as DailyEvaluation] };
+        return { evaluations: [...s.evaluations, savedEval] };
       });
 
       // Lưu comment vào suggestions
@@ -195,7 +195,6 @@ export const useEvaluationStore = create<EvaluationState>((set, get) => ({
     try {
       const now = new Date().toISOString();
       const payloads = studentIds.map(studentId => ({
-        id: `eval_${studentId}_${data.evaluation_date}`,
         student_id: studentId,
         teacher_id: data.teacher_id,
         class_id: data.class_id,
@@ -207,28 +206,30 @@ export const useEvaluationStore = create<EvaluationState>((set, get) => ({
         updated_at: now,
       }));
 
-      const { error } = await supabase
+      const { data: savedData, error } = await supabase
         .from('daily_evaluations')
-        .upsert(payloads, { onConflict: 'student_id,teacher_id,evaluation_date' });
+        .upsert(payloads, { onConflict: 'student_id,teacher_id,evaluation_date' })
+        .select();
 
-      if (error) {
+      if (error || !savedData) {
         console.error('Error batch saving evaluations:', error);
         return false;
       }
 
+      const savedEvals = savedData as DailyEvaluation[];
+
       // Cập nhật local state
       set(s => {
-        const newEvals = [...s.evaluations];
-        payloads.forEach(payload => {
-          const idx = newEvals.findIndex(e => e.student_id === payload.student_id && e.evaluation_date === payload.evaluation_date);
-          const fullPayload = { ...payload, created_at: (idx >= 0 ? newEvals[idx].created_at : now) } as DailyEvaluation;
+        const newEvalsArr = [...s.evaluations];
+        savedEvals.forEach(savedItem => {
+          const idx = newEvalsArr.findIndex(e => e.student_id === savedItem.student_id && e.evaluation_date === savedItem.evaluation_date);
           if (idx >= 0) {
-            newEvals[idx] = fullPayload;
+            newEvalsArr[idx] = savedItem;
           } else {
-            newEvals.push(fullPayload);
+            newEvalsArr.push(savedItem);
           }
         });
-        return { evaluations: newEvals };
+        return { evaluations: newEvalsArr };
       });
 
       if (data.general_comment?.trim()) {
