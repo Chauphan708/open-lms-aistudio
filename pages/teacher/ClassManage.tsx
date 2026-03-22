@@ -56,7 +56,7 @@ export const ClassManage: React.FC = () => {
     }
   };
 
-  const { groups, groupMembers, fetchClassFunData, updateStudentOrder, moveStudentToGroup } = useClassFunStore();
+  const { groups, groupMembers, fetchClassFunData, updateStudentOrder, moveStudentToGroup, addStudentToGroup } = useClassFunStore();
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [showDuckRace, setShowDuckRace] = useState(false);
   const [duckRacePool, setDuckRacePool] = useState<User[]>([]);
