@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FilePlus,
+  FileText,
   BookOpen,
   LogOut,
   GraduationCap,
@@ -141,6 +142,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       items: [
         { label: 'Lớp học của tôi', path: '/teacher/classes', icon: School, roles: ['TEACHER'] },
         { label: 'Quản lý Học sinh', path: '/manage/students', icon: GraduationCap, roles: ['ADMIN', 'TEACHER'] },
+        { label: 'Nhận xét Thường xuyên', path: '/teacher/daily-evaluation', icon: FileText, roles: ['TEACHER'] },
+        { label: 'Lịch sử Nhận xét', path: '/teacher/evaluation-history', icon: History, roles: ['TEACHER'] },
         { label: 'Thi đua Lớp', path: '/teacher/class-fun', icon: Trophy, roles: ['TEACHER'] },
         { label: 'Điểm danh', path: '/teacher/class-fun/attendance', icon: Users, roles: ['TEACHER'] },
         { label: 'Ghi nhận', path: '/teacher/class-fun/record', icon: CheckCircle, roles: ['TEACHER'] },

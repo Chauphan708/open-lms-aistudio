@@ -15,6 +15,8 @@ import { ClassFunDashboard } from './pages/teacher/ClassFunDashboard';
 import { ClassFunRecord } from './pages/teacher/ClassFunRecord';
 import { ClassFunAttendance } from './pages/teacher/ClassFunAttendance';
 import { ClassFunWarning } from './pages/teacher/ClassFunWarning';
+import { DailyEvaluation } from './pages/teacher/DailyEvaluation';
+import { EvaluationHistory } from './pages/teacher/EvaluationHistory';
 import { AIGrading } from './pages/teacher/AIGrading';
 import { LiveRoom } from './pages/teacher/LiveRoom';
 import { LiveJoin } from './pages/student/LiveJoin';
@@ -246,6 +248,17 @@ function App() {
         } />
 
         {/* TEACHER ROUTES */}
+        <Route path="/teacher/daily-evaluation" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <DailyEvaluation />
+          </ProtectedRoute>
+        } />
+        <Route path="/teacher/evaluation-history" element={
+          <ProtectedRoute roles={['TEACHER']}>
+            <EvaluationHistory />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/create-exam" element={
           <ProtectedRoute roles={['TEACHER']}>
             <ExamCreate />

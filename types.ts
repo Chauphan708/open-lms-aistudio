@@ -554,3 +554,28 @@ export interface AIGradingReview {
     is_published_to_student: boolean;   // HS da duoc phep xem chua
     updated_at: string;                 // Thoi gian danh gia
 }
+
+// ============================================
+// NHẬN XÉT THƯỜNG XUYÊN (TT27/2021)
+// ============================================
+
+export type EvaluationRating = 'T' | 'H' | 'Đ' | 'C'; // Tốt, Hoàn thành tốt, Đạt, Chưa hoàn thành
+
+export interface SubjectEvaluation {
+  rating: EvaluationRating;
+  comment: string;
+}
+
+export interface DailyEvaluation {
+  id: string;
+  student_id: string;
+  teacher_id: string;
+  class_id: string;
+  evaluation_date: string; // YYYY-MM-DD
+  subjects: Record<string, SubjectEvaluation>;
+  competencies: Record<string, SubjectEvaluation>;
+  qualities: Record<string, SubjectEvaluation>;
+  general_comment: string;
+  created_at: string;
+  updated_at: string;
+}
