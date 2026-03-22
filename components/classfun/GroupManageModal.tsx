@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../../store';
 import { useClassFunStore, ClassGroup } from '../../services/classFunStore';
 import {
-    Users, Plus, Trash2, Edit2, Save, X, GripVertical, UserPlus, UserMinus, Palette
+    Users, Plus, Trash2, Edit2, Save, X, GripVertical, UserPlus, UserMinus, Palette,
+    ArrowDownAZ, SortAsc, MoveVertical
 } from 'lucide-react';
 
 const GROUP_COLORS = [
@@ -20,7 +21,8 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({ classId, onC
     const { user, classes, users } = useStore();
     const {
         groups, groupMembers, isLoading, fetchClassFunData,
-        addGroup, updateGroup, deleteGroup, addStudentToGroup, removeStudentFromGroup
+        addGroup, updateGroup, deleteGroup, addStudentToGroup, removeStudentFromGroup,
+        updateStudentOrder, moveStudentToGroup
     } = useClassFunStore();
 
     const [showAddForm, setShowAddForm] = useState(false);
@@ -34,13 +36,18 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({ classId, onC
     const selectedClass = classes.find(c => c.id === classId);
     const classStudents = useMemo(() => {
         if (!selectedClass) return [];
-        return users.filter(u => selectedClass.studentIds.includes(u.id)).sort((a, b) => a.name.localeCompare(b.name));
+        return users.filter(u => selectedClass.studentIds.includes(u.id));
     }, [selectedClass, users]);
 
     // Members per group
     const getMembersOfGroup = (groupId: string) => {
-        const memberIds = groupMembers.filter(m => m.group_id === groupId).map(m => m.student_id);
-        return classStudents.filter(s => memberIds.includes(s.id));
+        const members = groupMembers.filter(m => m.group_id === groupId)
+            .sort((a, b) => a.sort_order - b.sort_order);
+        
+        return members.map(m => {
+            const student = classStudents.find(s => s.id === m.student_id);
+            return student ? { ...student, sort_order: m.sort_order } : null;
+        }).filter(Boolean) as (any)[];
     };
 
     // Unassigned students
@@ -81,6 +88,56 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({ classId, onC
             const group = groups[i % groups.length];
             await addStudentToGroup(group.id, shuffled[i].id);
         }
+    };
+
+    // --- Drag and Drop Logic ---
+    const handleDragStart = (e: React.DragEvent, studentId: string, fromGroupId: string) => {
+        e.dataTransfer.setData('studentId', studentId);
+        e.dataTransfer.setData('fromGroupId', fromGroupId);
+    };
+
+    const handleDrop = async (e: React.DragEvent, toGroupId: string) => {
+        e.preventDefault();
+        const studentId = e.dataTransfer.getData('studentId');
+        const fromGroupId = e.dataTransfer.getData('fromGroupId');
+
+        if (!studentId || fromGroupId === toGroupId) return;
+
+        await moveStudentToGroup(fromGroupId, toGroupId, studentId);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    // --- Sorting Logic ---
+    const sortGroupByName = async (groupId: string, type: 'first' | 'last') => {
+        const members = getMembersOfGroup(groupId);
+        if (members.length <= 1) return;
+
+        const sorted = [...members].sort((a, b) => {
+            const nameA = a.name.trim().split(' ');
+            const nameB = b.name.trim().split(' ');
+            
+            if (type === 'first') {
+                // Vietnamese "Tên" is the last word
+                const firstA = nameA[nameA.length - 1];
+                const firstB = nameB[nameB.length - 1];
+                return firstA.localeCompare(firstB, 'vi');
+            } else {
+                // Vietnamese "Họ" is the first word
+                const lastA = nameA[0];
+                const lastB = nameB[0];
+                return lastA.localeCompare(lastB, 'vi');
+            }
+        });
+
+        const newOrders = sorted.map((s, idx) => ({
+            student_id: s.id,
+            sort_order: idx
+        }));
+
+        await updateStudentOrder(groupId, newOrders);
     };
 
     return (
@@ -185,10 +242,18 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({ classId, onC
                                                             <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full">{members.length} HS</span>
                                                         </h3>
                                                         <div className="flex gap-1">
+                                                            <button onClick={() => sortGroupByName(g.id, 'first')}
+                                                                className="p-1.5 bg-white/20 rounded-md hover:bg-white/30 transition" title="Sắp xếp theo Tên (A-Z)">
+                                                                <ArrowDownAZ className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button onClick={() => sortGroupByName(g.id, 'last')}
+                                                                className="p-1.5 bg-white/20 rounded-md hover:bg-white/30 transition" title="Sắp xếp theo Họ (A-Z)">
+                                                                <SortAsc className="h-3.5 w-3.5" />
+                                                            </button>
                                                             <button onClick={() => { setEditingGroupId(g.id); setEditName(g.name); }}
-                                                                className="p-1.5 bg-white/20 rounded-md hover:bg-white/30 transition"><Edit2 className="h-3 w-3" /></button>
+                                                                className="p-1.5 bg-white/20 rounded-md hover:bg-white/30 transition"><Edit2 className="h-3.5 w-3.5" /></button>
                                                             <button onClick={() => handleDeleteGroup(g.id)}
-                                                                className="p-1.5 bg-white/20 rounded-md hover:bg-white/30 transition"><Trash2 className="h-3 w-3" /></button>
+                                                                className="p-1.5 bg-white/20 rounded-md hover:bg-white/30 transition"><Trash2 className="h-3.5 w-3.5" /></button>
                                                         </div>
                                                     </>
                                                 )}
@@ -196,7 +261,11 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({ classId, onC
                                         </div>
 
                                         {/* Group members list */}
-                                        <div className="flex-1 overflow-y-auto p-2 bg-gray-50">
+                                        <div 
+                                            className="flex-1 overflow-y-auto p-2 bg-gray-50 border-t border-white/20"
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, g.id)}
+                                        >
                                             {isAssigning ? (
                                                 <div className="space-y-1">
                                                     <div className="flex justify-between items-center mb-2 px-1">
@@ -222,14 +291,21 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({ classId, onC
                                                             <p className="text-sm">Trống</p>
                                                         </div>
                                                     ) : (
-                                                        members.map(s => (
-                                                            <div key={s.id} className="group flex justify-between items-center p-2 text-sm bg-white rounded border border-transparent hover:border-gray-200 hover:shadow-sm transition-all">
+                                                        members.map((s, idx) => (
+                                                            <div 
+                                                                key={s.id} 
+                                                                draggable
+                                                                onDragStart={(e) => handleDragStart(e, s.id, g.id)}
+                                                                className="group flex justify-between items-center p-2 text-sm bg-white rounded border border-transparent hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing"
+                                                            >
                                                                 <div className="flex items-center gap-2 overflow-hidden">
-                                                                    <GripVertical className="h-3 w-3 text-gray-300 opacity-0 group-hover:opacity-100" />
+                                                                    <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 group-hover:opacity-100" />
                                                                     <span className="truncate font-medium text-gray-700">{s.name}</span>
                                                                 </div>
-                                                                <button onClick={() => removeStudentFromGroup(g.id, s.id)}
-                                                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3" /></button>
+                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button onClick={() => removeStudentFromGroup(g.id, s.id)}
+                                                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="Xóa khỏi tổ"><X className="h-3.5 w-3.5" /></button>
+                                                                </div>
                                                             </div>
                                                         ))
                                                     )}

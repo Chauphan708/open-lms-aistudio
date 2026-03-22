@@ -43,6 +43,7 @@ export interface AttendanceRecord {
 export interface GroupMember {
   group_id: string;
   student_id: string;
+  sort_order: number;
 }
 
 import { ClassSeatingChart } from '../types';
@@ -93,6 +94,8 @@ interface ClassFunState {
   fetchPointThresholds: (teacherId: string) => Promise<void>;
   savePointThresholds: (teacherId: string, thresholds: { percentage: number, points: number }[]) => Promise<void>;
   updateBehaviorLog: (id: string, data: Partial<BehaviorLog>) => Promise<void>;
+  updateStudentOrder: (groupId: string, orders: { student_id: string; sort_order: number }[]) => Promise<void>;
+  moveStudentToGroup: (fromGroupId: string, toGroupId: string, studentId: string, newPosition?: number) => Promise<void>;
 }
 
 export const useClassFunStore = create<ClassFunState>((set, get) => ({
@@ -138,7 +141,8 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
         const { data: members } = await supabase
           .from('class_group_members')
           .select('*')
-          .in('group_id', groupIds);
+          .in('group_id', groupIds)
+          .order('sort_order', { ascending: true });
         groupMembers = (members || []) as GroupMember[];
       }
 
@@ -178,8 +182,20 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
   },
 
   addStudentToGroup: async (groupId, studentId) => {
-    const { error } = await supabase.from('class_group_members').insert({ group_id: groupId, student_id: studentId });
-    if (!error) set(s => ({ groupMembers: [...s.groupMembers, { group_id: groupId, student_id: studentId }] }));
+    // Get current max sort_order
+    const currentMembers = get().groupMembers.filter(m => m.group_id === groupId);
+    const maxSort = currentMembers.length > 0 ? Math.max(...currentMembers.map(m => m.sort_order)) : -1;
+    const newSortOrder = maxSort + 1;
+
+    const { error } = await supabase.from('class_group_members').insert({ 
+      group_id: groupId, 
+      student_id: studentId,
+      sort_order: newSortOrder
+    });
+    
+    if (!error) set(s => ({ 
+      groupMembers: [...s.groupMembers, { group_id: groupId, student_id: studentId, sort_order: newSortOrder }] 
+    }));
   },
 
   removeStudentFromGroup: async (groupId, studentId) => {
@@ -454,5 +470,51 @@ export const useClassFunStore = create<ClassFunState>((set, get) => ({
         logs: s.logs.map(l => l.id === id ? { ...l, ...data } : l)
       }));
     }
+  },
+
+  updateStudentOrder: async (groupId, orders) => {
+    // Optimistic update
+    const currentMembers = get().groupMembers;
+    const updatedMembers = currentMembers.map(m => {
+      if (m.group_id === groupId) {
+        const orderInfo = orders.find(o => o.student_id === m.student_id);
+        if (orderInfo) return { ...m, sort_order: orderInfo.sort_order };
+      }
+      return m;
+    });
+    set({ groupMembers: updatedMembers });
+
+    // Update DB
+    for (const order of orders) {
+      await supabase.from('class_group_members')
+        .update({ sort_order: order.sort_order })
+        .eq('group_id', groupId)
+        .eq('student_id', order.student_id);
+    }
+  },
+
+  moveStudentToGroup: async (fromGroupId, toGroupId, studentId, newPosition) => {
+    // 1. Remove from old group
+    await supabase.from('class_group_members').delete()
+      .eq('group_id', fromGroupId).eq('student_id', studentId);
+    
+    // 2. Add to new group with specified or default position
+    const membersInToGroup = get().groupMembers.filter(m => m.group_id === toGroupId);
+    const maxSort = membersInToGroup.length > 0 ? Math.max(...membersInToGroup.map(m => m.sort_order)) : -1;
+    const finalOrder = newPosition !== undefined ? newPosition : maxSort + 1;
+
+    await supabase.from('class_group_members').insert({
+      group_id: toGroupId,
+      student_id: studentId,
+      sort_order: finalOrder
+    });
+
+    // Update local state
+    set(s => ({
+      groupMembers: [
+        ...s.groupMembers.filter(m => !(m.group_id === fromGroupId && m.student_id === studentId)),
+        { group_id: toGroupId, student_id: studentId, sort_order: finalOrder }
+      ]
+    }));
   }
 }));

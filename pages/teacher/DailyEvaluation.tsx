@@ -452,9 +452,21 @@ export const DailyEvaluation: React.FC = () => {
     classStudents.forEach(s => {
       const gMember = groupMembers.find(gm => gm.student_id === s.id);
       if (gMember && map[gMember.group_id]) {
+        // Gắn sort_order vào object student tạm thời để sắp xếp
+        (s as any)._sort_order = gMember.sort_order;
         map[gMember.group_id].push(s);
       } else {
         map[UNGROUPED].push(s);
+      }
+    });
+
+    // Sắp xếp từng group theo sort_order
+    Object.keys(map).forEach(gid => {
+      if (gid !== UNGROUPED) {
+        map[gid].sort((a, b) => (a as any)._sort_order - (b as any)._sort_order);
+      } else {
+        // Ungrouped vẫn sắp xếp A-Z
+        map[gid].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
       }
     });
 
