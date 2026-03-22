@@ -639,7 +639,7 @@ export const DailyEvaluation: React.FC = () => {
             );
 
             return (
-              <div key={group.id} className="bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col h-[500px] hover:border-indigo-300 transition-colors">
+              <div key={group.id} className="bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col max-h-[600px] hover:border-indigo-300 transition-colors">
                 <div className="bg-gray-50 px-4 py-2.5 border-b flex items-center justify-between">
                   <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color || '#6366f1' }} />
@@ -668,7 +668,7 @@ export const DailyEvaluation: React.FC = () => {
                               )}
                             </button>
                             <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-bold text-gray-900 truncate" title={student.name}>{student.name}</p>
+                              <p className="text-sm font-bold text-gray-900 truncate" title={student.name}>{student.name}</p>
                               {hasEval && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   <RatingBadge rating={evaluationMap[student.id].subjects.toan?.rating} isSubject />
@@ -700,7 +700,7 @@ export const DailyEvaluation: React.FC = () => {
 
           {/* Cột cho HS chưa phân tổ (nếu có) */}
           {studentsByGroup['ungrouped']?.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-dashed overflow-hidden flex flex-col h-[500px] hover:border-gray-400 transition-colors">
+            <div className="bg-white rounded-2xl shadow-sm border border-dashed overflow-hidden flex flex-col max-h-[600px] hover:border-gray-400 transition-colors">
                <div className="bg-gray-50 px-4 py-2.5 border-b">
                   <span className="text-[10px] font-extrabold text-gray-500 uppercase">Chưa phân tổ</span>
                </div>
@@ -714,7 +714,7 @@ export const DailyEvaluation: React.FC = () => {
                         <button onClick={() => toggleStudent(student.id)}>
                           {isChecked ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-300" />}
                         </button>
-                        <p className="text-[11px] font-bold text-gray-800 truncate flex-1">{student.name}</p>
+                        <p className="text-sm font-bold text-gray-800 truncate flex-1">{student.name}</p>
                       </div>
                       <button onClick={() => openSingleModal(student.id)} className="w-full py-1 text-[10px] font-bold text-indigo-500 bg-gray-50 rounded-lg">
                         {hasEval ? 'Sửa' : '+ Nhận xét'}
