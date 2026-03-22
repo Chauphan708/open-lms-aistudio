@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store';
 import { useClassFunStore } from '../../services/classFunStore';
 import { Class, User } from '../../types';
-import { School, Plus, Users, ChevronDown, UserPlus, Dices, CheckSquare, Square, Zap, LayoutGrid } from 'lucide-react';
+import { School, Plus, Users, ChevronDown, UserPlus, Dices, CheckSquare, Square, Zap, LayoutGrid, ArrowDownAZ, SortAsc, GripVertical } from 'lucide-react';
 import { DuckRace } from '../../components/classfun/DuckRace';
 import { RandomRoulette } from '../../components/classfun/RandomRoulette';
 import { GroupManageModal } from '../../components/classfun/GroupManageModal';
@@ -56,7 +56,7 @@ export const ClassManage: React.FC = () => {
     }
   };
 
-  const { groups, groupMembers, fetchClassFunData } = useClassFunStore();
+  const { groups, groupMembers, fetchClassFunData, updateStudentOrder, moveStudentToGroup } = useClassFunStore();
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [showDuckRace, setShowDuckRace] = useState(false);
   const [duckRacePool, setDuckRacePool] = useState<User[]>([]);
@@ -114,9 +114,56 @@ export const ClassManage: React.FC = () => {
         result.ungrouped.push(s);
       }
     });
-
     return result;
   }, [studentsInClass, groups, groupMembers]);
+
+  // --- Drag and Drop Logic ---
+  const handleDragStart = (e: React.DragEvent, studentId: string, fromGroupId: string) => {
+    e.dataTransfer.setData('studentId', studentId);
+    e.dataTransfer.setData('fromGroupId', fromGroupId);
+  };
+
+  const handleDrop = async (e: React.DragEvent, toGroupId: string) => {
+    e.preventDefault();
+    const studentId = e.dataTransfer.getData('studentId');
+    const fromGroupId = e.dataTransfer.getData('fromGroupId');
+
+    if (!studentId || !fromGroupId || fromGroupId === toGroupId) return;
+
+    await moveStudentToGroup(fromGroupId, toGroupId, studentId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  // --- Sorting Logic ---
+  const sortGroupByName = async (groupId: string, type: 'first' | 'last') => {
+    const group = groupedStudents.groups.find(g => g.id === groupId);
+    if (!group || group.students.length <= 1) return;
+
+    const sorted = [...group.students].sort((a, b) => {
+      const nameA = a.name.trim().split(' ');
+      const nameB = b.name.trim().split(' ');
+      
+      if (type === 'first') {
+        const firstA = nameA[nameA.length - 1];
+        const firstB = nameB[nameB.length - 1];
+        return firstA.localeCompare(firstB, 'vi');
+      } else {
+        const lastA = nameA[0];
+        const lastB = nameB[0];
+        return lastA.localeCompare(lastB, 'vi');
+      }
+    });
+
+    const newOrders = sorted.map((s, idx) => ({
+      student_id: s.id,
+      sort_order: idx
+    }));
+
+    await updateStudentOrder(groupId, newOrders);
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-100px)]">
@@ -325,26 +372,45 @@ export const ClassManage: React.FC = () => {
               ) : (
                 <div className="space-y-6">
                   {groupedStudents.groups.map(g => g.students.length > 0 && (
-                    <div key={g.id} className="bg-white border rounded-xl overflow-hidden shadow-sm">
+                    <div 
+                      key={g.id} 
+                      className="bg-white border rounded-xl overflow-hidden shadow-sm hover:border-indigo-200 transition-colors"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, g.id)}
+                    >
                       <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color || '#6366f1' }}></div>
                           <h3 className="font-bold text-gray-800">{g.name} <span className="text-gray-500 font-normal">({g.students.length})</span></h3>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-gray-400 font-medium">Chọn để cập nhật</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); sortGroupByName(g.id, 'first'); }} 
+                            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition-colors" title="Sắp xếp theo Tên (A-Z)">
+                            <ArrowDownAZ className="h-4 w-4" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); sortGroupByName(g.id, 'last'); }}
+                            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition-colors" title="Sắp xếp theo Họ (A-Z)">
+                            <SortAsc className="h-4 w-4" />
+                          </button>
+                          <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                          <span className="text-[10px] text-gray-400 font-medium hidden sm:inline uppercase tracking-tight">Kéo thả để di chuyển</span>
                         </div>
                       </div>
                       <div className="divide-y divide-gray-100">
                         {g.students.map(s => {
                           const selected = selectedStudentIds.includes(s.id);
                           return (
-                            <div key={s.id} onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
-                              className={`p-3 flex items-center gap-4 cursor-pointer transition-colors ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
-                              {selected ? <CheckSquare className="h-5 w-5 text-indigo-600" /> : <div className="h-5 w-5 border-2 rounded text-transparent" />}
-                              <div className="flex-1">
-                                <p className={`font-semibold ${selected ? 'text-indigo-900' : 'text-gray-800'}`}>{s.name}</p>
-                                <p className="text-xs text-gray-400">{s.email}</p>
+                            <div 
+                              key={s.id} 
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, s.id, g.id)}
+                              onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
+                              className={`p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-colors group ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
+                              <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+                              {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <div className="h-5 w-5 border-2 rounded text-transparent flex-shrink-0" />}
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-bold text-sm truncate ${selected ? 'text-indigo-900' : 'text-gray-900'}`}>{s.name}</p>
+                                <p className="text-xs text-gray-500 truncate font-mono">{s.email}</p>
                               </div>
                             </div>
                           );
@@ -367,8 +433,8 @@ export const ClassManage: React.FC = () => {
                               className={`p-3 flex items-center gap-4 cursor-pointer transition-colors ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
                               {selected ? <CheckSquare className="h-5 w-5 text-indigo-600" /> : <div className="h-5 w-5 border-2 rounded text-transparent" />}
                               <div className="flex-1">
-                                <p className={`font-semibold ${selected ? 'text-indigo-900' : 'text-gray-800'}`}>{s.name}</p>
-                                <p className="text-xs text-gray-400">{s.email}</p>
+                                <p className={`font-bold text-sm ${selected ? 'text-indigo-900' : 'text-gray-800'}`}>{s.name}</p>
+                                <p className="text-xs text-gray-400 font-mono">{s.email}</p>
                               </div>
                             </div>
                           );
