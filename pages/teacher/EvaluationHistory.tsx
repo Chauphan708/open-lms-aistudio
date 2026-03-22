@@ -5,7 +5,8 @@ import {
   SUBJECT_LIST,
   COMPETENCY_LIST,
   QUALITY_LIST,
-  RATING_OPTIONS,
+  SUBJECT_RATING_OPTIONS,
+  COMPETENCY_RATING_OPTIONS,
 } from '../../services/evaluationStore';
 import { DailyEvaluation, EvaluationRating } from '../../types';
 import {
@@ -120,17 +121,21 @@ const PieChart: React.FC<{
 // ============================================
 // Rating Badge
 // ============================================
-const RatingBadge: React.FC<{ rating: string }> = ({ rating }) => {
+const RatingBadge: React.FC<{ rating: string; isSubject?: boolean }> = ({ rating, isSubject }) => {
+  if (rating === 'None' || !rating) return null;
+  const options = isSubject ? SUBJECT_RATING_OPTIONS : COMPETENCY_RATING_OPTIONS;
+  const opt = options.find(o => o.value === rating);
+  if (!opt) return null;
+
   const bgMap: Record<string, string> = {
     T: 'bg-green-100 text-green-700 border-green-200',
     H: 'bg-blue-100 text-blue-700 border-blue-200',
     'Đ': 'bg-amber-100 text-amber-700 border-amber-200',
     C: 'bg-red-100 text-red-700 border-red-200',
   };
-  const opt = RATING_OPTIONS.find(o => o.value === rating);
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${bgMap[rating] || 'bg-gray-100 text-gray-600'}`}>
-      {opt?.label || rating}
+      {opt.value}
     </span>
   );
 };
@@ -192,7 +197,7 @@ const StudentDetailModal: React.FC<{
                         return (
                           <div key={s.key} className="flex items-center gap-1" title={val.comment || ''}>
                             <span className="text-[10px] text-gray-500">{s.label}:</span>
-                            <RatingBadge rating={val.rating} />
+                            <RatingBadge rating={val.rating} isSubject />
                           </div>
                         );
                       })}
@@ -320,7 +325,7 @@ export const EvaluationHistory: React.FC = () => {
 
   // Thống kê pie chart (dựa trên tổng hợp tất cả đánh giá)
   const pieData = useMemo(() => {
-    const counts: Record<string, number> = { T: 0, H: 0, 'Đ': 0, C: 0 };
+    const counts: Record<string, number> = { T: 0, H: 0, 'Đ': 0, C: 0, 'None': 0 };
 
     const getItems = (category: string, ev: DailyEvaluation) => {
       if (category === 'subjects' || category === 'all') {
@@ -336,11 +341,20 @@ export const EvaluationHistory: React.FC = () => {
 
     evaluations.forEach(ev => getItems(filterCategory, ev));
 
-    return RATING_OPTIONS.map(opt => ({
-      label: opt.label,
-      value: counts[opt.value] || 0,
-      color: opt.color,
-    }));
+    // Gom tất cả các options để lấy label/color
+    const allOptions = [...SUBJECT_RATING_OPTIONS, ...COMPETENCY_RATING_OPTIONS];
+    const uniqueOptions: Record<string, { value: string; label: string; color: string }> = {};
+    allOptions.forEach(o => { 
+      if (!uniqueOptions[o.value]) uniqueOptions[o.value] = o; 
+    });
+
+    return Object.entries(uniqueOptions)
+      .filter(([val]) => val !== 'None') // Không hiển thị "None" trên biểu đồ tròn để tập trung vào kết quả
+      .map(([val, opt]) => ({
+        label: opt.label,
+        value: counts[val] || 0,
+        color: opt.color,
+      }));
   }, [evaluations, filterCategory]);
 
   // Filtered students
@@ -454,18 +468,39 @@ export const EvaluationHistory: React.FC = () => {
 
           {/* Summary Cards */}
           <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {RATING_OPTIONS.map(opt => {
-              const count = pieData.find(p => p.label === opt.label)?.value || 0;
-              const total = pieData.reduce((s, p) => s + p.value, 0);
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            {[
+              { value: 'T', label: 'Tốt / HT Tốt', color: '#22c55e' },
+              { value: 'H', label: 'Hoàn thành', color: '#3b82f6' },
+              { value: 'Đ', label: 'Đạt', color: '#f59e0b' },
+              { value: 'C', label: 'Chưa đạt / CHT', color: '#ef4444' }
+            ].map(opt => {
+              const count = pieData.find(p => p.label.includes(opt.value))?.value || 0; // Find by key approximation
+              // Actually better to count by key again for clarity here
+              const keyCount = evaluations.reduce((sum, ev) => {
+                let current = 0;
+                if (filterCategory === 'subjects' || filterCategory === 'all') {
+                   current += Object.values(ev.subjects || {}).filter(v => v.rating === opt.value).length;
+                }
+                if (filterCategory === 'competencies' || filterCategory === 'all') {
+                   current += Object.values(ev.competencies || {}).filter(v => v.rating === opt.value).length;
+                }
+                if (filterCategory === 'qualities' || filterCategory === 'all') {
+                   current += Object.values(ev.qualities || {}).filter(v => v.rating === opt.value).length;
+                }
+                return sum + current;
+              }, 0);
+
+              const totalCount = pieData.reduce((s, p) => s + p.value, 0);
+              const pct = totalCount > 0 ? Math.round((keyCount / totalCount) * 100) : 0;
+              
               return (
                 <div key={opt.value} className="bg-white rounded-2xl shadow-sm border p-4 text-center">
                   <div className="w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: opt.color }}>
                     {opt.value}
                   </div>
-                  <p className="text-xs text-gray-500 font-medium">{opt.label}</p>
-                  <p className="text-2xl font-extrabold text-gray-800 mt-1">{count}</p>
-                  <p className="text-xs text-gray-400">{pct}%</p>
+                  <p className="text-[10px] text-gray-500 font-medium">{opt.label}</p>
+                  <p className="text-xl font-extrabold text-gray-800 mt-1">{keyCount}</p>
+                  <p className="text-[10px] text-gray-400">{pct}%</p>
                 </div>
               );
             })}
@@ -538,7 +573,7 @@ export const EvaluationHistory: React.FC = () => {
                     {latest ? (
                       <div className="flex flex-wrap gap-1 justify-center max-w-[200px]">
                         {Object.values(latest.subjects || {}).slice(0, 3).map((v, i) => (
-                          <RatingBadge key={i} rating={v.rating} />
+                          <RatingBadge key={i} rating={v.rating} isSubject />
                         ))}
                         {Object.keys(latest.subjects || {}).length > 3 && (
                           <span className="text-[10px] text-gray-400 font-medium">+{Object.keys(latest.subjects || {}).length - 3}</span>

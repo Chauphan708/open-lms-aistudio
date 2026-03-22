@@ -5,9 +5,11 @@ import {
   SUBJECT_LIST,
   COMPETENCY_LIST,
   QUALITY_LIST,
-  RATING_OPTIONS,
+  SUBJECT_RATING_OPTIONS,
+  COMPETENCY_RATING_OPTIONS,
   createEmptyEvaluation,
 } from '../../services/evaluationStore';
+import { useClassFunStore } from '../../services/classFunStore';
 import { SubjectEvaluation, type DailyEvaluation as DailyEvaluationType } from '../../types';
 import {
   FileText,
@@ -122,14 +124,15 @@ const CommentInput: React.FC<{
 const RatingSelect: React.FC<{
   value: string;
   onChange: (val: string) => void;
-}> = ({ value, onChange }) => {
+  options: { value: string; label: string; color: string }[];
+}> = ({ value, onChange, options }) => {
   return (
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-white font-medium min-w-[140px]"
+      className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-400 outline-none bg-white font-medium min-w-[120px]"
     >
-      {RATING_OPTIONS.map(opt => (
+      {options.map(opt => (
         <option key={opt.value} value={opt.value}>
           {opt.label}
         </option>
@@ -141,9 +144,12 @@ const RatingSelect: React.FC<{
 // ============================================
 // Rating Badge
 // ============================================
-const RatingBadge: React.FC<{ rating: string }> = ({ rating }) => {
-  const opt = RATING_OPTIONS.find(o => o.value === rating);
+const RatingBadge: React.FC<{ rating: string; isSubject?: boolean }> = ({ rating, isSubject }) => {
+  if (rating === 'None') return null;
+  const options = isSubject ? SUBJECT_RATING_OPTIONS : COMPETENCY_RATING_OPTIONS;
+  const opt = options.find(o => o.value === rating);
   if (!opt) return null;
+
   const bgMap: Record<string, string> = {
     T: 'bg-green-100 text-green-700 border-green-200',
     H: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -151,8 +157,8 @@ const RatingBadge: React.FC<{ rating: string }> = ({ rating }) => {
     C: 'bg-red-100 text-red-700 border-red-200',
   };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border ${bgMap[rating] || 'bg-gray-100 text-gray-600'}`}>
-      {opt.label}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${bgMap[rating] || 'bg-gray-100 text-gray-600'}`}>
+      {opt.value}
     </span>
   );
 };
@@ -321,8 +327,9 @@ const EvaluationModal: React.FC<{
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <label className="text-sm font-bold text-gray-800 min-w-[160px]">{item.label}</label>
                 <RatingSelect
-                  value={items.data[item.key]?.rating || 'Đ'}
+                  value={items.data[item.key]?.rating || 'None'}
                   onChange={val => updateItem(items.group, item.key, 'rating', val)}
+                  options={items.group === 'subjects' ? SUBJECT_RATING_OPTIONS : COMPETENCY_RATING_OPTIONS}
                 />
               </div>
               <CommentInput
@@ -386,6 +393,7 @@ const EvaluationModal: React.FC<{
 export const DailyEvaluation: React.FC = () => {
   const { user, classes, users } = useStore();
   const { evaluations, isLoading, fetchEvaluations, loadCommentSuggestions } = useEvaluationStore();
+  const { groups, groupMembers, fetchClassFunData } = useClassFunStore();
 
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -412,10 +420,11 @@ export const DailyEvaluation: React.FC = () => {
 
   // Load evaluations khi chọn lớp/ngày
   useEffect(() => {
-    if (selectedClassId && selectedDate) {
+    if (selectedClassId && selectedDate && user) {
       fetchEvaluations(selectedClassId, selectedDate);
+      fetchClassFunData(selectedClassId, user.id);
     }
-  }, [selectedClassId, selectedDate, fetchEvaluations]);
+  }, [selectedClassId, selectedDate, fetchEvaluations, fetchClassFunData, user]);
 
   // Load comment suggestions
   useEffect(() => {
@@ -430,6 +439,27 @@ export const DailyEvaluation: React.FC = () => {
       .filter(u => u.role === 'STUDENT' && selectedClass.studentIds.includes(u.id))
       .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }, [selectedClass, users]);
+
+  // Phân bổ HS theo Tổ
+  const studentsByGroup = useMemo(() => {
+    const map: Record<string, typeof classStudents> = {};
+    
+    // Khởi tạo các tổ hiện có
+    groups.forEach(g => { map[g.id] = []; });
+    const UNGROUPED = 'ungrouped';
+    map[UNGROUPED] = [];
+
+    classStudents.forEach(s => {
+      const gMember = groupMembers.find(gm => gm.student_id === s.id);
+      if (gMember && map[gMember.group_id]) {
+        map[gMember.group_id].push(s);
+      } else {
+        map[UNGROUPED].push(s);
+      }
+    });
+
+    return map;
+  }, [classStudents, groups, groupMembers]);
 
   // Lọc theo tìm kiếm
   const filteredStudents = useMemo(() => {
@@ -593,89 +623,108 @@ export const DailyEvaluation: React.FC = () => {
           <Loader2 className="h-8 w-8 text-indigo-600 animate-spin mx-auto mb-3" />
           <p className="text-gray-500">Đang tải dữ liệu...</p>
         </div>
-      ) : filteredStudents.length === 0 ? (
+      ) : filteredStudents.length === 0 && searchQuery.trim() ? (
         <div className="bg-white rounded-2xl shadow-sm border p-12 text-center">
           <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">
-            {searchQuery ? 'Không tìm thấy học sinh phù hợp' : 'Lớp chưa có học sinh nào'}
+            Không tìm thấy học sinh phù hợp với từ khóa "{searchQuery}"
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          {/* Table Header */}
-          <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 px-5 py-3 bg-gray-50 border-b text-xs font-bold text-gray-500 uppercase tracking-wider">
-            <button onClick={toggleAllStudents} className="p-1 hover:bg-gray-200 rounded transition-colors">
-              {selectedStudents.length === filteredStudents.length ? (
-                <CheckSquare className="h-4 w-4 text-indigo-600" />
-              ) : (
-                <Square className="h-4 w-4 text-gray-400" />
-              )}
-            </button>
-            <span>Học sinh</span>
-            <span className="text-center">Trạng thái</span>
-            <span className="text-center">Hành động</span>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Lặp qua 4 tổ chính */}
+          {groups.slice(0, 4).map((group) => {
+            const studentsInGroup = (studentsByGroup[group.id] || []).filter(s => 
+              !searchQuery.trim() || s.name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
 
-          {/* Student Rows */}
-          <div className="divide-y divide-gray-50">
-            {filteredStudents.map((student, idx) => {
-              const hasEval = !!evaluationMap[student.id];
-              const isChecked = selectedStudents.includes(student.id);
-
-              return (
-                <div
-                  key={student.id}
-                  className={`grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 px-5 py-3.5 hover:bg-gray-50/80 transition-all group
-                    ${isChecked ? 'bg-indigo-50/50' : ''}`}
-                >
-                  {/* Checkbox */}
-                  <button onClick={() => toggleStudent(student.id)} className="p-1 hover:bg-gray-200 rounded transition-colors">
-                    {isChecked ? (
-                      <CheckSquare className="h-4 w-4 text-indigo-600" />
-                    ) : (
-                      <Square className="h-4 w-4 text-gray-300 group-hover:text-gray-400" />
-                    )}
-                  </button>
-
-                  {/* Student Info */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                      {student.name[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{student.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{student.email || `STT: ${idx + 1}`}</p>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div className="text-center">
-                    {hasEval ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                        <CheckCircle className="h-3 w-3" />
-                        Đã nhận xét
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-medium">
-                        Chưa nhận xét
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Action */}
-                  <div className="text-center">
-                    <button
-                      onClick={() => openSingleModal(student.id)}
-                      className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all hover:shadow-sm flex items-center gap-1.5"
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      {hasEval ? 'Sửa' : 'Nhận xét'}
-                    </button>
-                  </div>
+            return (
+              <div key={group.id} className="bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col h-[500px] hover:border-indigo-300 transition-colors">
+                <div className="bg-gray-50 px-4 py-2.5 border-b flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color || '#6366f1' }} />
+                    {group.name}
+                  </span>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                    {studentsInGroup.length}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                
+                <div className="flex-1 divide-y divide-gray-50 overflow-y-auto">
+                  {studentsInGroup.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 text-xs italic">Trống</div>
+                  ) : (
+                    studentsInGroup.map(student => {
+                      const hasEval = !!evaluationMap[student.id];
+                      const isChecked = selectedStudents.includes(student.id);
+                      return (
+                        <div key={student.id} className={`p-3 group transition-colors hover:bg-indigo-50/30 ${isChecked ? 'bg-indigo-50' : ''}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <button onClick={() => toggleStudent(student.id)} className="flex-shrink-0">
+                              {isChecked ? (
+                                <CheckSquare className="h-4 w-4 text-indigo-600" />
+                              ) : (
+                                <Square className="h-4 w-4 text-gray-300" />
+                              )}
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold text-gray-900 truncate" title={student.name}>{student.name}</p>
+                              {hasEval && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  <RatingBadge rating={evaluationMap[student.id].subjects.toan?.rating} isSubject />
+                                  <RatingBadge rating={evaluationMap[student.id].subjects.tieng_viet?.rating} isSubject />
+                                </div>
+                              )}
+                            </div>
+                            {hasEval ? (
+                               <CheckCircle className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                            ) : (
+                               <div className="w-3.5 h-3.5 bg-gray-100 rounded-full flex-shrink-0" />
+                            )}
+                          </div>
+                          
+                          <button
+                            onClick={() => openSingleModal(student.id)}
+                            className="w-full py-1 text-[10px] font-bold text-center text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all"
+                          >
+                            {hasEval ? 'Sửa' : '+ Nhận xét'}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Cột cho HS chưa phân tổ (nếu có) */}
+          {studentsByGroup['ungrouped']?.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-dashed overflow-hidden flex flex-col h-[500px] hover:border-gray-400 transition-colors">
+               <div className="bg-gray-50 px-4 py-2.5 border-b">
+                  <span className="text-[10px] font-extrabold text-gray-500 uppercase">Chưa phân tổ</span>
+               </div>
+               <div className="flex-1 divide-y divide-gray-50 overflow-y-auto">
+                 {studentsByGroup['ungrouped'].filter(s => !searchQuery.trim() || s.name.toLowerCase().includes(searchQuery.toLowerCase())).map(student => {
+                   const hasEval = !!evaluationMap[student.id];
+                   const isChecked = selectedStudents.includes(student.id);
+                   return (
+                    <div key={student.id} className={`p-3 group ${isChecked ? 'bg-indigo-50' : ''}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <button onClick={() => toggleStudent(student.id)}>
+                          {isChecked ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-300" />}
+                        </button>
+                        <p className="text-[11px] font-bold text-gray-800 truncate flex-1">{student.name}</p>
+                      </div>
+                      <button onClick={() => openSingleModal(student.id)} className="w-full py-1 text-[10px] font-bold text-indigo-500 bg-gray-50 rounded-lg">
+                        {hasEval ? 'Sửa' : '+ Nhận xét'}
+                      </button>
+                    </div>
+                   );
+                 })}
+               </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabaseClient';
-import { DailyEvaluation, SubjectEvaluation } from '../types';
+import { DailyEvaluation, SubjectEvaluation, EvaluationRating } from '../types';
 
 // --- Constants ---
 const COMMENT_SUGGESTIONS_KEY = 'evaluation_comment_suggestions';
@@ -31,11 +31,18 @@ export const QUALITY_LIST = [
   { key: 'trach_nhiem', label: 'Trách nhiệm' },
 ];
 
-export const RATING_OPTIONS: { value: string; label: string; color: string }[] = [
-  { value: 'T', label: 'Tốt', color: '#22c55e' },
-  { value: 'H', label: 'Hoàn thành tốt', color: '#3b82f6' },
-  { value: 'Đ', label: 'Đạt', color: '#f59e0b' },
+export const SUBJECT_RATING_OPTIONS: { value: EvaluationRating; label: string; color: string }[] = [
+  { value: 'None', label: 'Không đánh giá', color: '#94a3b8' },
+  { value: 'T', label: 'Hoàn thành tốt', color: '#22c55e' },
+  { value: 'H', label: 'Hoàn thành', color: '#3b82f6' },
   { value: 'C', label: 'Chưa hoàn thành', color: '#ef4444' },
+];
+
+export const COMPETENCY_RATING_OPTIONS: { value: EvaluationRating; label: string; color: string }[] = [
+  { value: 'None', label: 'Không đánh giá', color: '#94a3b8' },
+  { value: 'T', label: 'Tốt', color: '#22c55e' },
+  { value: 'Đ', label: 'Đạt', color: '#f59e0b' },
+  { value: 'C', label: 'Chưa đạt', color: '#ef4444' },
 ];
 
 // --- Helper: tạo đánh giá rỗng ---
@@ -45,13 +52,13 @@ export function createEmptyEvaluation(): {
   qualities: Record<string, SubjectEvaluation>;
 } {
   const subjects: Record<string, SubjectEvaluation> = {};
-  SUBJECT_LIST.forEach(s => { subjects[s.key] = { rating: 'Đ', comment: '' }; });
+  SUBJECT_LIST.forEach(s => { subjects[s.key] = { rating: 'None', comment: '' }; });
 
   const competencies: Record<string, SubjectEvaluation> = {};
-  COMPETENCY_LIST.forEach(c => { competencies[c.key] = { rating: 'Đ', comment: '' }; });
+  COMPETENCY_LIST.forEach(c => { competencies[c.key] = { rating: 'None', comment: '' }; });
 
   const qualities: Record<string, SubjectEvaluation> = {};
-  QUALITY_LIST.forEach(q => { qualities[q.key] = { rating: 'Đ', comment: '' }; });
+  QUALITY_LIST.forEach(q => { qualities[q.key] = { rating: 'None', comment: '' }; });
 
   return { subjects, competencies, qualities };
 }

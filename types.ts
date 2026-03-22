@@ -559,7 +559,7 @@ export interface AIGradingReview {
 // NHẬN XÉT THƯỜNG XUYÊN (TT27/2021)
 // ============================================
 
-export type EvaluationRating = 'T' | 'H' | 'Đ' | 'C'; // Tốt, Hoàn thành tốt, Đạt, Chưa hoàn thành
+export type EvaluationRating = 'T' | 'H' | 'Đ' | 'C' | 'None'; // Tốt, Hoàn thành tốt, Đạt, Chưa hoàn thành, Không đánh giá
 
 export interface SubjectEvaluation {
   rating: EvaluationRating;
