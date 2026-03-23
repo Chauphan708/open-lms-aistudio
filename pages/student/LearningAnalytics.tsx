@@ -28,14 +28,16 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
   const padL = 36, padR = 16, padT = 20, padB = 40;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
-  const maxVal = 10;
+  const maxScore = 10;
+  const maxCount = Math.max(...data.map(d => d.count), 5);
   const barWidth = Math.max(8, Math.min(40, chartW / data.length - 6));
 
   const xPos = (i: number) => padL + (i + 0.5) * (chartW / data.length);
-  const yPos = (v: number) => padT + chartH - (v / maxVal) * chartH;
+  const yPosScore = (v: number) => padT + chartH - (v / maxScore) * chartH;
+  const yPosCount = (v: number) => padT + chartH - (v / maxCount) * chartH;
 
-  const linePoints = data.map((d, i) => `${xPos(i)},${yPos(d.avg)}`).join(' ');
-  const maxPoints = data.map((d, i) => `${xPos(i)},${yPos(d.max)}`).join(' ');
+  const linePoints = data.map((d, i) => `${xPos(i)},${yPosScore(d.avg)}`).join(' ');
+  const maxPoints = data.map((d, i) => `${xPos(i)},${yPosScore(d.max)}`).join(' ');
 
   const getBarColor = (avg: number) => {
     if (avg >= 8.5) return '#10b981';
@@ -47,27 +49,27 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
   return (
     <div className="overflow-x-auto">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: Math.max(300, data.length * 60) + 'px' }}>
-        {/* Grid lines */}
+        {/* Grid lines (Score) */}
         {[0, 2, 4, 6, 8, 10].map(v => (
           <g key={v}>
-            <line x1={padL} y1={yPos(v)} x2={W - padR} y2={yPos(v)} stroke="#f0f0f0" strokeWidth="1" />
-            <text x={padL - 4} y={yPos(v) + 4} textAnchor="end" fontSize="9" fill="#9ca3af">{v}</text>
+            <line x1={padL} y1={yPosScore(v)} x2={W - padR} y2={yPosScore(v)} stroke="#f0f0f0" strokeWidth="1" />
+            <text x={padL - 4} y={yPosScore(v) + 4} textAnchor="end" fontSize="9" fill="#9ca3af">{v}</text>
           </g>
         ))}
 
-        {/* Bars */}
+        {/* Bars (Count) */}
         {data.map((d, i) => {
           const bx = xPos(i) - barWidth / 2;
-          const bh = (d.avg / maxVal) * chartH;
+          const bh = (d.count / maxCount) * chartH;
           return (
             <g key={i}>
               <rect
-                x={bx} y={yPos(d.avg)} width={barWidth} height={bh}
-                fill={getBarColor(d.avg)} rx="3" opacity="0.85"
+                x={bx} y={yPosCount(d.count)} width={barWidth} height={bh}
+                fill="#e0e7ff" stroke="#c7d2fe" strokeWidth="1" rx="3" opacity="0.8"
               />
               {/* Count label on bar */}
               {d.count > 0 && (
-                <text x={xPos(i)} y={yPos(d.avg) - 3} textAnchor="middle" fontSize="8" fill="#6b7280">
+                <text x={xPos(i)} y={yPosCount(d.count) - 3} textAnchor="middle" fontSize="8" fill="#6366f1" fontWeight="bold">
                   {d.count} bài
                 </text>
               )}
@@ -83,7 +85,7 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
 
         {/* Dots on avg line */}
         {data.map((d, i) => (
-          <circle key={i} cx={xPos(i)} cy={yPos(d.avg)} r="4" fill="#6366f1" stroke="white" strokeWidth="1.5" />
+          <circle key={i} cx={xPos(i)} cy={yPosScore(d.avg)} r="4" fill={getBarColor(d.avg)} stroke="white" strokeWidth="1.5" />
         ))}
 
         {/* X axis labels */}
@@ -97,16 +99,16 @@ const ComboChart: React.FC<{ data: { label: string; avg: number; count: number; 
       {/* Legend */}
       <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 justify-center">
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 bg-indigo-500 rounded" />
-          <span>Điểm TB</span>
+          <div className="w-3 h-3 rounded-full bg-indigo-500" />
+          <span>Điểm TB (Đường)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-0.5 border-t-2 border-dashed border-emerald-500" />
           <span>Điểm cao nhất</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded bg-indigo-400 opacity-80" />
-          <span>Số bài</span>
+          <div className="w-3 h-3 rounded bg-indigo-100 border border-indigo-200" />
+          <span>Số bài (Cột)</span>
         </div>
       </div>
     </div>
