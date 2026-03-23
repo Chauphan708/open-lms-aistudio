@@ -6,7 +6,9 @@ import {
   Facebook, 
   Phone, 
   Mail, 
-  MapPin
+  MapPin,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useStore } from '../store';
 
@@ -17,6 +19,21 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ isSidebarCollapsed = false }) => {
   const { siteSettings } = useStore();
+  const [isExpanded, setIsExpanded] = React.useState(() => {
+    // Default to collapsed on mobile, expanded on desktop
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('footer_expanded');
+      if (saved !== null) return saved === 'true';
+      return window.innerWidth >= 768;
+    }
+    return true;
+  });
+
+  const toggleFooter = () => {
+    const newState = !isExpanded;
+    setIsExpanded(newState);
+    localStorage.setItem('footer_expanded', String(newState));
+  };
 
   const currentYear = new Date().getFullYear();
 
@@ -30,11 +47,21 @@ const Footer: React.FC<FooterProps> = ({ isSidebarCollapsed = false }) => {
 
   return (
     <footer className={`
-      fixed bottom-0 right-0 z-40 bg-white/80 backdrop-blur-md border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]
+      fixed bottom-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]
       transition-all duration-300 ease-in-out
       ${isSidebarCollapsed ? 'left-0 md:left-20' : 'left-0 md:left-64'}
+      ${isExpanded ? 'h-auto py-4' : 'h-10 py-0'}
     `}>
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* Toggle Button */}
+      <button 
+        onClick={toggleFooter}
+        className="absolute -top-10 right-4 bg-white/90 backdrop-blur-md p-2 rounded-t-xl border-t border-l border-r shadow-[-2px_-2px_5px_rgba(0,0,0,0.05)] text-indigo-600 hover:text-indigo-700 transition-all md:hidden"
+        title={isExpanded ? "Thu gọn" : "Mở rộng"}
+      >
+        {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5 animate-bounce" />}
+      </button>
+
+      <div className={`max-w-7xl mx-auto px-4 transition-all duration-300 ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}`}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           {/* Brand & Slogan */}
           <div className="flex flex-col md:flex-row items-center gap-4">
