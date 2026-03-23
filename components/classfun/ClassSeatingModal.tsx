@@ -309,33 +309,47 @@ export const ClassSeatingModal: React.FC<ClassSeatingModalProps> = ({ classId, s
                             {seats.map((seat, idx) => {
                                 const student = students.find(s => s.id === seat.studentId);
                                 const isSelected = selectedSeat?.row === seat.row && selectedSeat?.col === seat.col;
+                                
+                                // Dynamic sizing based on columns
+                                const isCompact = cols >= 8;
+                                const avatarSize = isCompact 
+                                    ? 'w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8' 
+                                    : 'w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12';
+                                const textSize = isCompact
+                                    ? 'text-[7px] sm:text-[9px] md:text-xs'
+                                    : 'text-[9px] sm:text-xs md:text-sm';
 
                                 return (
                                     <div
                                         key={`${seat.row}-${seat.col}`}
                                         onClick={() => handleSeatClick(seat)}
                                         className={`
-                                    relative aspect-square w-full rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 p-1 sm:p-2 overflow-hidden
+                                    relative w-full rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 p-0.5 sm:p-1 overflow-hidden
+                                    ${isCompact ? 'aspect-[4/5] min-h-[60px]' : 'aspect-square min-h-[70px]'}
                                     ${isSelected ? 'border-indigo-500 bg-indigo-50 ring-4 ring-indigo-500/20 scale-105 shadow-xl z-20' : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md'}
                                 `}
                                     >
-                                        <span className="absolute top-1 left-1.5 text-[8px] sm:text-[10px] text-gray-400 font-medium">H{seat.row + 1}-C{seat.col + 1}</span>
+                                        <span className={`absolute top-0.5 left-1 text-gray-400 font-medium ${isCompact ? 'text-[6px] sm:text-[8px]' : 'text-[8px] sm:text-[10px]'}`}>
+                                            H{seat.row + 1}-C{seat.col + 1}
+                                        </span>
 
                                         {student ? (
                                             <>
-                                                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-lg mb-1 shadow-sm shrink-0
+                                                <div className={`${avatarSize} rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-base mb-0.5 shadow-sm shrink-0
                                             ${student.gender === 'FEMALE' ? 'bg-pink-400' : 'bg-blue-500'}
                                         `}>
                                                     {student.name.charAt(0).toUpperCase()}
                                                 </div>
-                                                <span className="font-semibold text-gray-800 text-[9px] sm:text-xs md:text-sm text-center px-1 truncate w-full">{student.name}</span>
+                                                <span className={`font-semibold text-gray-800 ${textSize} text-center px-0.5 truncate w-full leading-tight`}>
+                                                    {student.name}
+                                                </span>
                                             </>
                                         ) : (
                                             <div className="text-gray-300 flex flex-col items-center gap-0.5 sm:gap-1 group-hover:text-indigo-400 transition-colors">
-                                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-dashed border-current flex items-center justify-center shrink-0">
-                                                    <span className="text-sm sm:text-lg">+</span>
+                                                <div className={`${isCompact ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-6 h-6 sm:w-8 sm:h-8'} rounded-full border-2 border-dashed border-current flex items-center justify-center shrink-0`}>
+                                                    <span className={isCompact ? 'text-xs' : 'text-sm sm:text-lg'}>+</span>
                                                 </div>
-                                                <span className="text-[9px] sm:text-xs font-medium">Trống</span>
+                                                <span className={`${textSize} font-medium`}>Trống</span>
                                             </div>
                                         )}
 
