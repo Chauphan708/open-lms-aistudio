@@ -53,6 +53,7 @@ import { TournamentLobby } from './pages/arena/TournamentLobby';
 // Tools
 import { CountdownTimer } from './pages/tools/CountdownTimer';
 
+import { supabase } from './services/supabaseClient';
 import { useStore } from './store';
 import { UserRole } from './types';
 import { Loader2, LogIn, Key, Mail, Eye, EyeOff, X } from 'lucide-react';
@@ -65,21 +66,36 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleRealLogin = (e: React.FormEvent) => {
+  const handleRealLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const searchEmail = email.trim().toLowerCase();
+    
+    // Auth Fix: Ask database directly instead of searching client array
+    const { data: userProfile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', searchEmail)
+      .maybeSingle();
 
-    // Match password OR fallback if user has no password set and inputs '123456'
-    const user = users.find(u =>
-      u.email?.trim().toLowerCase() === searchEmail &&
-      (u.password === password || (!u.password && password === '123456'))
-    );
-
-    if (user) {
-      setUser(user);
+    if (userProfile && (userProfile.password === password || (!userProfile.password && password === '123456'))) {
+      setUser(userProfile);
     } else {
-      console.log('Login failed. Current users in DB:', users.map(u => u.email));
-      setError('Email hoặc mật khẩu không chính xác.');
+      // Future-proofing for pure Supabase Auth users
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        email: searchEmail,
+        password: password
+      });
+
+      if (authData?.user) {
+        const { data: realProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+        if (realProfile) setUser(realProfile);
+      } else {
+        setError('Email hoặc mật khẩu không chính xác.');
+      }
     }
   };
 
