@@ -1,17 +1,50 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { StatCard } from './StatCard';
 import {
   BookOpen, Users, TrendingUp, Bell, CheckCircle,
-  X, List, Download, BarChart3, Clock
+  X, List, Download, BarChart3, Clock, LayoutGrid, Search
 } from 'lucide-react';
 
 export const TeacherDashboard: React.FC = () => {
   const { exams, user, attempts, totalAttemptsCount, users, classes, resources, academicYears } = useStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'ALL'>('ALL');
   const [selectedYearId, setSelectedYearId] = useState<string>('ALL');
+  
+  // Student Portfolio Selection
+  const [isStudentListModalOpen, setIsStudentListModalOpen] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const myClasses = useMemo(() => classes.filter(c => c.teacherId === user?.id), [classes, user]);
+  const [selectedClassId, setSelectedClassId] = useState<string>(myClasses[0]?.id || 'ALL');
+
+  // Handle auto-open or state from portfolio back button
+  useEffect(() => {
+    if (location.state?.openPortfolioModal) {
+      setIsStudentListModalOpen(true);
+      // Clear state to prevent reopening on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  const classStudents = useMemo(() => {
+    if (selectedClassId === 'ALL') {
+      const allStudentIds = myClasses.flatMap(c => c.studentIds);
+      return users.filter(u => allStudentIds.includes(u.id));
+    }
+    const selectedClass = myClasses.find(c => c.id === selectedClassId);
+    if (!selectedClass) return [];
+    return users.filter(u => selectedClass.studentIds.includes(u.id));
+  }, [selectedClassId, myClasses, users]);
+
+  const filteredStudents = useMemo(() => {
+    return classStudents.filter(s => 
+      s.name.toLowerCase().includes(studentSearchQuery.toLowerCase())
+    );
+  }, [classStudents, studentSearchQuery]);
 
   const getYearRange = (yearId: string) => {
     if (yearId === 'ALL') return null;
@@ -52,8 +85,8 @@ export const TeacherDashboard: React.FC = () => {
 
   const teacherStudentsCount = useMemo(() => {
     if (user?.role !== 'TEACHER') return users.filter(u => u.role === 'STUDENT').length;
-    const myClasses = classes.filter(c => c.teacherId === user.id);
-    const studentIdsArr = myClasses.flatMap(c => c.studentIds);
+    const classesList = classes.filter(c => c.teacherId === user.id);
+    const studentIdsArr = classesList.flatMap(c => c.studentIds);
     const studentIdsSet = new Set(studentIdsArr.map(id => String(id)));
     return users.filter(u => u.role === 'STUDENT' && studentIdsSet.has(String(u.id))).length;
   }, [user, users, classes]);
@@ -176,6 +209,24 @@ export const TeacherDashboard: React.FC = () => {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-4 border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-indigo-50 p-3 rounded-2xl text-indigo-600">
+            <LayoutGrid className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Quản lý Hồ sơ học tập</h3>
+            <p className="text-sm text-gray-500">Xem nhanh chi tiết học tập, rèn luyện và AI phân tích cho từng học sinh.</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setIsStudentListModalOpen(true)}
+          className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+        >
+          <Users className="h-5 w-5" /> HỒ SƠ HS
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -304,6 +355,89 @@ export const TeacherDashboard: React.FC = () => {
               >
                 Đóng
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student List Modal (Grid View) */}
+      {isStudentListModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b flex justify-between items-center bg-indigo-50">
+              <div>
+                <h2 className="text-xl font-black text-indigo-900 flex items-center gap-2">
+                  <LayoutGrid className="h-6 w-6" /> Hồ Sơ Học Sinh
+                </h2>
+                <p className="text-sm text-indigo-600 font-medium">Chọn học sinh để xem chi tiết hồ sơ học tập</p>
+              </div>
+              <button onClick={() => setIsStudentListModalOpen(false)} className="hover:bg-indigo-100 p-2 rounded-full transition-colors text-indigo-400">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Modal Filters */}
+            <div className="p-6 bg-white border-b flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative flex-1 w-full text-indigo-900">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm học sinh theo tên..."
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                />
+              </div>
+              <select
+                className="w-full md:w-64 px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold text-indigo-900 cursor-pointer transition-all"
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+              >
+                <option value="ALL">Tất cả các lớp</option>
+                {myClasses.map(c => (
+                  <option key={c.id} value={c.id}>Lớp {c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Modal Content - Grid */}
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30 custom-scrollbar">
+              {filteredStudents.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
+                  <p className="text-gray-400 font-medium italic">Không tìm thấy học sinh phù hợp.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredStudents.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setIsStudentListModalOpen(false);
+                        navigate(`/teacher/portfolio/${s.id}`);
+                      }}
+                      className="group bg-white p-4 rounded-3xl border border-transparent hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-50 transition-all duration-300 flex flex-col items-center text-center"
+                    >
+                      <div className="relative mb-3">
+                        <img
+                          src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff&size=100`}
+                          alt=""
+                          className="w-20 h-20 rounded-2xl object-cover ring-4 ring-gray-50 group-hover:ring-indigo-50 transition-all"
+                        />
+                        <div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-lg text-[10px] font-black shadow-sm group-hover:scale-110 transition-transform">
+                          {s.className || 'N/A'}
+                        </div>
+                      </div>
+                      <h4 className="text-sm font-black text-gray-800 group-hover:text-indigo-600 transition-colors line-clamp-1">{s.name}</h4>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">{s.email || 'Học sinh'}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t bg-gray-50 text-center font-bold text-xs text-gray-400">
+              Tổng số: {filteredStudents.length} học sinh
             </div>
           </div>
         </div>

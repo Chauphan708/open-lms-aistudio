@@ -268,7 +268,11 @@ export const StudentPortfolio: React.FC = () => {
 
       {/* Back + Title */}
       <div className="flex items-center gap-3 mb-6 no-print">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+        <button 
+          onClick={() => navigate('/', { state: { openPortfolioModal: true } })} 
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+          title="Quay lại danh sách"
+        >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-xl font-black text-gray-900">Hồ Sơ Học Tập</h1>
