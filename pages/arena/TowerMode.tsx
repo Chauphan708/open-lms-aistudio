@@ -3,11 +3,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { ArenaQuestion, ArenaMatchFilters } from '../../types';
-import { ArrowLeft, Heart, HeartOff, Star, Zap, GraduationCap, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Heart, HeartOff, Star, Zap, GraduationCap, CheckCircle, XCircle, Bot, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import MathText from '../../components/MathText';
+import { computeStudentAnalytics } from '../../utils/analyticsEngine';
 
 
 
@@ -48,9 +49,10 @@ export const TowerMode: React.FC = () => {
 
     // Setup state
     const [started, setStarted] = useState(false);
-    const [sourceType, setSourceType] = useState<'arena' | 'exam'>('arena');
+    const [sourceType, setSourceType] = useState<'arena' | 'exam' | 'ai_adaptive'>('arena');
     const [filterSubject, setFilterSubject] = useState('');
     const [allQuestions, setAllQuestions] = useState<ArenaQuestion[]>([]);
+    const [aiReasoning, setAiReasoning] = useState<string>('');
 
     useEffect(() => {
         fetchArenaQuestions().then(() => setLoading(false));
@@ -65,10 +67,49 @@ export const TowerMode: React.FC = () => {
         }
     }, [arenaProfile]);
 
+    const { attempts, questionBank } = useStore();
+
     const buildQuestionPool = () => {
         let pool: ArenaQuestion[] = [];
 
-        if (sourceType === 'exam') {
+        if (sourceType === 'ai_adaptive') {
+            // Compute student's weak points real-time
+            const analytics = computeStudentAnalytics(user?.id || '', attempts, exams, questionBank, 30);
+            const weakTopics = analytics.weakTopics;
+            
+            if (weakTopics.length > 0) {
+                const weakest = weakTopics[0];
+                setAiReasoning(`AI phát hiện bạn đang yếu môn ${weakest.subject} (Tỉ lệ sai: ${weakest.incorrectRate}%). Tháp đã được cấu hình với các câu hỏi khó nhất thuộc chủ đề này để bạn rèn luyện!`);
+                
+                // Pick questions matching the weak subject/topic, prioritizing higher difficulty
+                exams.forEach(exam => {
+                    if (exam.status === 'PUBLISHED' && (exam.subject === weakest.subject || exam.topic === weakest.topic)) {
+                        exam.questions.filter(q => q.type === 'MCQ').forEach(q => {
+                            pool.push({
+                                id: `exam_${exam.id}_${q.id}`,
+                                content: q.content,
+                                answers: q.options.slice(0, 4),
+                                correct_index: q.correctOptionIndex || 0,
+                                difficulty: q.level === 'VAN_DUNG' ? 3 : q.level === 'KET_NOI' ? 2 : 1,
+                                subject: exam.subject || ''
+                            });
+                        });
+                    }
+                });
+                // Sort to put harder questions at the higher floors
+                pool.sort((a, b) => b.difficulty - a.difficulty);
+            } else {
+                setAiReasoning('AI chưa tìm thấy điểm yếu rõ rệt. Đang tổng hợp toàn bộ câu hỏi khó từ các môn để thử thách bạn!');
+                // Fallback: just hard questions
+                exams.forEach(exam => {
+                    exam.questions.filter(q => q.level === 'VAN_DUNG').forEach(q => {
+                        pool.push({
+                            id: `ai_${exam.id}_${q.id}`, content: q.content, answers: q.options.slice(0, 4), correct_index: q.correctOptionIndex || 0, difficulty: 3, subject: exam.subject || ''
+                        });
+                    });
+                });
+            }
+        } else if (sourceType === 'exam') {
             exams
                 .filter(e => e.status === 'PUBLISHED')
                 .filter(e => !filterSubject || e.subject === filterSubject)
@@ -82,7 +123,7 @@ export const TowerMode: React.FC = () => {
                                 answers: q.options.slice(0, 4),
                                 correct_index: q.correctOptionIndex!,
                                 difficulty: exam.difficulty === 'NHAN_BIET' ? 1 : exam.difficulty === 'KET_NOI' ? 2 : 3,
-                                subject: exam.subject
+                                subject: exam.subject || ''
                             });
                         });
                 });
@@ -95,7 +136,10 @@ export const TowerMode: React.FC = () => {
 
     const handleStart = () => {
         const pool = buildQuestionPool();
-        if (pool.length === 0) return;
+        if (pool.length === 0) {
+            alert("Không đủ câu hỏi trong ngân hàng dữ liệu để bắt đầu!");
+            return;
+        }
         setAllQuestions(pool);
         setStarted(true);
         pickNextQuestion(pool, new Set());
@@ -210,26 +254,42 @@ export const TowerMode: React.FC = () => {
                     {/* Source */}
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Nguồn câu hỏi</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => setSourceType('exam')}
-                                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'exam' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600'}`}>
-                                📋 Ngân hàng bài tập
+                        <div className="flex flex-col gap-2">
+                            <button onClick={() => setSourceType('ai_adaptive')}
+                                className={`p-4 rounded-xl border-2 text-sm font-bold transition-all flex items-center gap-3 justify-center ${sourceType === 'ai_adaptive' ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md transform scale-[1.02]' : 'border-gray-200 text-gray-600 hover:border-purple-300'}`}>
+                                <Sparkles className={`h-5 w-5 ${sourceType === 'ai_adaptive' ? 'text-purple-600 animate-pulse' : 'text-gray-400'}`} /> 
+                                Phân tích & Gợi ý điểm yếu (AI Adaptive)
                             </button>
-                            <button onClick={() => setSourceType('arena')}
-                                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'arena' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600'}`}>
-                                🧠 Bộ câu hỏi Arena
-                            </button>
+                            <div className="grid grid-cols-2 gap-2 mt-1">
+                                <button onClick={() => setSourceType('exam')}
+                                    className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'exam' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600 hover:border-amber-200'}`}>
+                                    📋 Ngân hàng bài tập
+                                </button>
+                                <button onClick={() => setSourceType('arena')}
+                                    className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${sourceType === 'arena' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600 hover:border-amber-200'}`}>
+                                    🧠 Bộ ngẫu nhiên
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Subject */}
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Môn học</label>
-                        <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
-                            className="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-                            {SUBJECTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </select>
-                    </div>
+                    {sourceType === 'ai_adaptive' && (
+                        <div className="bg-purple-100 text-purple-800 p-3 rounded-lg text-sm italic flex items-start gap-2 animate-in fade-in">
+                            <Bot className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                            {aiReasoning || "Hệ thống đang trích xuất dữ liệu bài nộp của bạn để tìm ra các chủ đề bạn hay làm sai nhất..."}
+                        </div>
+                    )}
+
+                    {/* Subject (Only for standard modes) */}
+                    {sourceType !== 'ai_adaptive' && (
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Môn học màng lọc</label>
+                            <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
+                                className="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                                {SUBJECTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                            </select>
+                        </div>
+                    )}
 
                     {/* Question count */}
                     <div className="bg-gray-50 rounded-xl p-3 text-center">

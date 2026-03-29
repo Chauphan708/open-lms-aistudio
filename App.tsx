@@ -39,8 +39,8 @@ import { LearningAnalytics } from './pages/student/LearningAnalytics';
 import { Settings } from './pages/Settings';
 // Resources
 import { ResourceLibrary } from './pages/ResourceLibrary';
-// Arena
 import { ArenaHome } from './pages/arena/ArenaHome';
+import { ArenaDashboard } from './pages/arena/ArenaDashboard';
 import { TowerMode } from './pages/arena/TowerMode';
 import { PvPLobby } from './pages/arena/PvPLobby';
 import { PvPBattle } from './pages/arena/PvPBattle';
@@ -434,6 +434,11 @@ function App() {
         <Route path="/arena" element={
           <ProtectedRoute roles={['STUDENT']}>
             <ArenaHome />
+          </ProtectedRoute>
+        } />
+        <Route path="/arena/dashboard" element={
+          <ProtectedRoute roles={['STUDENT']}>
+            <ArenaDashboard />
           </ProtectedRoute>
         } />
         <Route path="/arena/tower" element={

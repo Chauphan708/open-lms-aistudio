@@ -889,3 +889,40 @@ export const generateTeacherStudentAnalysis = async (
     throw new Error("Không thể kết nối AI. Vui lòng kiểm tra API Key.");
   }
 };
+
+/**
+ * Tạo hướng dẫn học tập cá nhân hoá cho Học sinh trong Arena Tower dựa trên điểm yếu.
+ */
+export const generateArenaStudyGuide = async (
+  topic: string,
+  subject: string,
+  incorrectRate: number
+): Promise<string> => {
+  const ai = getAiClient();
+  const modelId = "gemini-2.0-flash";
+
+  const prompt = `Bạn là Trợ lý AI OpenLMS, đóng vai trò như một Thầy/Cô giáo tận tâm.
+Học sinh vừa hoàn thành các thử thách trong Tháp Arena và hệ thống phát hiện phần kiến thức sau đang là điểm yếu lớn nhất của em ấy:
+- Môn học: ${subject}
+- Chủ đề yếu nhất: ${topic}
+- Tỷ lệ trả lời sai: ${incorrectRate}%
+
+YÊU CẦU BẮT BUỘC VỀ XƯNG HÔ VÀ MỞ ĐẦU:
+Bắt đầu câu lệnh bằng cụm từ chính xác: "AI OpenLMS chào em, thầy/cô gợi ý em..."
+
+HƯỚNG DẪN NỘI DUNG:
+1. Đưa ra 1-2 lời khuyên lý thuyết chuyên sâu nhưng dễ hiểu, tập trung vào mẹo hoặc quy tắc để khắc phục lỗi sai trong chủ đề "${topic}".
+2. Định dạng Markdown có xuống dòng rõ ràng, gạch đầu dòng dễ đọc. Tránh viết quá dài.
+3. Luôn dùng từ ngữ khích lệ, động viên để học sinh không nản chí.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+    });
+    return response.text || "AI không thể tạo hướng dẫn lúc này.";
+  } catch (error) {
+    console.error("Gemini Arena Study Guide Error:", error);
+    throw new Error("Không thể kết nối AI. Vui lòng kiểm tra API Key.");
+  }
+};

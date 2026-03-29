@@ -171,7 +171,25 @@ export const ArenaHome: React.FC = () => {
             </div>
 
             {/* Game Modes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* AI Dashboard */}
+                <button
+                    onClick={() => navigate('/arena/dashboard')}
+                    className="relative overflow-hidden p-6 rounded-2xl text-left group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-pink-100"
+                    style={{ background: 'linear-gradient(135deg, #fdf2f8, #fce7f3)', animation: 'fadeIn 0.5s ease-out 0.05s both' }}
+                >
+                    <div className="absolute top-0 right-0 w-32 h-32 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Sparkles className="w-full h-full text-pink-500" />
+                    </div>
+                    <div className="relative">
+                        <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center text-white text-2xl mb-4 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
+                            🤖
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 mb-1">Trạm Phân Tích AI</h3>
+                        <p className="text-sm text-gray-500">Kê đơn hướng dẫn</p>
+                    </div>
+                </button>
+
                 {/* PvP */}
                 <button
                     onClick={() => navigate('/arena/pvp')}
