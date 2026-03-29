@@ -21,6 +21,12 @@ export const MyPortfolio: React.FC = () => {
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [arenaProfile, setArenaProfile] = useState<any>(null);
   const [arenaMatches, setArenaMatches] = useState<any[]>([]);
+  const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [aiResult, setAiResult] = useState('');
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareMessage, setShareMessage] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+  const [notes, setNotes] = useState<any[]>([]);
 
   const studentId = user?.id;
 
@@ -39,6 +45,11 @@ export const MyPortfolio: React.FC = () => {
       setArenaMatches(am || []);
       const studentClass = classes.find(c => c.studentIds?.includes(studentId));
       if (studentClass) fetchAttendance(studentClass.id, new Date().toISOString().split('T')[0]);
+      
+      // Fetch portfolio notes
+      const { data: pn } = await supabase.from('portfolio_notes').select('*')
+        .eq('student_id', studentId).order('created_at', { ascending: false });
+      setNotes(pn || []);
     };
     load();
   }, [studentId]);
@@ -57,6 +68,79 @@ export const MyPortfolio: React.FC = () => {
       logs,
     };
   }, [behaviorLogs, studentId]);
+
+  const attendanceSummary = useMemo(() => {
+    const studentAtt = attendance.filter((a: any) => a.student_id === studentId);
+    return {
+      present: studentAtt.filter((a: any) => a.status === 'present').length,
+      absent: studentAtt.filter((a: any) => a.status !== 'present').length,
+      total: studentAtt.length
+    };
+  }, [attendance, studentId]);
+
+  const handleAiAnalysis = async () => {
+    if (!user || !analytics) return;
+    setIsLoadingAi(true);
+    try {
+      const recentEvals = evaluations.slice(0, 5);
+      const evalSummary = recentEvals.length > 0
+        ? recentEvals.map(e => {
+          const ratings = Object.entries(e.subjects || {}).filter(([, v]: any) => v.rating !== 'None').map(([k, v]: any) => `${k}: ${v.rating}`).join(', ');
+          return `${e.evaluation_date}: ${ratings}${e.general_comment ? ' | ' + e.general_comment : ''}`;
+        }).join('\n')
+        : 'Chưa có nhận xét TT27';
+
+      const notesSummary = notes.length > 0
+        ? notes.map(n => `[${n.category}] ${n.title}: ${n.content}`).join('\n')
+        : '';
+
+      const { generatePortfolioAnalysis } = await import('../../services/geminiService');
+      const result = await generatePortfolioAnalysis(user.name, {
+        avgScore: analytics.avgScore,
+        totalAttempts: analytics.totalAttempts,
+        weakTopics: analytics.weakTopics.slice(0, 5),
+        behaviorScore: behaviorSummary.totalScore,
+        behaviorPositiveCount: behaviorSummary.positive,
+        behaviorNegativeCount: behaviorSummary.negative,
+        attendancePresent: attendanceSummary.present,
+        attendanceAbsent: attendanceSummary.absent,
+        attendanceTotal: attendanceSummary.total,
+        evaluationSummary: evalSummary,
+        arenaElo: arenaProfile?.elo_rating || 1000,
+        arenaWins: arenaProfile?.wins || 0,
+        arenaLosses: arenaProfile?.losses || 0,
+        towerFloor: arenaProfile?.tower_floor || 1,
+        teacherNotes: notesSummary,
+      });
+      setAiResult(result);
+    } catch (err: any) {
+      setAiResult("⚠️ Lỗi AI: " + (err.message || "Không thể kết nối."));
+    } finally {
+      setIsLoadingAi(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!studentId || !user) return;
+    setIsSharing(true);
+    try {
+      await supabase
+        .from('portfolio_shares')
+        .upsert({
+          student_id: studentId,
+          shared_by: user.id,
+          shared_at: new Date().toISOString(),
+          is_shared: true
+        });
+
+      alert('✅ Đã gửi kết quả cho cha mẹ thành công!');
+      setIsShareModalOpen(false);
+    } catch (err: any) {
+      alert('❌ Lỗi: ' + err.message);
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -109,6 +193,14 @@ export const MyPortfolio: React.FC = () => {
                 </span>
               )}
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={() => setIsShareModalOpen(true)}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold transition-all border border-white/10 flex items-center justify-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" /> Gửi cho Cha Mẹ
+            </button>
           </div>
         </div>
       </div>
@@ -305,6 +397,84 @@ export const MyPortfolio: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* AI ANALYSIS PANEL */}
+      <div className="mt-8 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-10 w-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Brain className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h3 className="font-black text-gray-900">Thông thái OpenLMS (AI)</h3>
+            <p className="text-xs text-indigo-600 font-medium">Phân tích kết quả và gợi ý lộ trình học tập</p>
+          </div>
+        </div>
+
+        {!aiResult && !isLoadingAi && (
+          <button onClick={handleAiAnalysis}
+            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-200 group">
+            <Sparkles className="h-5 w-5 group-hover:rotate-12 transition-transform" />
+            Nhờ AI phân tích hồ sơ của em
+          </button>
+        )}
+
+        {isLoadingAi && (
+          <div className="py-8 flex flex-col items-center">
+            <div className="h-10 w-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-indigo-600 font-bold animate-pulse">Thông thái đang đọc hồ sơ của em...</p>
+          </div>
+        )}
+
+        {aiResult && !isLoadingAi && (
+          <div className="bg-white rounded-xl p-6 border border-indigo-100 shadow-sm relative overflow-hidden prose prose-indigo max-w-none">
+            <div className="absolute top-0 right-0 p-3 opacity-10"><Sparkles className="h-12 w-12 text-indigo-600" /></div>
+            <div className="relative text-sm text-gray-700 leading-relaxed">
+              {/* Note: In a real app we'd use ReactMarkdown here, but for simplicity we show text */}
+              {aiResult.split('\n').map((line, i) => (
+                <p key={i} className={line.startsWith('#') ? 'font-black text-indigo-900 text-base mb-2 mt-4' : 'mb-2'}>
+                  {line}
+                </p>
+              ))}
+            </div>
+            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+              <span>Gemini 2.5 Flash • OpenLMS AI Intelligence</span>
+              <button onClick={handleAiAnalysis} className="text-indigo-600 hover:text-indigo-800">Cập nhật lại</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Share Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 bg-indigo-50 text-center border-b">
+              <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="h-8 w-8 text-indigo-600" />
+              </div>
+              <h2 className="text-xl font-black text-indigo-900">Gửi cho Cha Mẹ</h2>
+              <p className="text-sm text-indigo-600 mt-1 italic">"Ba mẹ ơi, xem kết quả của con nè!"</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 text-center">Toàn bộ hồ sơ học tập và phần <b>Phân tích AI</b> sẽ được gửi cho cha mẹ xem.</p>
+              <button 
+                onClick={handleShare}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2"
+                disabled={isSharing}
+              >
+                {isSharing ? 'Đang gửi...' : 'Xác nhận Gửi ngay'}
+              </button>
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="w-full py-3 text-gray-400 font-bold hover:text-gray-600 transition-all"
+                disabled={isSharing}
+              >
+                Để sau
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

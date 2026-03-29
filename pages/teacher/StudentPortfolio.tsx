@@ -69,6 +69,9 @@ export const StudentPortfolio: React.FC = () => {
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNote, setNewNote] = useState({ category: 'general', title: '', content: '' });
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareMessage, setShareMessage] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
 
   const student = users.find(u => u.id === studentId);
 
@@ -96,17 +99,17 @@ export const StudentPortfolio: React.FC = () => {
         const { data: pn } = await supabase.from('portfolio_notes').select('*')
           .eq('student_id', studentId).order('created_at', { ascending: false });
         setNotes(pn || []);
-        // Attendance (last 30 days)
-        const today = new Date();
-        const from = new Date(today);
-        from.setDate(from.getDate() - 30);
-        // Fetch attendance for the student's class
+        // Attendance
+        const today = new Date().toISOString().split('T')[0];
         const studentClass = classes.find(c => c.studentIds?.includes(studentId));
         if (studentClass) {
-          fetchAttendance(studentClass.id, today.toISOString().split('T')[0]);
+          fetchAttendance(studentClass.id, today);
         }
-      } catch (e) { console.error(e); }
-      finally { setIsLoadingData(false); }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoadingData(false);
+      }
     };
     load();
   }, [studentId]);
@@ -139,7 +142,6 @@ export const StudentPortfolio: React.FC = () => {
     if (!student || !analytics) return;
     setIsLoadingAi(true);
     try {
-      // Build evaluation summary
       const recentEvals = evaluations.slice(0, 5);
       const evalSummary = recentEvals.length > 0
         ? recentEvals.map(e => {
@@ -148,7 +150,6 @@ export const StudentPortfolio: React.FC = () => {
         }).join('\n')
         : 'Chưa có nhận xét TT27';
 
-      // Build teacher notes summary
       const notesSummary = notes.length > 0
         ? notes.map(n => `[${n.category}] ${n.title}: ${n.content}`).join('\n')
         : '';
@@ -172,8 +173,10 @@ export const StudentPortfolio: React.FC = () => {
       });
       setAiResult(result);
     } catch (err: any) {
-      setAiResult("⚠️ Lỗi: " + (err.message || "Không thể kết nối AI."));
-    } finally { setIsLoadingAi(false); }
+      setAiResult("⚠️ Lỗi AI: " + (err.message || "Không thể kết nối."));
+    } finally {
+      setIsLoadingAi(false);
+    }
   };
 
   // Add note
@@ -201,6 +204,44 @@ export const StudentPortfolio: React.FC = () => {
   const handleDeleteNote = async (id: string) => {
     const { error } = await supabase.from('portfolio_notes').delete().eq('id', id);
     if (!error) setNotes(prev => prev.filter(n => n.id !== id));
+  };
+
+  // Share to Parent
+  const handleShare = async () => {
+    if (!studentId || !user) return;
+    setIsSharing(true);
+    try {
+      const { error: shareError } = await supabase
+        .from('portfolio_shares')
+        .upsert({
+          student_id: studentId,
+          shared_by: user.id,
+          shared_at: new Date().toISOString(),
+          is_shared: true,
+          teacher_message: shareMessage
+        });
+
+      if (shareError) throw shareError;
+
+      await supabase.from('notifications').insert({
+        id: `notif_${Date.now()}`,
+        user_id: studentId,
+        type: 'INFO',
+        title: 'Hồ sơ học tập của con đã được cập nhật',
+        message: shareMessage || `Thầy/cô ${user.name} đã gửi hồ sơ học tập mới nhất.`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        link: '/student/portfolio'
+      });
+
+      alert('✅ Đã gửi hồ sơ thành công!');
+      setIsShareModalOpen(false);
+      setShareMessage('');
+    } catch (err: any) {
+      alert('❌ Lỗi: ' + err.message);
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   if (!student) {
@@ -295,6 +336,12 @@ export const StudentPortfolio: React.FC = () => {
               className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-900/20"
             >
               <Download className="h-4 w-4" /> Xuất Word
+            </button>
+            <button 
+              onClick={() => setIsShareModalOpen(true)}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-900/20"
+            >
+              <Share2 className="h-4 w-4" /> Gửi PHHS
             </button>
           </div>
         </div>
@@ -728,6 +775,60 @@ export const StudentPortfolio: React.FC = () => {
           .markdown-body h3 { color: black !important; border-bottom: 1px solid #eee; }
         }
       `}</style>
+
+      {/* Share Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 bg-indigo-50 border-b">
+              <h2 className="text-xl font-black text-indigo-900 flex items-center gap-2">
+                <Share2 className="h-6 w-6" />
+                Gửi hồ sơ cho Phụ huynh
+              </h2>
+              <p className="text-sm text-indigo-600 mt-1">Gửi dữ liệu học tập và phân tích AI của <b>{student.name}</b></p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Lời nhắn kèm theo (tùy chọn):</label>
+                <textarea 
+                  value={shareMessage}
+                  onChange={(e) => setShareMessage(e.target.value)}
+                  placeholder="Ví dụ: Thầy gửi kết quả học tập tháng 3 của con, mời bố mẹ xem qua..."
+                  className="w-full border border-gray-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[120px] transition-all"
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex gap-3">
+                <Brain className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <b>Lưu ý:</b> Toàn bộ dữ liệu bao gồm kết quả học tập, hành vi, và phần <b>AI Phân tích</b> sẽ được chia sẻ cho Phụ huynh.
+                </p>
+              </div>
+            </div>
+            <div className="p-6 bg-gray-50 border-t flex gap-3">
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="flex-1 py-3 px-4 bg-white border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-all"
+                disabled={isSharing}
+              >
+                Hủy
+              </button>
+              <button 
+                onClick={handleShare}
+                className="flex-[2] py-3 px-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" /> Đang gửi...
+                  </>
+                ) : (
+                  <>Gửi ngay</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { useClassFunStore } from '../../services/classFunStore';
-import { Trophy, Star, TrendingUp, TrendingDown, Users, Award, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trophy, Star, TrendingUp, TrendingDown, Users, Award, Clock, ChevronLeft, ChevronRight, Search, X, LayoutGrid } from 'lucide-react';
 
 // --- Helper: Format date ---
 const toDateKey = (date: Date): string => {
@@ -17,6 +17,8 @@ export const ClassFunDashboard: React.FC = () => {
     const { groups, logs, behaviors, groupMembers, isLoading, hasMoreLogs, fetchClassFunData, loadMoreBehaviorLogs } = useClassFunStore();
     const navigate = useNavigate();
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [isStudentListModalOpen, setIsStudentListModalOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Chọn lớp (nếu giáo viên có nhiều lớp)
     const myClasses = classes.filter(c => c.teacherId === user?.id);
@@ -179,6 +181,14 @@ export const ClassFunDashboard: React.FC = () => {
                         ))}
                     </select>
                 )}
+
+                <button
+                    onClick={() => setIsStudentListModalOpen(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                >
+                    <LayoutGrid className="h-5 w-5" />
+                    HỒ SƠ HS
+                </button>
             </div>
 
             {/* Filter Bar */}
@@ -420,6 +430,91 @@ export const ClassFunDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Student List Modal (Grid View) */}
+            {isStudentListModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                        {/* Modal Header */}
+                        <div className="p-6 border-b flex justify-between items-center bg-indigo-50">
+                            <div>
+                                <h2 className="text-2xl font-black text-indigo-900 flex items-center gap-2">
+                                    <Users className="h-6 w-6" />
+                                    Hồ Sơ Học Sinh
+                                </h2>
+                                <p className="text-indigo-600 text-sm font-medium">Lớp: {selectedClass?.name}</p>
+                            </div>
+                            <button 
+                                onClick={() => setIsStudentListModalOpen(false)}
+                                className="p-2 hover:bg-white rounded-full transition-colors text-indigo-900"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="p-4 border-b bg-white">
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Tìm kiếm tên học sinh..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        {/* Student Grid */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+                            {classStudents.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                    <Search className="h-12 w-12 mb-4 opacity-20" />
+                                    <p>Không tìm thấy học sinh nào khớp với "{searchTerm}"</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    {classStudents
+                                        .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map((s) => (
+                                            <button
+                                                key={s.id}
+                                                onClick={() => {
+                                                    navigate(`/teacher/portfolio/${s.id}`);
+                                                    setIsStudentListModalOpen(false);
+                                                }}
+                                                className="group flex flex-col items-center p-4 bg-white border border-gray-100 rounded-2xl transition-all hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-100 hover:-translate-y-1"
+                                            >
+                                                <div className="relative mb-3">
+                                                    <img 
+                                                        src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=6366f1&color=fff`} 
+                                                        alt="" 
+                                                        className="w-16 h-16 rounded-2xl object-cover shadow-sm group-hover:ring-4 ring-indigo-50 transition-all"
+                                                    />
+                                                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white"></div>
+                                                </div>
+                                                <span className="font-bold text-gray-800 text-sm text-center line-clamp-2 min-h-[40px] group-hover:text-indigo-600 transition-colors">
+                                                    {s.name}
+                                                </span>
+                                                <div className="mt-2 text-[10px] font-bold text-indigo-500 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all">
+                                                    Xem Hồ Sơ →
+                                                </div>
+                                            </button>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="p-4 bg-white border-t text-center text-xs text-gray-400">
+                            Tổng số: {classStudents.length} học sinh
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
