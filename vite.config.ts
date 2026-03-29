@@ -28,9 +28,26 @@ export default defineConfig(({ mode }) => {
               purpose: 'any maskable'
             }
           ]
+        },
+        workbox: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for precaching
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
         }
       })
     ],
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom', 'zustand'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-math': ['react-markdown', 'remark-math', 'rehype-katex'],
+            'vendor-ui': ['lucide-react']
+          }
+        }
+      }
+    },
     define: {
       // Inject API_KEY và Supabase keys vào process.env để code client có thể đọc được
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
