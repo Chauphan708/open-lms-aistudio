@@ -926,3 +926,84 @@ HƯỚNG DẪN NỘI DUNG:
     throw new Error("Không thể kết nối AI. Vui lòng kiểm tra API Key.");
   }
 };
+
+/**
+ * Phân tích Hồ sơ Học tập Toàn diện cho Giáo viên.
+ * Tổng hợp dữ liệu từ tất cả các nguồn: bài tập, nhận xét TT27, hành vi, điểm danh, Arena, ghi chú GV.
+ */
+export const generatePortfolioAnalysis = async (
+  studentName: string,
+  portfolioData: {
+    avgScore: number;
+    totalAttempts: number;
+    weakTopics: { topic: string; subject: string; incorrectRate: number }[];
+    behaviorScore: number;
+    behaviorPositiveCount: number;
+    behaviorNegativeCount: number;
+    attendancePresent: number;
+    attendanceAbsent: number;
+    attendanceTotal: number;
+    evaluationSummary: string;
+    arenaElo: number;
+    arenaWins: number;
+    arenaLosses: number;
+    towerFloor: number;
+    teacherNotes: string;
+  }
+): Promise<string> => {
+  const ai = getAiClient();
+  const modelId = "gemini-2.5-flash";
+
+  const prompt = `Bạn là Trợ lý AI OpenLMS, đang hỗ trợ Giáo viên phân tích hồ sơ học tập toàn diện của học sinh.
+
+BẮT ĐẦU BẰNG CỤM TỪ CHÍNH XÁC: "AI OpenLMS chào thầy/cô, sau khi phân tích hồ sơ học sinh ${studentName}, đây là nhận xét tổng hợp:"
+
+DỮ LIỆU HỒ SƠ HỌC SINH: "${studentName}"
+
+📚 KẾT QUẢ HỌC TẬP:
+- Điểm trung bình: ${portfolioData.avgScore}/10
+- Tổng số bài đã làm: ${portfolioData.totalAttempts}
+- Chủ đề yếu nhất: ${portfolioData.weakTopics.length > 0 ? portfolioData.weakTopics.map(t => t.topic + ' (' + t.subject + ') - sai ' + t.incorrectRate + '%').join(', ') : 'Không có dữ liệu'}
+
+📝 NHẬN XÉT THƯỜNG XUYÊN (TT27):
+${portfolioData.evaluationSummary || 'Chưa có nhận xét'}
+
+⚡ HÀNH VI:
+- Tổng điểm hành vi: ${portfolioData.behaviorScore}
+- Số lần ghi nhận tích cực: ${portfolioData.behaviorPositiveCount}
+- Số lần ghi nhận tiêu cực: ${portfolioData.behaviorNegativeCount}
+
+📋 ĐIỂM DANH:
+- Có mặt: ${portfolioData.attendancePresent}/${portfolioData.attendanceTotal} buổi
+- Vắng: ${portfolioData.attendanceAbsent} buổi
+
+🏟️ ĐẤU TRƯỜNG ARENA:
+- Elo Rating: ${portfolioData.arenaElo}
+- Thắng/Thua: ${portfolioData.arenaWins}W / ${portfolioData.arenaLosses}L
+- Tầng tháp: ${portfolioData.towerFloor}
+
+📌 GHI CHÚ BỔ SUNG TỪ GIÁO VIÊN:
+${portfolioData.teacherNotes || 'Không có'}
+
+YÊU CẦU PHÂN TÍCH:
+1. Viết bằng Tiếng Việt, chuyên nghiệp, khách quan, mang tính hỗ trợ sư phạm.
+2. Định dạng Markdown rõ ràng với các heading ### và gạch đầu dòng.
+3. Cấu trúc bắt buộc:
+   ### 1. Đánh giá tổng quan
+   ### 2. Điểm mạnh nổi bật
+   ### 3. Lỗ hổng cần khắc phục
+   ### 4. Đề xuất biện pháp hỗ trợ cụ thể
+4. Độ dài: 300-500 từ.
+5. Nếu dữ liệu còn ít, hãy đề xuất GV bổ sung thêm thông tin.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+    });
+    return response.text || "AI không thể tạo phân tích lúc này.";
+  } catch (error) {
+    console.error("Gemini Portfolio Analysis Error:", error);
+    throw new Error("Không thể kết nối AI. Vui lòng kiểm tra API Key.");
+  }
+};

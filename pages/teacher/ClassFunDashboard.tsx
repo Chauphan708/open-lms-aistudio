@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { useClassFunStore } from '../../services/classFunStore';
 import { Trophy, Star, TrendingUp, TrendingDown, Users, Award, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -14,6 +15,7 @@ const toDateKey = (date: Date): string => {
 export const ClassFunDashboard: React.FC = () => {
     const { user, classes, users } = useStore();
     const { groups, logs, behaviors, groupMembers, isLoading, hasMoreLogs, fetchClassFunData, loadMoreBehaviorLogs } = useClassFunStore();
+    const navigate = useNavigate();
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     // Chọn lớp (nếu giáo viên có nhiều lớp)
@@ -344,7 +346,7 @@ export const ClassFunDashboard: React.FC = () => {
                                     </div>
 
                                     <div className="mt-auto">
-                                        <span className={`block font-bold mb-2 truncate ${isTop3 ? 'text-gray-900' : 'text-gray-700'}`} title={s.name}>{s.name}</span>
+                                        <span onClick={() => navigate(`/teacher/portfolio/${s.id}`)} className={`block font-bold mb-2 truncate cursor-pointer hover:text-indigo-600 hover:underline transition-colors ${isTop3 ? 'text-gray-900' : 'text-gray-700'}`} title={`Xem Hồ Sơ ${s.name}`}>{s.name}</span>
 
                                         {/* Progress Bar representing score visually */}
                                         {s.score > 0 && (

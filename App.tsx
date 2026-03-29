@@ -49,6 +49,9 @@ import { Leaderboard } from './pages/arena/Leaderboard';
 import { ArenaAdmin } from './pages/arena/ArenaAdmin';
 import { TournamentHost } from './pages/arena/TournamentHost';
 import { TournamentLobby } from './pages/arena/TournamentLobby';
+// Portfolio
+import { StudentPortfolio } from './pages/teacher/StudentPortfolio';
+import { MyPortfolio } from './pages/student/MyPortfolio';
 
 // Tools
 import { CountdownTimer } from './pages/tools/CountdownTimer';
@@ -415,6 +418,18 @@ function App() {
         <Route path="/student/analytics" element={
           <ProtectedRoute roles={['STUDENT']}>
             <LearningAnalytics />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/student/portfolio" element={
+          <ProtectedRoute roles={['STUDENT']}>
+            <MyPortfolio />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/teacher/portfolio/:studentId" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <StudentPortfolio />
           </ProtectedRoute>
         } />
 
