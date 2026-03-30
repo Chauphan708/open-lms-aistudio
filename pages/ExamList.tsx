@@ -387,6 +387,11 @@ export const ExamList: React.FC = () => {
           <div className="divide-y">
             {filteredExams.map((exam) => {
                 const examAssignments = assignments.filter(a => a.examId === exam.id);
+                // Tìm bản giao bài mới nhất
+                const latestAssign = examAssignments.length > 0 
+                  ? [...examAssignments].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+                  : null;
+
                 const assignCount = examAssignments.length;
                 const now = new Date();
                 const isCurrentlyAssigning = examAssignments.some(a => {
@@ -441,7 +446,30 @@ export const ExamList: React.FC = () => {
                           <span className="flex items-center gap-1">
                             <Layers className="h-3 w-3" /> {exam.questionCount} câu
                           </span>
-                          <span>• {new Date(exam.createdAt).toLocaleDateString('vi-VN')}</span>
+                          
+                          {/* Hiển thị mốc thời gian Giao/Mở bài */}
+                          {latestAssign ? (
+                            <>
+                              <span className="flex items-center gap-1.5" title="Mốc thời gian bạn thực hiện giao bài">
+                                <Send className="h-3 w-3 text-indigo-500" /> 
+                                <span className="font-bold text-gray-700">Giao:</span> 
+                                {new Date(latestAssign.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {latestAssign.startTime && (
+                                <span className="flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded" title="Thời điểm bài thi bắt đầu mở cho học sinh">
+                                  <Calendar className="h-3 w-3" /> 
+                                  <span className="font-bold">Mở:</span> 
+                                  {new Date(latestAssign.startTime).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="flex items-center gap-1" title="Ngày tạo đề thi">
+                              <Calendar className="h-3 w-3" /> 
+                              <span className="font-bold text-gray-700">Tạo:</span> {new Date(exam.createdAt).toLocaleDateString('vi-VN')}
+                            </span>
+                          )}
+
                           {exam.subject && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">{exam.subject}</span>}
                         </div>
                       </div>
