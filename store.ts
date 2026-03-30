@@ -110,6 +110,7 @@ export const useStore = create<AppState>((set, get, api) => ({
           teacherId: String(e.teacherId || e.teacher_id || e.teacherid || ''),
           createdAt: e.createdAt || e.created_at || e.createdat,
           updatedAt: e.updatedAt || e.updated_at || e.updatedat,
+          durationMinutes: Number(e.durationMinutes || e.duration_minutes || e.durationminutes || 0),
           questionCount: e.questionCount || e.question_count || e.questioncount,
           category: e.category || (String(e.id).startsWith('exam_matrix_') ? 'EXAM' : 'TASK'),
           classId: String(e.classId || e.class_id || e.classid || '')

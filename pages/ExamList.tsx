@@ -173,7 +173,7 @@ export const ExamList: React.FC = () => {
                         <h3 className="font-bold text-gray-900">{exam.title}</h3>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> {assign.durationMinutes || exam.durationMinutes} phút
+                            <Clock className="h-3 w-3" /> {(assign.durationMinutes || exam.durationMinutes || 0)} phút
                           </span>
                           <span>• Lớp {cls?.name}</span>
                           {assign.endTime && (
@@ -441,7 +441,7 @@ export const ExamList: React.FC = () => {
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> {exam.durationMinutes} phút
+                            <Clock className="h-3 w-3" /> {(exam.durationMinutes || 0)} phút
                           </span>
                           <span className="flex items-center gap-1">
                             <Layers className="h-3 w-3" /> {exam.questionCount} câu
