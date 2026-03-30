@@ -425,7 +425,8 @@ export interface AppState {
   updateAttemptFeedback: (attemptId: string, feedback: string, allowViewSolution: boolean) => void;
 
   customTopics: string[];
-  addCustomTopic: (topic: string) => void;
+  addCustomTopic: (topic: string) => Promise<void>;
+  fetchCustomTopics: () => Promise<void>;
 
   notifications: Notification[];
   addNotification: (notif: Notification) => void;

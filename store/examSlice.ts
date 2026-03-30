@@ -5,7 +5,7 @@ import { supabase } from '../services/supabaseClient';
 export type ExamSliceState = Pick<AppState,
   | 'exams' | 'addExam' | 'updateExam' | 'softDeleteExam' | 'restoreExam'
   | 'bulkUpdateTopic' | 'bulkDeleteTopic'
-  | 'customTopics' | 'addCustomTopic'
+  | 'customTopics' | 'addCustomTopic' | 'fetchCustomTopics'
   | 'questionBank' | 'fetchQuestionBank' | 'syncQuestionsFromExams' 
   | 'addQuestionToBank' | 'updateQuestionInBank' | 'deleteQuestionFromBank'
   | 'assignments' | 'addAssignment' | 'deleteAssignment' | 'updateAssignment'
@@ -61,24 +61,46 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
     }
   },
   bulkUpdateTopic: async (oldName, newName) => {
-    const { error } = await supabase.from('exams').update({ topic: newName }).eq('topic', oldName);
-    if (error) {
-      console.error("bulkUpdateTopic error:", error);
-      return false;
+    const { user } = get();
+    if (!user) return false;
+
+    // 1. Update Exams table
+    const { error: examErr } = await supabase.from('exams').update({ topic: newName }).eq('topic', oldName).eq('teacher_id', user.id);
+    
+    // 2. Update Question Bank table
+    const { error: qBankErr } = await supabase.from('question_bank').update({ topic: newName }).eq('topic', oldName).eq('teacher_id', user.id);
+    
+    // 3. Update Custom Topics table
+    const { error: customErr } = await supabase.from('custom_topics').update({ name: newName }).eq('name', oldName).eq('teacher_id', user.id);
+
+    if (examErr || qBankErr) {
+      console.error("bulkUpdateTopic Error:", { examErr, qBankErr, customErr });
     }
+
     set(state => ({
-      exams: state.exams.map(e => e.topic === oldName ? { ...e, topic: newName } : e)
+      exams: state.exams.map(e => e.topic === oldName ? { ...e, topic: newName } : e),
+      questionBank: state.questionBank.map(q => q.topic === oldName ? { ...q, topic: newName } : q),
+      customTopics: state.customTopics.map(t => t === oldName ? newName : t)
     }));
     return true;
   },
   bulkDeleteTopic: async (topicName) => {
-    const { error } = await supabase.from('exams').update({ topic: null }).eq('topic', topicName);
-    if (error) {
-      console.error("bulkDeleteTopic error:", error);
-      return false;
-    }
+    const { user } = get();
+    if (!user) return false;
+
+    // 1. Update Exams (unset topic)
+    await supabase.from('exams').update({ topic: null }).eq('topic', topicName).eq('teacher_id', user.id);
+    
+    // 2. Update Question Bank (unset topic)
+    await supabase.from('question_bank').update({ topic: null }).eq('topic', topicName).eq('teacher_id', user.id);
+    
+    // 3. Delete from Custom Topics table
+    await supabase.from('custom_topics').delete().eq('name', topicName).eq('teacher_id', user.id);
+
     set(state => ({
-      exams: state.exams.map(e => e.topic === topicName ? { ...e, topic: undefined } : e)
+      exams: state.exams.map(e => e.topic === topicName ? { ...e, topic: undefined } : e),
+      questionBank: state.questionBank.map(q => q.topic === topicName ? { ...q, topic: undefined } : q),
+      customTopics: state.customTopics.filter(t => t !== topicName)
     }));
     return true;
   },
@@ -123,10 +145,37 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
     await supabase.from('exams').update({ deleted_at: null }).eq('id', id);
   },
 
-  addCustomTopic: (topic) => {
-    set((state) => ({
-      customTopics: Array.from(new Set([...state.customTopics, topic]))
-    }));
+  addCustomTopic: async (topic) => {
+    const { user, customTopics } = get();
+    if (!user) return;
+    
+    // Optimistic UI
+    if (!customTopics.includes(topic)) {
+      set((state) => ({
+        customTopics: Array.from(new Set([...state.customTopics, topic]))
+      }));
+    }
+
+    // Persist to DB
+    const { error } = await supabase.from('custom_topics').upsert({
+       name: topic,
+       teacher_id: user.id
+    }, { onConflict: 'name, teacher_id' });
+
+    if (error) console.error("addCustomTopic Persistence error:", error);
+  },
+
+  fetchCustomTopics: async () => {
+    const { user } = get();
+    if (!user) return;
+
+    const { data, error } = await supabase.from('custom_topics')
+      .select('name')
+      .eq('teacher_id', user.id);
+    
+    if (!error && data) {
+      set({ customTopics: data.map(item => item.name) });
+    }
   },
 
   // Question Bank

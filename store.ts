@@ -362,6 +362,9 @@ export const useStore = create<AppState>((set, get, api) => ({
       console.error("Error fetching initial data (Global):", e);
       if (get().users.length === 0) set({ users: SEED_USERS });
     } finally {
+      // 10. Fetch Custom Topics
+      await get().fetchCustomTopics();
+
       set({ isDataLoading: false });
     }
   },
