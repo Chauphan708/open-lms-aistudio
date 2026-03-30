@@ -29,12 +29,13 @@ const LEVEL_LABELS: Record<ExamDifficulty, string> = {
 };
 
 const QuestionBank: React.FC = () => {
-  const { questionBank, syncQuestionsFromExams, deleteQuestionFromBank, updateQuestionInBank, fetchInitialData } = useStore();
+  const { questionBank, exams, customTopics, syncQuestionsFromExams, deleteQuestionFromBank, updateQuestionInBank, fetchInitialData } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterGrade, setFilterGrade] = useState('all');
   const [filterLevel, setFilterLevel] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterTopic, setFilterTopic] = useState('all');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ count: number; show: boolean }>({ count: 0, show: false });
   
@@ -42,18 +43,22 @@ const QuestionBank: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<QuestionBankItem>>({});
 
-  const subjects = Array.from(new Set(questionBank.map(q => q.subject))).sort();
-  const grades = Array.from(new Set(questionBank.map(q => q.grade))).sort();
-  const topics = Array.from(new Set(questionBank.map(q => q.topic))).sort();
+  const subjects = React.useMemo(() => Array.from(new Set(questionBank.map(q => q.subject))).filter(Boolean).sort(), [questionBank]);
+  const grades = React.useMemo(() => Array.from(new Set(questionBank.map(q => q.grade))).filter(Boolean).sort(), [questionBank]);
+  const allTopics = React.useMemo(() => {
+    const qBankTopics = questionBank.map(q => q.topic).filter(Boolean);
+    const examTopics = (exams || []).filter(e => !e.deletedAt).map(e => e.topic).filter(Boolean);
+    return Array.from(new Set([...qBankTopics, ...examTopics, ...(customTopics || [])])).sort() as string[];
+  }, [questionBank, exams, customTopics]);
 
   const filteredQuestions = questionBank.filter(q => {
-    const matchesSearch = q.content.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (q.topic?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = q.content.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSubject = filterSubject === 'all' || q.subject === filterSubject;
     const matchesGrade = filterGrade === 'all' || q.grade === filterGrade;
     const matchesLevel = filterLevel === 'all' || q.level === filterLevel;
     const matchesType = filterType === 'all' || q.type === filterType;
-    return matchesSearch && matchesSubject && matchesGrade && matchesLevel && matchesType;
+    const matchesTopic = filterTopic === 'all' || q.topic === filterTopic;
+    return matchesSearch && matchesSubject && matchesGrade && matchesLevel && matchesType && matchesTopic;
   });
 
   const handleSync = async () => {
@@ -317,7 +322,7 @@ const QuestionBank: React.FC = () => {
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-6 gap-3">
         <div className="relative col-span-1 md:col-span-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -345,6 +350,15 @@ const QuestionBank: React.FC = () => {
         >
           <option value="all">Tất cả Lớp</option>
           {grades.map(g => <option key={g} value={g}>Lớp {g}</option>)}
+        </select>
+
+        <select
+          value={filterTopic}
+          onChange={(e) => setFilterTopic(e.target.value)}
+          className="bg-gray-50 border-0 rounded-xl text-sm px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="all">Tất cả Chủ đề</option>
+          {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
 
         <select
