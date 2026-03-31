@@ -46,6 +46,7 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
   const [viewScore, setViewScore] = useState(true);
   const [viewPassFail, setViewPassFail] = useState(true);
   const [viewSolution, setViewSolution] = useState(true);
+  const [viewSolutionOnLastAttemptOnly, setViewSolutionOnLastAttemptOnly] = useState(false);
   const [viewHint, setViewHint] = useState(true); // New Hint Setting
   const [maxAttempts, setMaxAttempts] = useState(10); // Default 10 attempts
 
@@ -92,6 +93,7 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
         viewScore,
         viewPassFail,
         viewSolution,
+        viewSolutionOnLastAttemptOnly,
         viewHint,
         maxAttempts,
         // Enforce settings if it's exam mode, otherwise take custom state
@@ -347,6 +349,19 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <input type="checkbox" checked={viewSolution} onChange={e => setViewSolution(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                   <span className="text-sm text-gray-700 group-hover:text-gray-900">Hiển thị lời giải chi tiết (Đáp án)</span>
+                </label>
+                <label className={`flex items-center gap-3 cursor-pointer group ${maxAttempts === 0 ? 'opacity-50 grayscale' : ''}`}>
+                  <input 
+                    type="checkbox" 
+                    disabled={maxAttempts === 0}
+                    checked={viewSolutionOnLastAttemptOnly} 
+                    onChange={e => setViewSolutionOnLastAttemptOnly(e.target.checked)} 
+                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-sm text-gray-700 group-hover:text-gray-900 font-bold text-indigo-600">Được xem lời giải chi tiết (đáp án) ở lần làm bài cuối cùng</span>
+                    {maxAttempts === 0 && <p className="text-[10px] text-gray-400 italic font-normal">* Chỉ áp dụng khi có giới hạn số lần làm bài</p>}
+                  </div>
                 </label>
               </div>
             </div>

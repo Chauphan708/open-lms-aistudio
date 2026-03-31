@@ -560,7 +560,8 @@ export const ExamTake: React.FC = () => {
     requireCamera: false,
     requireFullscreen: false,
     preventTabSwitch: false,
-    preventCopy: false
+    preventCopy: false,
+    viewSolutionOnLastAttemptOnly: false
   };
 
   const assignmentSettings = useMemo(() => {
@@ -620,7 +621,11 @@ export const ExamTake: React.FC = () => {
   const hasFeedback = !!latestAttempt?.teacherFeedback;
 
   const viewScore = assignmentSettings.viewScore; // Score is usually fine to show if configured
-  const viewPassFail = assignmentSettings.viewPassFail; // Generally always show P/F if enabled
+  
+  // Logic mới: Nếu được xem lời giải ở lần cuối, thì cũng nên được xem Đúng/Sai
+  const maxAttempts = assignmentSettings.maxAttempts || 0;
+  const isLastAttempt = maxAttempts > 0 && myAttempts.length >= maxAttempts;
+  const viewPassFail = assignmentSettings.viewPassFail || (assignmentSettings.viewSolutionOnLastAttemptOnly && isLastAttempt);
 
   // Logic: Show solution if:
   // 1. Feedback exists AND teacher specifically ALLOWED it in that feedback.
@@ -630,9 +635,18 @@ export const ExamTake: React.FC = () => {
       // If teacher has graded/given feedback, use the specific flag stored with feedback
       return !!latestAttempt?.feedbackAllowViewSolution;
     }
+
+    // Logic mới: Nếu bật "Chỉ xem ở lần cuối" và học sinh đã đạt/vượt số lượt cho phép
+    const maxAttempts = assignmentSettings.maxAttempts || 0;
+    const isLastAttempt = maxAttempts > 0 && myAttempts.length >= maxAttempts;
+    
+    if (assignmentSettings.viewSolutionOnLastAttemptOnly && isLastAttempt) {
+      return true;
+    }
+
     // Otherwise fallback to assignment default
     return assignmentSettings.viewSolution;
-  }, [hasFeedback, latestAttempt, assignmentSettings]);
+  }, [hasFeedback, latestAttempt, assignmentSettings, myAttempts.length]);
 
   // Helper to shuffle array (Fisher-Yates)
   const shuffleArray = (array: number[]) => {

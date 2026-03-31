@@ -99,6 +99,7 @@ export interface AssignmentSettings {
   requireFullscreen?: boolean;
   preventTabSwitch?: boolean;
   preventCopy?: boolean;
+  viewSolutionOnLastAttemptOnly?: boolean;
 }
 
 export interface Assignment {
