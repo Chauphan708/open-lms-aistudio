@@ -158,6 +158,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
       items: [
         { label: 'Kho Tài liệu & Web', path: '/resources', icon: Globe, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { label: 'Hệ Thống Trò Chơi (Games)', path: '/edu-games', icon: Bot, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
         { label: 'Phòng Thảo luận (GV)', path: '/teacher/discussions', icon: MessageSquare, roles: ['TEACHER'] },
         { label: 'Phòng Thảo luận', path: '/discussion/join', icon: MessageSquare, roles: ['STUDENT'] },
         { label: 'QL Đấu trí', path: '/arena/admin', icon: Brain, roles: ['ADMIN', 'TEACHER'] },

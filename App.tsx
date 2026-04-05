@@ -56,6 +56,9 @@ import { MyPortfolio } from './pages/student/MyPortfolio';
 // Tools
 import { CountdownTimer } from './pages/tools/CountdownTimer';
 
+// EduGames SSO Bridge
+import { EduGamesRedirect } from './pages/EduGamesRedirect';
+
 import { supabase } from './services/supabaseClient';
 import { useStore } from './store';
 import { UserRole } from './types';
@@ -393,6 +396,12 @@ function App() {
         <Route path="/resources" element={
           <ProtectedRoute>
             <ResourceLibrary />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/edu-games" element={
+          <ProtectedRoute>
+             <EduGamesRedirect />
           </ProtectedRoute>
         } />
 
