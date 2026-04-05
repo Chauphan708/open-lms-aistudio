@@ -4,65 +4,79 @@ import { useStore } from '../store';
 import { Loader2 } from 'lucide-react';
 
 export const EduGamesRedirect = () => {
-  const { user } = useStore();
+  const { user, isDataLoading } = useStore();
   const [error, setError] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(true);
 
   useEffect(() => {
-    const performSSO = async () => {
-      try {
-        // Lấy phiên đăng nhập hiện tại của người dùng
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) throw sessionError;
-        
-        if (!data.session) {
-          setError('Không tìm thấy phiên đăng nhập. Vui lòng đăng nhập lại.');
-          return;
-        }
+    // Đợi 1.5 giây để đảm bảo Store đã nạp User xong (tránh lỗi cache/delay)
+    const timer = setTimeout(() => {
+      setWaiting(false);
+      if (!user && !isDataLoading) {
+        setError('Hệ thống không nhận diện được tài khoản. Vui lòng thử Đăng xuất và Đăng nhập lại.');
+      }
+    }, 1500);
 
-        const { access_token, refresh_token } = data.session;
-        
-        // Xác định trang đích bên hệ thống Game tùy theo quyền của User
-        // DEV: Đổi localhost:5174 thành URL public của Game khi deploy Vercel
+    if (user) {
+      try {
+        // Tạo Payload "Mock JWT" chứa thông tin cơ bản
+        const mockPayload = {
+          id: user.id || 'guest',
+          name: user.name || 'Người dùng LMS',
+          role: (user.role || 'STUDENT').toLowerCase(),
+          email: user.email || '',
+          class_id: user.className || ''
+        };
+
+        const base64Token = btoa(encodeURIComponent(JSON.stringify(mockPayload)));
         const GAME_BASE_URL = window.location.hostname === 'localhost' 
               ? 'http://localhost:5174' 
               : 'https://edu-games-gamma.vercel.app'; 
 
-        const targetPath = user?.role === 'STUDENT' ? '/arena' : '/teacher';
+        const targetPath = user.role === 'STUDENT' ? '/arena' : '/teacher';
+        const bridgeUrl = `${GAME_BASE_URL}${targetPath}?lms_token=${base64Token}`;
         
-        // Tạo Bridge URL với Token
-        const bridgeUrl = `${GAME_BASE_URL}${targetPath}?access_token=${access_token}&refresh_token=${refresh_token}`;
-        
-        // Chuyển hướng trình duyệt
         window.location.href = bridgeUrl;
-        
       } catch (err: any) {
-        console.error('Lỗi SSO:', err);
-        setError('Lỗi kết nối đến Hệ thống Trò chơi: ' + err.message);
+        setError('Lỗi mã hóa SSO: ' + err.message);
       }
-    };
+    }
 
-    performSSO();
-  }, [user]);
+    return () => clearTimeout(timer);
+  }, [user, isDataLoading]);
 
   if (error) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-red-50">
-         <h2 className="text-2xl font-bold text-red-600 mb-2">Lỗi Chuyển Hướng!</h2>
-         <p className="text-gray-700">{error}</p>
-         <button className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded shadow" onClick={() => window.history.back()}>
-            Quay lại
-         </button>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white min-h-[60vh]">
+         <div className="bg-red-50 p-8 rounded-3xl border border-red-100 shadow-xl max-w-md">
+            <h2 className="text-3xl font-black text-red-600 mb-4">Rất tiếc!</h2>
+            <p className="text-gray-600 mb-6 leading-relaxed">{error}</p>
+            <button 
+              className="px-8 py-3 bg-red-600 text-white rounded-2xl font-bold shadow-lg shadow-red-200 hover:bg-red-700 transition-all hover:scale-105" 
+              onClick={() => window.location.href = '/'}
+            >
+               Quay về Trang chủ
+            </button>
+         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center" style={{ minHeight: '60vh' }}>
-      <Loader2 className="h-12 w-12 text-indigo-600 animate-spin mb-4" />
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">Đang thiết lập kết nối mã hóa...</h2>
-      <p className="text-gray-500">Đang chuyển hướng bạn sang Hệ thống Trò Chơi An Toàn (SSO).</p>
-      <p className="text-sm mt-4 text-indigo-400">Vui lòng đợi vài giây!</p>
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-indigo-50/30 min-h-[60vh]">
+      <div className="relative">
+        <Loader2 className="h-20 w-20 text-indigo-600 animate-spin mb-6" />
+        <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-3 w-3 bg-indigo-400 rounded-full animate-ping"></div>
+        </div>
+      </div>
+      <h2 className="text-3xl font-black text-gray-800 mb-2">Đang kết nối Trò Chơi...</h2>
+      <p className="text-indigo-500 font-medium animate-pulse">
+        {waiting ? "Đang xác thực bảo mật tài khoản..." : "Mã hóa thông tin thành công, đang chuyển hướng..."}
+      </p>
+      <div className="mt-8 flex gap-2">
+         {[1,2,3].map(i => <div key={i} className={`h-2 w-2 rounded-full bg-indigo-200 animate-bounce delay-${i}00`}></div>)}
+      </div>
     </div>
   );
 };
