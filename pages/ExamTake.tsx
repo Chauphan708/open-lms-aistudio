@@ -622,10 +622,11 @@ export const ExamTake: React.FC = () => {
 
   const viewScore = assignmentSettings.viewScore; // Score is usually fine to show if configured
   
-  // Logic mới: Nếu được xem lời giải ở lần cuối, thì cũng nên được xem Đúng/Sai
+  // Logic mới: Nếu được xem lời giải ở lần áp chót, thì cũng nên được xem Đúng/Sai
   const maxAttempts = assignmentSettings.maxAttempts || 0;
-  const isLastAttempt = maxAttempts > 0 && myAttempts.length >= maxAttempts;
-  const viewPassFail = assignmentSettings.viewPassFail || (assignmentSettings.viewSolutionOnLastAttemptOnly && isLastAttempt);
+  // "Lần áp chót" = lần thứ (maxAttempts - 1). VD: max=5 → sau lần 4 sẽ thấy đáp án, lần 5 làm lại.
+  const isSecondToLastAttempt = maxAttempts >= 2 && myAttempts.length >= maxAttempts - 1;
+  const viewPassFail = assignmentSettings.viewPassFail || (assignmentSettings.viewSolutionOnLastAttemptOnly && isSecondToLastAttempt);
 
   // Logic: Show solution if:
   // 1. Feedback exists AND teacher specifically ALLOWED it in that feedback.
@@ -636,11 +637,11 @@ export const ExamTake: React.FC = () => {
       return !!latestAttempt?.feedbackAllowViewSolution;
     }
 
-    // Logic mới: Nếu bật "Chỉ xem ở lần cuối" và học sinh đã đạt/vượt số lượt cho phép
+    // Logic mới: "Lần áp chót" - xem đáp án sau lần (maxAttempts - 1), HS còn 1 lần cuối để làm lại
     const maxAttempts = assignmentSettings.maxAttempts || 0;
-    const isLastAttempt = maxAttempts > 0 && myAttempts.length >= maxAttempts;
+    const isSecondToLastAttempt = maxAttempts >= 2 && myAttempts.length >= maxAttempts - 1;
     
-    if (assignmentSettings.viewSolutionOnLastAttemptOnly && isLastAttempt) {
+    if (assignmentSettings.viewSolutionOnLastAttemptOnly && isSecondToLastAttempt) {
       return true;
     }
 

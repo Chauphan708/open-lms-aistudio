@@ -359,7 +359,7 @@ export const AssignModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
                   />
                   <div className="flex flex-col">
-                    <span className="text-sm text-gray-700 group-hover:text-gray-900 font-bold text-indigo-600">Được xem lời giải chi tiết (đáp án) ở lần làm bài cuối cùng</span>
+                    <span className="text-sm text-gray-700 group-hover:text-gray-900 font-bold text-indigo-600">Được xem lời giải chi tiết (đáp án) ở lần làm bài áp chót</span>
                     {maxAttempts === 0 && <p className="text-[10px] text-gray-400 italic font-normal">* Chỉ áp dụng khi có giới hạn số lần làm bài</p>}
                   </div>
                 </label>
