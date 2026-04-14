@@ -230,6 +230,14 @@ function parseOneBlock(block: string, index: number): Question | null {
         correctOptionIndex = undefined;
     }
 
+    // Logic đặc biệt cho câu hỏi Sắp xếp (Ordering)
+    const isOrderingKeywords = /sắp xếp|thứ tự|xếp theo|từ bé đến lớn|từ lớn đến bé|từ nhỏ đến lớn|từ lớn đến nhỏ|từ thấp đến cao|từ cao đến thấp|từ ngắn.* đến dài|từ dài.* đến ngắn|tăng dần|giảm dần|ordering|arrange|sort/i.test(content);
+    if (isOrderingKeywords && type === 'MCQ') {
+        type = 'ORDERING';
+        // Câu hỏi sắp xếp không có đáp án đúng theo kiểu ABCD
+        correctOptionIndex = undefined;
+    }
+
     if (type === 'SHORT_ANSWER' && shortAnswerText) {
         options.push(shortAnswerText);
     }
