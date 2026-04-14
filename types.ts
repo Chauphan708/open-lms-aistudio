@@ -65,6 +65,7 @@ export interface Question {
   level?: ExamDifficulty;
   topic?: string;
   isArenaEligible?: boolean;
+  isNotScored?: boolean;
 }
 
 export interface QuestionBankItem extends Question {

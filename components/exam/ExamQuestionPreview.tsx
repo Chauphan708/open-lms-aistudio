@@ -78,8 +78,13 @@ export const ExamQuestionPreview: React.FC<ExamQuestionPreviewProps> = ({
                         <img src={q.imageUrl} alt="Question" className="mt-3 max-w-full h-auto rounded-lg border border-gray-200 max-h-64 object-contain" />
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="ml-2 text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded border uppercase whitespace-nowrap">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {q.isNotScored && (
+                        <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200 uppercase whitespace-nowrap font-bold">
+                          Không tính điểm
+                        </span>
+                      )}
+                      <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded border uppercase whitespace-nowrap">
                         {getTypeLabel(q.type)}
                       </span>
                       <select

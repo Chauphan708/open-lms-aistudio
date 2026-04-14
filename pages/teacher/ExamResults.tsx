@@ -617,8 +617,9 @@ export const ExamResults: React.FC = () => {
                         <tbody className="divide-y divide-gray-100">
                            {examAttempts.map(att => {
                               const student = users.find(u => u.id === att.studentId);
+                              const scoredQuestionCount = exam.questions.filter(q => !q.isNotScored).length;
                               // Use the score to accurately determine correct count to avoid recalculation discrepancies
-                              const correctCount = Math.round(((att.score || 0) / 10) * exam.questions.length);
+                              const correctCount = Math.round(((att.score || 0) / 10) * scoredQuestionCount);
 
                               return (
                                  <tr key={att.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openStudentDetail(att.id)}>
@@ -651,7 +652,7 @@ export const ExamResults: React.FC = () => {
                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                       <span className="font-bold text-green-600">{correctCount}</span> / {exam.questions.length}
+                                       <span className="font-bold text-green-600">{correctCount}</span> / {exam.questions.filter(q => !q.isNotScored).length}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                        <span className={`font-bold text-lg ${(att.score || 0) >= 8 ? 'text-green-600' : (att.score || 0) >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>

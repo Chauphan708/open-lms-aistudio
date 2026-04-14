@@ -1289,19 +1289,28 @@ export const ExamTake: React.FC = () => {
 
     // Calculate Score
     let correctCount = 0;
+    let scoredQuestionCount = 0;
+
     exam.questions.forEach((q, idx) => {
+      if (!q.isNotScored) {
+        scoredQuestionCount++;
+      }
+
       const userAns = answers[q.id];
+      let isCorrect = false;
+
       console.log(`DEBUG: Scoring Question ${idx + 1} (${q.type}):`, {
          questionId: q.id,
          userAnswer: userAns,
          correctOption: q.correctOptionIndex,
          solution: q.solution,
-         options: q.options
+         options: q.options,
+         isNotScored: q.isNotScored
       });
 
       if (q.type === 'MCQ') {
         if (userAns === q.correctOptionIndex) {
-           correctCount++;
+           isCorrect = true;
            console.log(`DEBUG: Q${idx + 1} MCQ CORRECT`);
         } else {
            console.log(`DEBUG: Q${idx + 1} MCQ INCORRECT. User: ${userAns}, Expected: ${q.correctOptionIndex}`);
@@ -1315,12 +1324,11 @@ export const ExamTake: React.FC = () => {
         const isSolutionShort = solString !== '' && solString.split(/\s+/).length < 10;
         
         // So khớp với danh sách options (đáp án chấp nhận được) HOẶC solution (nếu nó ngắn)
-        const isCorrect = (q.options && q.options.length > 0)
+        isCorrect = (q.options && q.options.length > 0)
           ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
           : (isSolutionShort && sAns === solString.toLowerCase());
 
         if (isCorrect) {
-           correctCount++;
            console.log(`DEBUG: Q${idx + 1} SHORT_ANSWER CORRECT. User: "${sAns}"`);
         } else {
            console.log(`DEBUG: Q${idx + 1} SHORT_ANSWER INCORRECT. User: "${sAns}", Expected in options: ${JSON.stringify(q.options)}, Solution: "${solString}" (Short: ${isSolutionShort})`);
@@ -1343,7 +1351,7 @@ export const ExamTake: React.FC = () => {
             }
           }
           if (isAllCorrect) {
-             correctCount++;
+             isCorrect = true;
              console.log(`DEBUG: Q${idx + 1} ${q.type} CORRECT`);
           } else {
              console.log(`DEBUG: Q${idx + 1} ${q.type} INCORRECT`);
@@ -1352,9 +1360,13 @@ export const ExamTake: React.FC = () => {
            console.log(`DEBUG: Q${idx + 1} ${q.type} INCORRECT (Format mismatch/empty)`);
         }
       }
+
+      if (isCorrect && !q.isNotScored) {
+         correctCount++;
+      }
     });
 
-    const finalScore = (correctCount / exam.questions.length) * 10;
+    const finalScore = scoredQuestionCount > 0 ? (correctCount / scoredQuestionCount) * 10 : 0;
     setScore(finalScore);
     setIsSubmitted(true);
 

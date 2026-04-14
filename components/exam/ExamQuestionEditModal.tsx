@@ -76,17 +76,34 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Mức độ (Tùy chọn)</label>
-            <select
-              value={editingQuestion.level || ''}
-              onChange={e => setEditingQuestion({ ...editingQuestion, level: (e.target.value as ExamDifficulty) || undefined })}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-            >
-              <option value="NHAN_BIET">Mức 1 (Nhận biết)</option>
-              <option value="KET_NOI">Mức 2 (Kết nối)</option>
-              <option value="VAN_DUNG">Mức 3 (Vận dụng)</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Mức độ (Tùy chọn)</label>
+              <select
+                value={editingQuestion.level || ''}
+                onChange={e => setEditingQuestion({ ...editingQuestion, level: (e.target.value as ExamDifficulty) || undefined })}
+                className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+              >
+                <option value="NHAN_BIET">Mức 1 (Nhận biết)</option>
+                <option value="KET_NOI">Mức 2 (Kết nối)</option>
+                <option value="VAN_DUNG">Mức 3 (Vận dụng)</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center mt-6">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={!!editingQuestion.isNotScored} 
+                  onChange={e => setEditingQuestion({ ...editingQuestion, isNotScored: e.target.checked })} 
+                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900">Không tính điểm phần này</span>
+                  <span className="text-[10px] text-gray-500 italic block mt-0.5">Dành cho câu hỏi khảo sát, thu thập thông tin</span>
+                </div>
+              </label>
+            </div>
           </div>
 
           {editingQuestion.imageUrl && (
