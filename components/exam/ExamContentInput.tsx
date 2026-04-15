@@ -98,6 +98,7 @@ export const ExamContentInput: React.FC<ExamContentInputProps> = ({
                   className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white text-gray-900"
                 >
                   <option value="MCQ">Trắc nghiệm 4 lựa chọn (ABCD)</option>
+                  <option value="MCQ_MULTIPLE">Trắc nghiệm nhiều lựa chọn (ABCD)</option>
                   <option value="MATCHING">Nối cột (Ghép đôi)</option>
                   <option value="ORDERING">Sắp xếp theo thứ tự</option>
                   <option value="DRAG_DROP">Kéo thả / Điền khuyết</option>

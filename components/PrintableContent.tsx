@@ -87,8 +87,8 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                                 </div>
                             )}
 
-                            {/* Options if MCQ */}
-                            {q.type === 'MCQ' && q.options && q.options.length > 0 && (
+                            {/* Options if MCQ or MCQ_MULTIPLE */}
+                            {(q.type === 'MCQ' || q.type === 'MCQ_MULTIPLE') && q.options && q.options.length > 0 && (
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 ml-4 mt-2">
                                     {q.options.map((opt, oIdx) => (
                                         <div key={oIdx} className="flex gap-1 break-inside-avoid">
@@ -131,7 +131,7 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
     };
 
     const renderSolution = () => {
-        const mcqQuestions = questions.filter(q => q.type === 'MCQ');
+        const mcqQuestions = questions.filter(q => q.type === 'MCQ' || q.type === 'MCQ_MULTIPLE');
         // render all MCQs in rows of 10
         const rows: typeof mcqQuestions[] = [];
         for (let i = 0; i < mcqQuestions.length; i += 10) {
@@ -156,7 +156,9 @@ export const PrintableContent: React.FC<PrintableContentProps> = ({ type, questi
                                     <tr>
                                         {row.map((q, i) => (
                                             <td key={i} className="border border-black p-1 font-bold text-red-600">
-                                                {q.correctOptionIndex !== undefined ? String.fromCharCode(65 + q.correctOptionIndex) : ''}
+                                                {q.type === 'MCQ_MULTIPLE' && q.correctOptionIndices && q.correctOptionIndices.length > 0 
+                                                  ? q.correctOptionIndices.map(idx => String.fromCharCode(65 + idx)).join(', ') 
+                                                  : q.correctOptionIndex !== undefined ? String.fromCharCode(65 + q.correctOptionIndex) : ''}
                                             </td>
                                         ))}
                                     </tr>

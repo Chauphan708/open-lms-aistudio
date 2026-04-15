@@ -50,7 +50,7 @@ export interface Class {
   studentIds: string[];
 }
 
-export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER';
+export type QuestionType = 'MCQ' | 'MATCHING' | 'ORDERING' | 'DRAG_DROP' | 'SHORT_ANSWER' | 'MCQ_MULTIPLE';
 export type ExamDifficulty = 'NHAN_BIET' | 'KET_NOI' | 'VAN_DUNG';
 
 export interface Question {
@@ -60,6 +60,7 @@ export interface Question {
   imageUrl?: string;
   options: string[];
   correctOptionIndex?: number; // For MCQ
+  correctOptionIndices?: number[]; // For MCQ_MULTIPLE
   solution?: string;
   hint?: string;
   level?: ExamDifficulty;

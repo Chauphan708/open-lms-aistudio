@@ -19,6 +19,7 @@ export const ExamQuestionPreview: React.FC<ExamQuestionPreviewProps> = ({
   const getTypeLabel = (type: QuestionType) => {
     switch (type) {
       case 'MCQ': return 'Trắc nghiệm (ABCD)';
+      case 'MCQ_MULTIPLE': return 'Trắc nghiệm (Nhiều lựa chọn)';
       case 'MATCHING': return 'Nối cột';
       case 'ORDERING': return 'Sắp xếp';
       case 'DRAG_DROP': return 'Kéo thả / Điền khuyết';
@@ -110,16 +111,16 @@ export const ExamQuestionPreview: React.FC<ExamQuestionPreviewProps> = ({
                     </div>
                   </div>
 
-                  {q.type === 'MCQ' && (
+                  {(q.type === 'MCQ' || q.type === 'MCQ_MULTIPLE') && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                       {q.options.map((opt, i) => (
                         <div
                           key={i}
                           className={`p-2.5 rounded-lg border text-sm flex items-center gap-3 transition-colors
-                            ${q.correctOptionIndex === i ? 'bg-green-50 border-green-200 text-green-900' : 'bg-white border-gray-200 text-gray-600'}
+                            ${(q.type === 'MCQ' && q.correctOptionIndex === i) || (q.type === 'MCQ_MULTIPLE' && q.correctOptionIndices?.includes(i)) ? 'bg-green-50 border-green-200 text-green-900' : 'bg-white border-gray-200 text-gray-600'}
                           `}
                         >
-                          <span className={`w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold ${q.correctOptionIndex === i ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold ${(q.type === 'MCQ' && q.correctOptionIndex === i) || (q.type === 'MCQ_MULTIPLE' && q.correctOptionIndices?.includes(i)) ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
                             {String.fromCharCode(65 + i)}
                           </span>
                           <span className="prose prose-p:my-0">

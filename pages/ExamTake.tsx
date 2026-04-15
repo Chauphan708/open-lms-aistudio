@@ -73,6 +73,76 @@ const MCQQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, vi
   );
 });
 
+const MCQMultipleQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail, canViewSolution, shuffledIndices }: any) => {
+  const selectedAnswers = Array.isArray(answer) ? answer : [];
+  
+  const handleToggle = (index: number) => {
+    if (isSubmitted) return;
+    const newAnswers = selectedAnswers.includes(index)
+      ? selectedAnswers.filter(a => a !== index)
+      : [...selectedAnswers, index];
+    onSetAnswer(newAnswers);
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {shuffledIndices.map((originalIndex: number, displayIndex: number) => {
+        const optContent = question.options[originalIndex];
+        let optionClass = "border-gray-200 hover:bg-gray-50 bg-white";
+        const isSelected = selectedAnswers.includes(originalIndex);
+        const isCorrectOption = question.correctOptionIndices?.includes(originalIndex);
+
+        if (isSubmitted) {
+          if (viewPassFail) {
+            if (isCorrectOption) {
+              if (canViewSolution || isSelected) {
+                optionClass = "bg-green-50 border-green-500 text-green-700 font-medium";
+              } else {
+                optionClass = "opacity-50 bg-white";
+              }
+            } else if (isSelected) {
+              optionClass = "bg-red-50 border-red-500 text-red-700";
+            } else {
+              optionClass = "opacity-50 bg-white";
+            }
+          } else if (isSelected) {
+            optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
+          } else {
+            optionClass = "opacity-50 bg-white";
+          }
+        } else if (isSelected) {
+          optionClass = "bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500";
+        }
+
+        if (isSubmitted && !viewPassFail && isSelected) {
+          optionClass = "bg-gray-100 border-gray-400 text-gray-800 font-bold";
+        }
+
+        return (
+          <button
+            key={originalIndex}
+            onClick={() => handleToggle(originalIndex)}
+            disabled={isSubmitted}
+            className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 shadow-sm ${optionClass} ${!isSubmitted && 'hover:border-indigo-300 hover:shadow-md active:scale-[0.98]'}`}
+          >
+            <div className={`w-8 h-8 rounded border-2 flex items-center justify-center text-sm font-bold flex-shrink-0 transition-colors ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-500'
+              } ${isSubmitted && viewPassFail && isCorrectOption && (canViewSolution || isSelected) ? '!bg-green-500 !border-green-500 !text-white' : ''}
+              ${isSubmitted && !viewPassFail && isSelected ? '!bg-gray-600 !border-gray-600 !text-white' : ''}
+            `}>
+              {isSelected ? <CheckCircle className="h-4 w-4 text-white" /> : String.fromCharCode(65 + displayIndex)}
+            </div>
+            <span className="text-gray-800 prose prose-p:my-0 flex-1">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {optContent}
+              </ReactMarkdown>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 const ShortAnswerQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail }: any) => {
   const sAns = String(answer || '').trim().toLowerCase();
   const isCorrect = question.options && question.options.length > 0
@@ -1314,6 +1384,15 @@ export const ExamTake: React.FC = () => {
            console.log(`DEBUG: Q${idx + 1} MCQ CORRECT`);
         } else {
            console.log(`DEBUG: Q${idx + 1} MCQ INCORRECT. User: ${userAns}, Expected: ${q.correctOptionIndex}`);
+        }
+      } else if (q.type === 'MCQ_MULTIPLE') {
+        const correctArray = q.correctOptionIndices || [];
+        const userArray = Array.isArray(userAns) ? userAns : [];
+        if (correctArray.length > 0 && correctArray.length === userArray.length && correctArray.every(val => userArray.includes(val))) {
+           isCorrect = true;
+           console.log(`DEBUG: Q${idx + 1} MCQ_MULTIPLE CORRECT`);
+        } else {
+           console.log(`DEBUG: Q${idx + 1} MCQ_MULTIPLE INCORRECT. User: ${userArray}, Expected: ${correctArray}`);
         }
       } else if (q.type === 'SHORT_ANSWER') {
         const sAns = String(userAns || '').trim().toLowerCase();

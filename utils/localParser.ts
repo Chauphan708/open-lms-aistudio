@@ -107,6 +107,7 @@ function parseOneBlock(block: string, index: number): Question | null {
     let content = '';
     let options: string[] = [];
     let correctOptionIndex: number | undefined = undefined;
+    let correctOptionIndices: number[] | undefined = undefined;
     let solution = '';
     let hint = '';
     let shortAnswerText = '';
@@ -133,12 +134,23 @@ function parseOneBlock(block: string, index: number): Question | null {
         const answerMatch = trimmed.match(ANSWER_REGEX);
         if (answerMatch) {
             const ansRaw = answerMatch[1].trim();
-            const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
-            if (letterMatch) {
-                const answerLetter = letterMatch[1].toUpperCase();
-                correctOptionIndex = answerLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+            const lettersOnlyMatch = ansRaw.replace(/và|and/gi, ',').match(/^([A-Da-d][\s,.-]*)+$/i) || ansRaw.match(/^(([A-Da-d])(?:[\s,.]+|$)){2,}/i);
+            
+            if (lettersOnlyMatch) {
+                const letters = ansRaw.match(/([A-Da-d])/gi);
+                if (letters && letters.length > 1) {
+                    correctOptionIndices = Array.from(new Set(letters.map(l => l.toUpperCase().charCodeAt(0) - 65)));
+                } else if (letters && letters.length === 1) {
+                    correctOptionIndex = letters[0].toUpperCase().charCodeAt(0) - 65;
+                }
             } else {
-                shortAnswerText = ansRaw;
+                const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
+                if (letterMatch) {
+                    const answerLetter = letterMatch[1].toUpperCase();
+                    correctOptionIndex = answerLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+                } else {
+                    shortAnswerText = ansRaw;
+                }
             }
             parsingState = 'answer';
             continue;
@@ -195,12 +207,22 @@ function parseOneBlock(block: string, index: number): Question | null {
                 const lateAnswer = trimmed.match(ANSWER_REGEX);
                 if (lateAnswer) {
                     const ansRaw = lateAnswer[1].trim();
-                    const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
-                    if (letterMatch) {
-                        const ansLetter = letterMatch[1].toUpperCase();
-                        correctOptionIndex = ansLetter.charCodeAt(0) - 65;
+                    const lettersOnlyMatch = ansRaw.replace(/và|and/gi, ',').match(/^([A-Da-d][\s,.-]*)+$/i) || ansRaw.match(/^(([A-Da-d])(?:[\s,.]+|$)){2,}/i);
+                    if (lettersOnlyMatch) {
+                        const letters = ansRaw.match(/([A-Da-d])/gi);
+                        if (letters && letters.length > 1) {
+                            correctOptionIndices = Array.from(new Set(letters.map(l => l.toUpperCase().charCodeAt(0) - 65)));
+                        } else if (letters && letters.length === 1) {
+                            correctOptionIndex = letters[0].toUpperCase().charCodeAt(0) - 65;
+                        }
                     } else {
-                        shortAnswerText = ansRaw;
+                        const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
+                        if (letterMatch) {
+                            const ansLetter = letterMatch[1].toUpperCase();
+                            correctOptionIndex = ansLetter.charCodeAt(0) - 65;
+                        } else {
+                            shortAnswerText = ansRaw;
+                        }
                     }
                 } else {
                     solutionLines.push(trimmed);
@@ -217,6 +239,9 @@ function parseOneBlock(block: string, index: number): Question | null {
 
     // Determine question type
     let type: QuestionType = options.length >= 2 ? 'MCQ' : 'SHORT_ANSWER';
+    if (correctOptionIndices !== undefined && correctOptionIndices.length > 1) {
+        type = 'MCQ_MULTIPLE';
+    }
 
     // Logic đặc biệt cho câu hỏi Nối cột (Matching)
     const isMatchingKeywords = /nối|ghép|matching|khớp/i.test(content);
@@ -250,6 +275,7 @@ function parseOneBlock(block: string, index: number): Question | null {
         correctOptionIndex: correctOptionIndex !== undefined && correctOptionIndex >= 0 && correctOptionIndex < options.length
             ? correctOptionIndex
             : undefined,
+        correctOptionIndices: correctOptionIndices,
         solution: solution || undefined,
         hint: hint || undefined,
         level: parsedLevel,

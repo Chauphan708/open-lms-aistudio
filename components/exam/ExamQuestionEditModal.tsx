@@ -37,25 +37,30 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
                   const newType = e.target.value as QuestionType;
                   let newOpts = [...editingQuestion.options];
                   let newIdx = editingQuestion.correctOptionIndex;
+                  let newIndices = editingQuestion.correctOptionIndices;
 
-                  if (newType === 'MCQ' && newOpts.length === 0) {
+                  if ((newType === 'MCQ' || newType === 'MCQ_MULTIPLE') && newOpts.length === 0) {
                     newOpts = ['A', 'B', 'C', 'D'];
-                    newIdx = 0;
+                    if (newType === 'MCQ') newIdx = 0;
+                    if (newType === 'MCQ_MULTIPLE') newIndices = [0];
                   } else if (newType === 'SHORT_ANSWER') {
                     newOpts = [];
                     newIdx = undefined;
+                    newIndices = undefined;
                   }
 
                   setEditingQuestion({
                     ...editingQuestion,
                     type: newType,
                     options: newOpts,
-                    correctOptionIndex: newIdx
+                    correctOptionIndex: newIdx,
+                    correctOptionIndices: newIndices
                   });
                 }}
                 className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
               >
                 <option value="MCQ">Trắc nghiệm (ABCD)</option>
+                <option value="MCQ_MULTIPLE">Trắc nghiệm nhiều lựa chọn (ABCD)</option>
                 <option value="MATCHING">Nối cột (Trái ||| Phải)</option>
                 <option value="ORDERING">Sắp xếp thứ tự đúng</option>
                 <option value="DRAG_DROP">Kéo thả / Điền khuyết</option>
@@ -113,7 +118,7 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
             </div>
           )}
 
-          {editingQuestion.type === 'MCQ' && (
+          {(editingQuestion.type === 'MCQ' || editingQuestion.type === 'MCQ_MULTIPLE') && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center justify-between">
                 Các lựa chọn
@@ -121,14 +126,33 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
               </label>
               {editingQuestion.options.map((opt, i) => (
                 <div key={i} className="flex items-center gap-2 mb-2 group">
-                  <input
-                    type="radio"
-                    name="correctOpt"
-                    checked={editingQuestion.correctOptionIndex === i}
-                    onChange={() => setEditingQuestion({ ...editingQuestion, correctOptionIndex: i })}
-                    className="w-4 h-4 text-green-600 focus:ring-green-500 cursor-pointer"
-                    title="Đánh dấu đáp án đúng"
-                  />
+                  {editingQuestion.type === 'MCQ_MULTIPLE' ? (
+                    <input
+                      type="checkbox"
+                      checked={editingQuestion.correctOptionIndices?.includes(i) || false}
+                      onChange={(e) => {
+                        const currentIndices = editingQuestion.correctOptionIndices || [];
+                        let newIndices;
+                        if (e.target.checked) {
+                          newIndices = [...currentIndices, i];
+                        } else {
+                          newIndices = currentIndices.filter(idx => idx !== i);
+                        }
+                        setEditingQuestion({ ...editingQuestion, correctOptionIndices: newIndices });
+                      }}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500 cursor-pointer rounded"
+                      title="Đánh dấu đáp án đúng"
+                    />
+                  ) : (
+                    <input
+                      type="radio"
+                      name="correctOpt"
+                      checked={editingQuestion.correctOptionIndex === i}
+                      onChange={() => setEditingQuestion({ ...editingQuestion, correctOptionIndex: i })}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500 cursor-pointer"
+                      title="Đánh dấu đáp án đúng"
+                    />
+                  )}
                   <span className="font-bold w-6 text-gray-500 text-center">{String.fromCharCode(65 + i)}</span>
                   <input
                     value={opt}
@@ -143,9 +167,16 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
                     const newOpts = [...editingQuestion.options];
                     newOpts.splice(i, 1);
                     let newIdx = editingQuestion.correctOptionIndex;
+                    let newIndices = editingQuestion.correctOptionIndices;
+                    
                     if (newIdx === i) newIdx = 0;
                     else if (newIdx !== undefined && newIdx > i) newIdx--;
-                    setEditingQuestion({ ...editingQuestion, options: newOpts, correctOptionIndex: newIdx });
+
+                    if (newIndices && newIndices.length > 0) {
+                      newIndices = newIndices.filter(idx => idx !== i).map(idx => idx > i ? idx - 1 : idx);
+                    }
+
+                    setEditingQuestion({ ...editingQuestion, options: newOpts, correctOptionIndex: newIdx, correctOptionIndices: newIndices });
                   }} className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Trash2 className="h-4 w-4" />
                   </button>
