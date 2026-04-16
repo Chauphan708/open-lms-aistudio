@@ -242,7 +242,7 @@ export const ClassManage: React.FC = () => {
       </div>
 
       {/* Class Details */}
-      <div className="md:col-span-2 bg-white rounded-xl border shadow-sm flex flex-col h-full">
+      <div className="md:col-span-2 bg-white rounded-xl border shadow-sm flex flex-col h-full min-h-0 relative">
         {!selectedClassData ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 flex-col">
             <School className="h-12 w-12 mb-2 opacity-50" />
