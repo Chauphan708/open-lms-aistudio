@@ -159,14 +159,14 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
           <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
         </div>
       ) : (
-        <div className="bg-white border rounded-xl overflow-hidden shadow-sm flex-1">
-          <table className="w-full text-left border-collapse">
+        <div className="bg-white border rounded-xl overflow-auto shadow-sm flex-1 min-h-0">
+          <table className="w-full text-left border-collapse relative">
             <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="p-3 text-sm font-bold text-gray-600">Học sinh</th>
-                <th className="p-3 text-sm font-bold text-gray-600">Trạng thái PH</th>
-                <th className="p-3 text-sm font-bold text-gray-600">Mã liên kết</th>
-                <th className="p-3 text-sm font-bold text-gray-600 text-right">Thao tác</th>
+              <tr className="bg-gray-50 border-b sticky top-0 z-10">
+                <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Học sinh</th>
+                <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Trạng thái PH</th>
+                <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Mã liên kết</th>
+                <th className="p-3 text-sm font-bold text-gray-600 text-right bg-gray-50">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
