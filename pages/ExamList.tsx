@@ -176,6 +176,9 @@ export const ExamList: React.FC = () => {
                             <Clock className="h-3 w-3" /> {(assign.durationMinutes || exam.durationMinutes || 0)} phút
                           </span>
                           <span>• Lớp {cls?.name}</span>
+                          {assign.settings && typeof assign.settings.maxAttempts === 'number' && (
+                            <span>• {assign.settings.maxAttempts === 0 ? 'Làm vô số lần' : `Được làm ${assign.settings.maxAttempts} lần`}</span>
+                          )}
                           {assign.endTime && (
                             <span className={isExpired ? 'text-red-500 font-medium' : ''}>
                               • Hạn chót: {new Date(assign.endTime).toLocaleString('vi-VN')}
@@ -430,6 +433,11 @@ export const ExamList: React.FC = () => {
                                 <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200">
                                   ĐÃ GIAO {assignCount} LẦN
                                 </span>
+                                {latestAssign && latestAssign.settings && typeof latestAssign.settings.maxAttempts === 'number' && (
+                                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200" title="Số lần làm bài ở lần giao gần nhất">
+                                    {latestAssign.settings.maxAttempts === 0 ? 'LÀM VÔ SỐ LẦN' : `${latestAssign.settings.maxAttempts} LẦN LÀM`}
+                                  </span>
+                                )}
                                 {isCurrentlyAssigning && (
                                   <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm animate-pulse">
                                     ĐANG GIAO

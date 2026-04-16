@@ -1485,6 +1485,18 @@ export const ExamTake: React.FC = () => {
     console.log("DEBUG: Final Attempt Payload to send:", attempt);
     
     setIsSubmitted(true); // Show local result first
+    
+    // Áp dụng ngay Standard Map (cố định thứ tự) khi xem đáp án
+    const standardMap: Record<string, number[]> = {};
+    exam.questions.forEach(q => {
+      if (q.options && Array.isArray(q.options)) {
+        standardMap[q.id] = q.options.map((_, i) => i);
+      } else {
+        standardMap[q.id] = [];
+      }
+    });
+    setShuffledOptionsMap(standardMap);
+    
     const success = await addAttempt(attempt);
     if (!success) {
        console.error("DEBUG: addAttempt returned false.");
