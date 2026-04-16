@@ -59,6 +59,14 @@ import { CountdownTimer } from './pages/tools/CountdownTimer';
 // EduGames SSO Bridge
 import { EduGamesRedirect } from './pages/EduGamesRedirect';
 
+// PARENT PORTAL
+import { ParentLogin } from './pages/parent/ParentLogin';
+import { ParentDashboard } from './pages/parent/ParentDashboard';
+import { ParentEvaluations } from './pages/parent/ParentEvaluations';
+import { ParentBehavior } from './pages/parent/ParentBehavior';
+import { ParentExamHistory } from './pages/parent/ParentExamHistory';
+import { useParentStore } from './services/parentStore';
+
 import { supabase } from './services/supabaseClient';
 import { useStore } from './store';
 import { UserRole } from './types';
@@ -164,6 +172,10 @@ const Login = () => {
           <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex justify-center items-center gap-2">
             <LogIn className="h-4 w-4" /> Đăng nhập
           </button>
+          
+          <a href="/parent/login" className="mt-4 w-full bg-emerald-50 text-emerald-700 p-3 rounded-lg font-bold hover:bg-emerald-100 transition-colors flex justify-center items-center gap-2 border border-emerald-200">
+            Dành cho Phụ huynh học sinh
+          </a>
         </form>
 
         {/* Forgot Password Modal */}
@@ -220,6 +232,20 @@ const LoginRoute = () => {
   return <Login />;
 };
 
+const ParentProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentParent } = useParentStore();
+  const location = useLocation();
+  if (!currentParent) return <Navigate to="/parent/login" state={{ from: location }} replace />;
+  return <>{children}</>;
+};
+
+const ParentLoginRoute = () => {
+  const { currentParent } = useParentStore();
+  const location = useLocation();
+  if (currentParent) return <Navigate to="/parent/dashboard" replace />;
+  return <ParentLogin />;
+};
+
 function App() {
   const { user, fetchInitialData, isDataLoading } = useStore();
 
@@ -243,6 +269,13 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
+
+        {/* PARENT ROUTES */}
+        <Route path="/parent/login" element={<ParentLoginRoute />} />
+        <Route path="/parent/dashboard" element={<ParentProtectedRoute><ParentDashboard /></ParentProtectedRoute>} />
+        <Route path="/parent/evaluations" element={<ParentProtectedRoute><ParentEvaluations /></ParentProtectedRoute>} />
+        <Route path="/parent/behavior" element={<ParentProtectedRoute><ParentBehavior /></ParentProtectedRoute>} />
+        <Route path="/parent/exams" element={<ParentProtectedRoute><ParentExamHistory /></ParentProtectedRoute>} />
 
         <Route path="/" element={
           <ProtectedRoute>
