@@ -172,6 +172,10 @@ const Login = () => {
           <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex justify-center items-center gap-2">
             <LogIn className="h-4 w-4" /> Đăng nhập
           </button>
+          
+          <a href="/parent/login" className="mt-4 w-full bg-emerald-50 text-emerald-700 p-3 rounded-lg font-bold hover:bg-emerald-100 transition-colors flex justify-center items-center gap-2 border border-emerald-200">
+            Dành cho Phụ huynh học sinh
+          </a>
         </form>
 
         {/* Forgot Password Modal */}
