@@ -483,7 +483,7 @@ export const ClassManage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <ClassParentTab classId={selectedClassId} students={studentsInClass} teacherId={currentUser!.id} />
+              <ClassParentTab classId={selectedClassId!} students={studentsInClass} teacherId={currentUser!.id} />
             )}
           </>
         )}

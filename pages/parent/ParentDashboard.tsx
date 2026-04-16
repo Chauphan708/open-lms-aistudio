@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ParentLayout } from '../../components/ParentLayout';
 import { useParentStore } from '../../services/parentStore';
-import { User, Activity, FileText, CheckCircle, AlertTriangle, Medal, Layers } from 'lucide-react';
+import { User, Users, Activity, FileText, CheckCircle, AlertTriangle, Medal, Layers } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 export const ParentDashboard = () => {

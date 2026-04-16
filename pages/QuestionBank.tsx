@@ -19,7 +19,8 @@ const TYPE_LABELS: Record<QuestionType, string> = {
   MATCHING: 'Nối cột',
   ORDERING: 'Sắp xếp',
   DRAG_DROP: 'Kéo thả',
-  SHORT_ANSWER: 'Tự luận ngắn'
+  SHORT_ANSWER: 'Tự luận ngắn',
+  MCQ_MULTIPLE: 'Trắc nghiệm nhiều đáp án'
 };
 
 const LEVEL_LABELS: Record<ExamDifficulty, string> = {
