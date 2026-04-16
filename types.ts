@@ -1,5 +1,5 @@
 
-export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT';
+export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT';
 
 export interface SiteSettings {
   slogan: string;
@@ -582,4 +582,26 @@ export interface DailyEvaluation {
   general_comment: string;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================
+// PARENT PORTAL (PHHS)
+// ============================================
+
+export interface Parent {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  password?: string;
+  link_code?: string;
+  created_at: string;
+}
+
+export interface ParentStudentLink {
+  id: string;
+  parent_id: string;
+  student_id: string;
+  linked_by?: string;
+  created_at: string;
 }

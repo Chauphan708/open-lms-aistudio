@@ -8,11 +8,13 @@ import { RandomRoulette } from '../../components/classfun/RandomRoulette';
 import { GroupManageModal } from '../../components/classfun/GroupManageModal';
 import { RandomGroupModal } from '../../components/classfun/RandomGroupModal';
 import { ClassSeatingModal } from '../../components/classfun/ClassSeatingModal';
+import { ClassParentTab } from '../../components/parents/ClassParentTab';
 
 export const ClassManage: React.FC = () => {
   const { classes, academicYears, users, user: currentUser, addClass, updateClass } = useStore();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'students' | 'parents'>('students');
 
   // Filter lists
   const myClasses = classes.filter(c => c.teacherId === currentUser?.id);
@@ -249,12 +251,26 @@ export const ClassManage: React.FC = () => {
         ) : (
           <>
             <div className="p-4 border-b flex justify-between items-center bg-white rounded-t-xl flex-wrap gap-2">
-              <div>
+              <div className="flex flex-col gap-2">
                 <h2 className="text-xl font-bold text-gray-900">{selectedClassData.name}</h2>
-                <p className="text-sm text-gray-500">Danh sách học sinh</p>
+                <div className="flex bg-gray-100 p-1 rounded-lg w-fit">
+                  <button 
+                    onClick={() => setActiveTab('students')}
+                    className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === 'students' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Danh sách Học sinh
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('parents')}
+                    className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${activeTab === 'parents' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Phụ huynh Lớp
+                  </button>
+                </div>
               </div>
 
-              {/* Random Controls & Group Manage */}
+              {/* Random Controls & Group Manage (chỉ hiện bên tab Học sinh) */}
+              {activeTab === 'students' && (
               <div className="flex items-center flex-wrap gap-2 mt-2 md:mt-0">
                 <button onClick={() => setShowRandomGroup(true)} className="text-sm bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-100 font-bold transition border border-emerald-100 flex items-center gap-2">
                   <Users className="h-4 w-4" /> Chia Nhóm
@@ -276,7 +292,9 @@ export const ClassManage: React.FC = () => {
                   <LayoutGrid className="h-4 w-4" /> Sơ đồ Lớp
                 </button>
               </div>
+              )}
 
+              {activeTab === 'students' && (
               <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0 relative">
                 <div className="relative flex-1 md:w-64">
                   <button
@@ -376,92 +394,97 @@ export const ClassManage: React.FC = () => {
                   <UserPlus className="h-5 w-5" />
                 </button>
               </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
-              {studentsInClass.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">Lớp chưa có học sinh nào.</div>
-              ) : (
-                <div className="space-y-6">
-                  {groupedStudents.groups.map(g => g.students.length > 0 && (
-                    <div 
-                      key={g.id} 
-                      className="bg-white border rounded-xl overflow-hidden shadow-sm hover:border-indigo-200 transition-colors"
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, g.id)}
-                    >
-                      <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color || '#6366f1' }}></div>
-                          <h3 className="font-bold text-gray-800">{g.name} <span className="text-gray-500 font-normal">({g.students.length})</span></h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); sortGroupByName(g.id, 'first'); }} 
-                            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition-colors" title="Sắp xếp theo Tên (A-Z)">
-                            <ArrowDownAZ className="h-4 w-4" />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); sortGroupByName(g.id, 'last'); }}
-                            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition-colors" title="Sắp xếp theo Họ (A-Z)">
-                            <SortAsc className="h-4 w-4" />
-                          </button>
-                          <div className="w-px h-4 bg-gray-200 mx-1"></div>
-                          <span className="text-[10px] text-gray-400 font-medium hidden sm:inline uppercase tracking-tight">Kéo thả để di chuyển</span>
-                        </div>
-                      </div>
-                      <div className="divide-y divide-gray-100">
-                        {g.students.map(s => {
-                          const selected = selectedStudentIds.includes(s.id);
-                          return (
-                            <div 
-                              key={s.id} 
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, s.id, g.id)}
-                              onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
-                              className={`p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-colors group ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
-                              <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
-                              {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <div className="h-5 w-5 border-2 rounded text-transparent flex-shrink-0" />}
-                              <div className="flex-1 min-w-0">
-                                <p className={`font-bold text-sm truncate ${selected ? 'text-indigo-900' : 'text-gray-900'}`}>{s.name}</p>
-                                <p className="text-xs text-gray-500 truncate font-mono">{s.email}</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Ungrouped */}
-                  {groupedStudents.ungrouped.length > 0 && (
-                    <div className="bg-white border rounded-xl overflow-hidden shadow-sm border-dashed">
-                      <div className="px-4 py-3 bg-gray-50/50 border-b">
-                        <h3 className="font-bold text-gray-500 italic">Chưa phân tổ <span className="font-normal">({groupedStudents.ungrouped.length})</span></h3>
-                      </div>
-                      <div className="divide-y divide-gray-100">
-                        {groupedStudents.ungrouped.map(s => {
-                          const selected = selectedStudentIds.includes(s.id);
-                          return (
-                            <div 
-                              key={s.id} 
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, s.id, 'ungrouped')}
-                              onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
-                              className={`p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-colors group ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
-                              <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
-                              {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <div className="h-5 w-5 border-2 rounded text-transparent flex-shrink-0" />}
-                              <div className="flex-1">
-                                <p className={`font-bold text-sm ${selected ? 'text-indigo-900' : 'text-gray-800'}`}>{s.name}</p>
-                                <p className="text-xs text-gray-400 font-mono">{s.email}</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
               )}
             </div>
+
+            {activeTab === 'students' ? (
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
+                {studentsInClass.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">Lớp chưa có học sinh nào.</div>
+                ) : (
+                  <div className="space-y-6">
+                    {groupedStudents.groups.map(g => g.students.length > 0 && (
+                      <div 
+                        key={g.id} 
+                        className="bg-white border rounded-xl overflow-hidden shadow-sm hover:border-indigo-200 transition-colors"
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, g.id)}
+                      >
+                        <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color || '#6366f1' }}></div>
+                            <h3 className="font-bold text-gray-800">{g.name} <span className="text-gray-500 font-normal">({g.students.length})</span></h3>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); sortGroupByName(g.id, 'first'); }} 
+                              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition-colors" title="Sắp xếp theo Tên (A-Z)">
+                              <ArrowDownAZ className="h-4 w-4" />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); sortGroupByName(g.id, 'last'); }}
+                              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-indigo-600 transition-colors" title="Sắp xếp theo Họ (A-Z)">
+                              <SortAsc className="h-4 w-4" />
+                            </button>
+                            <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                            <span className="text-[10px] text-gray-400 font-medium hidden sm:inline uppercase tracking-tight">Kéo thả để di chuyển</span>
+                          </div>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {g.students.map(s => {
+                            const selected = selectedStudentIds.includes(s.id);
+                            return (
+                              <div 
+                                key={s.id} 
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, s.id, g.id)}
+                                onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
+                                className={`p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-colors group ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
+                                <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+                                {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <div className="h-5 w-5 border-2 rounded text-transparent flex-shrink-0" />}
+                                <div className="flex-1 min-w-0">
+                                  <p className={`font-bold text-sm truncate ${selected ? 'text-indigo-900' : 'text-gray-900'}`}>{s.name}</p>
+                                  <p className="text-xs text-gray-500 truncate font-mono">{s.email}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Ungrouped */}
+                    {groupedStudents.ungrouped.length > 0 && (
+                      <div className="bg-white border rounded-xl overflow-hidden shadow-sm border-dashed">
+                        <div className="px-4 py-3 bg-gray-50/50 border-b">
+                          <h3 className="font-bold text-gray-500 italic">Chưa phân tổ <span className="font-normal">({groupedStudents.ungrouped.length})</span></h3>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {groupedStudents.ungrouped.map(s => {
+                            const selected = selectedStudentIds.includes(s.id);
+                            return (
+                              <div 
+                                key={s.id} 
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, s.id, 'ungrouped')}
+                                onClick={() => setSelectedStudentIds(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
+                                className={`p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-colors group ${selected ? 'bg-indigo-50/70 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
+                                <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+                                {selected ? <CheckSquare className="h-5 w-5 text-indigo-600 flex-shrink-0" /> : <div className="h-5 w-5 border-2 rounded text-transparent flex-shrink-0" />}
+                                <div className="flex-1">
+                                  <p className={`font-bold text-sm ${selected ? 'text-indigo-900' : 'text-gray-800'}`}>{s.name}</p>
+                                  <p className="text-xs text-gray-400 font-mono">{s.email}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <ClassParentTab classId={selectedClassId} students={studentsInClass} teacherId={currentUser!.id} />
+            )}
           </>
         )}
       </div>

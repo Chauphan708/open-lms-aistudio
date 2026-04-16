@@ -59,6 +59,14 @@ import { CountdownTimer } from './pages/tools/CountdownTimer';
 // EduGames SSO Bridge
 import { EduGamesRedirect } from './pages/EduGamesRedirect';
 
+// PARENT PORTAL
+import { ParentLogin } from './pages/parent/ParentLogin';
+import { ParentDashboard } from './pages/parent/ParentDashboard';
+import { ParentEvaluations } from './pages/parent/ParentEvaluations';
+import { ParentBehavior } from './pages/parent/ParentBehavior';
+import { ParentExamHistory } from './pages/parent/ParentExamHistory';
+import { useParentStore } from './services/parentStore';
+
 import { supabase } from './services/supabaseClient';
 import { useStore } from './store';
 import { UserRole } from './types';
@@ -220,6 +228,20 @@ const LoginRoute = () => {
   return <Login />;
 };
 
+const ParentProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentParent } = useParentStore();
+  const location = useLocation();
+  if (!currentParent) return <Navigate to="/parent/login" state={{ from: location }} replace />;
+  return <>{children}</>;
+};
+
+const ParentLoginRoute = () => {
+  const { currentParent } = useParentStore();
+  const location = useLocation();
+  if (currentParent) return <Navigate to="/parent/dashboard" replace />;
+  return <ParentLogin />;
+};
+
 function App() {
   const { user, fetchInitialData, isDataLoading } = useStore();
 
@@ -243,6 +265,13 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
+
+        {/* PARENT ROUTES */}
+        <Route path="/parent/login" element={<ParentLoginRoute />} />
+        <Route path="/parent/dashboard" element={<ParentProtectedRoute><ParentDashboard /></ParentProtectedRoute>} />
+        <Route path="/parent/evaluations" element={<ParentProtectedRoute><ParentEvaluations /></ParentProtectedRoute>} />
+        <Route path="/parent/behavior" element={<ParentProtectedRoute><ParentBehavior /></ParentProtectedRoute>} />
+        <Route path="/parent/exams" element={<ParentProtectedRoute><ParentExamHistory /></ParentProtectedRoute>} />
 
         <Route path="/" element={
           <ProtectedRoute>
