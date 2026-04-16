@@ -11,7 +11,7 @@ import rehypeKatex from 'rehype-katex';
 
 
 export const ExamList: React.FC = () => {
-  const { exams, assignments, user, classes, createLiveSession, updateExam, softDeleteExam, restoreExam, bulkUpdateTopic, bulkDeleteTopic, customTopics, addCustomTopic } = useStore();
+  const { exams, assignments, user, classes, attempts, createLiveSession, updateExam, softDeleteExam, restoreExam, bulkUpdateTopic, bulkDeleteTopic, customTopics, addCustomTopic } = useStore();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<{ old: string, new: string } | null>(null);
@@ -161,6 +161,12 @@ export const ExamList: React.FC = () => {
                 const isExpired = end && now > end;
                 const isAvailable = !isUpcoming && !isExpired;
 
+                // Count attempts for this assignment
+                const myAttemptsForAssign = attempts.filter(att => att.assignmentId === assign.id && att.studentId === user!.id);
+                const attemptCount = myAttemptsForAssign.length;
+                const maxAttempts = assign.settings?.maxAttempts || 0;
+                const isExhausted = maxAttempts > 0 && attemptCount >= maxAttempts;
+
                 return (
                   <div key={assign.id} className="p-4 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex gap-4">
@@ -189,12 +195,21 @@ export const ExamList: React.FC = () => {
                     </div>
 
                     {isAvailable ? (
-                      <Link
-                        to={`/exam/${exam.id}/take?assign=${assign.id}`}
-                        className="flex items-center justify-center gap-1 px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap"
-                      >
-                        Làm bài ngay <ChevronRight className="h-4 w-4" />
-                      </Link>
+                      isExhausted ? (
+                        <Link
+                          to="/student/history"
+                          className="flex items-center justify-center gap-1 px-4 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 shadow-sm whitespace-nowrap"
+                        >
+                          Hết lượt, xem kết quả <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`/exam/${exam.id}/take?assign=${assign.id}`}
+                          className="flex items-center justify-center gap-1 px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap"
+                        >
+                          Làm bài ngay <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      )
                     ) : (
                       <button disabled className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-400 rounded-lg whitespace-nowrap">
                         {isUpcoming ? 'Chưa mở' : 'Đã kết thúc'}
