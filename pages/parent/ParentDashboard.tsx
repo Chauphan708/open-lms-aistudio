@@ -7,12 +7,62 @@ import { supabase } from '../../services/supabaseClient';
 export const ParentDashboard = () => {
   const { currentParent, linkedStudents } = useParentStore();
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [stats, setStats] = useState({
+    attemptsCount: 0,
+    tt27Comment: '',
+    behaviorPoints: 0,
+    arenaRank: '--',
+    isLoading: false
+  });
 
   useEffect(() => {
     if (linkedStudents.length > 0 && !selectedStudentId) {
       setSelectedStudentId(linkedStudents[0].id);
     }
   }, [linkedStudents, selectedStudentId]);
+
+  useEffect(() => {
+    if (selectedStudentId) {
+      fetchStudentStats(selectedStudentId);
+    }
+  }, [selectedStudentId]);
+
+  const fetchStudentStats = async (studentId: string) => {
+    setStats(prev => ({ ...prev, isLoading: true }));
+    try {
+      // 1. Số bài nộp
+      const { count: attemptsCount } = await supabase
+        .from('attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('student_id', studentId);
+
+      // 2. Nhận xét TT27 mới nhất
+      const { data: evalData } = await supabase
+        .from('daily_evaluations')
+        .select('general_comment')
+        .eq('student_id', studentId)
+        .order('evaluation_date', { ascending: false })
+        .limit(1);
+
+      // 3. Điểm hành vi (giả định dùng behavior_log hoặc profile)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp, level')
+        .eq('id', studentId)
+        .single();
+
+      setStats({
+        attemptsCount: attemptsCount || 0,
+        tt27Comment: evalData?.[0]?.general_comment || 'Chưa có nhận xét gần đây',
+        behaviorPoints: profile?.xp || 0,
+        arenaRank: profile?.level ? `Cấp ${profile.level}` : '--',
+        isLoading: false
+      });
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu dashboard:', err);
+      setStats(prev => ({ ...prev, isLoading: false }));
+    }
+  };
 
   const activeStudent = linkedStudents.find(s => s.id === selectedStudentId) || linkedStudents[0];
 
@@ -69,13 +119,15 @@ export const ParentDashboard = () => {
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flexitems-center gap-4">
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
                     <FileText className="w-6 h-6" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-500 font-medium">Nhận xét TT27</p>
-                    <p className="text-2xl font-bold text-gray-900">--</p>
+                    <p className="text-sm font-bold text-gray-900 truncate" title={stats.tt27Comment}>
+                      {stats.isLoading ? '...' : stats.tt27Comment}
+                    </p>
                   </div>
                </div>
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -84,7 +136,9 @@ export const ParentDashboard = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Bài đã nộp</p>
-                    <p className="text-2xl font-bold text-gray-900">--</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stats.isLoading ? '--' : stats.attemptsCount}
+                    </p>
                   </div>
                </div>
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -92,8 +146,10 @@ export const ParentDashboard = () => {
                     <AlertTriangle className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 font-medium">Cảnh báo vi phạm</p>
-                    <p className="text-2xl font-bold text-gray-900">--</p>
+                    <p className="text-sm text-gray-500 font-medium">XP tích lũy</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stats.isLoading ? '--' : stats.behaviorPoints}
+                    </p>
                   </div>
                </div>
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -101,8 +157,10 @@ export const ParentDashboard = () => {
                     <Medal className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 font-medium">Hạng Arena</p>
-                    <p className="text-2xl font-bold text-gray-900">--</p>
+                    <p className="text-sm text-gray-500 font-medium">Danh hiệu</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {stats.isLoading ? '--' : stats.arenaRank}
+                    </p>
                   </div>
                </div>
             </div>
