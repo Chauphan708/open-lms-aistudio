@@ -497,6 +497,7 @@ export const ExamTake: React.FC = () => {
   const [searchParams] = useSearchParams();
   const assignmentId = searchParams.get('assign');
   const liveSessionId = searchParams.get('live'); // Check if Live Mode
+  const attemptIdFromUrl = searchParams.get('attempt');
   const navigate = useNavigate();
 
   const { 
@@ -523,6 +524,8 @@ export const ExamTake: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [fetchedAttempts, setFetchedAttempts] = useState<Attempt[]>([]);
+  const [isAttemptsLoading, setIsAttemptsLoading] = useState(false);
 
   // Access Control State
   const [accessDenied, setAccessDenied] = useState<string | null>(null);
@@ -586,8 +589,43 @@ export const ExamTake: React.FC = () => {
       }
     };
 
+    const loadAttemptsDirectly = async () => {
+      if (!user) return;
+      setIsAttemptsLoading(true);
+      try {
+        let query = supabase.from('attempts').select('*').eq('student_id', user.id).eq('exam_id', id);
+        if (assignmentId) {
+          query = query.eq('assignment_id', assignmentId);
+        }
+        
+        const { data, error } = await query;
+        if (!error && data) {
+          const mapped: Attempt[] = data.map((a: any) => ({
+            id: String(a.id),
+            answers: (a.answers as Record<string, any>) || {},
+            examId: String(a.examId || a.exam_id || a.examid),
+            assignmentId: String(a.assignmentId || a.assignment_id || a.assignmentid || ''),
+            studentId: String(a.studentId || a.student_id || a.studentid),
+            submittedAt: String(a.submittedAt || a.submitted_at || a.submittedat || new Date().toISOString()),
+            score: (a.score !== undefined && a.score !== null) ? Number(a.score) : Number(a.score_achieved || 0),
+            teacherFeedback: a.teacherFeedback || a.teacher_feedback || a.teacherfeedback,
+            feedbackAllowViewSolution: !!(a.feedbackAllowViewSolution ?? a.feedback_allow_view_solution ?? a.feedbackallowviewsolution ?? true),
+            totalTimeSpentSec: Number(a.totalTimeSpentSec ?? a.total_time_spent_sec ?? a.totaltimespentsec ?? 0),
+            timeSpentPerQuestion: (a.timeSpentPerQuestion || a.time_spent_per_question || a.timespentperquestion || {}) as Record<string, number>,
+            cheatWarnings: Number(a.cheatWarnings ?? a.cheat_warnings ?? a.cheatwarnings ?? 0)
+          }));
+          setFetchedAttempts(mapped);
+        }
+      } catch (err) {
+        console.error("ExamTake: Error loading attempts directly:", err);
+      } finally {
+        setIsAttemptsLoading(false);
+      }
+    };
+
     loadDirectly();
-  }, [id, assignmentId, exam, assignment]);
+    loadAttemptsDirectly();
+  }, [id, assignmentId, exam, assignment, user]);
 
   // Widget State
   const [showDictionary, setShowDictionary] = useState(false);
@@ -657,22 +695,32 @@ export const ExamTake: React.FC = () => {
   // Check for existing attempts - Standardize ID comparison & include Assignment Context
   const myAttempts = useMemo(() => {
     if (!user || !id) return [];
-    return attempts.filter(a => {
+    
+    // Ưu tiên dùng fetchedAttempts nếu có, nếu không thì dùng attempts từ store
+    const sourceAttempts = fetchedAttempts.length > 0 ? fetchedAttempts : attempts;
+    
+    return sourceAttempts.filter(a => {
       const matchExam = String(a.examId) === String(id);
       const matchStudent = String(a.studentId) === String(user.id);
       
-      // If we are in an assignment context, ONLY show attempts for this specific assignment
-      // Otherwise (direct exam link), show attempts with no assignmentId
       const currentAssignId = assignmentId ? String(assignmentId) : '';
       const attemptAssignId = a.assignmentId ? String(a.assignmentId) : '';
       
-      const matchAssignment = currentAssignId === attemptAssignId;
-      
-      return matchExam && matchStudent && matchAssignment;
+      return matchExam && matchStudent && currentAssignId === attemptAssignId;
     });
-  }, [attempts, id, user?.id, assignmentId]);
+  }, [attempts, fetchedAttempts, id, user?.id, assignmentId]);
   
-  const latestAttempt = myAttempts.length > 0 ? myAttempts[myAttempts.length - 1] : null; // Get latest
+  // Specific attempt from URL if provided, otherwise latest
+  const viewedAttempt = useMemo(() => {
+    if (attemptIdFromUrl) {
+      const found = fetchedAttempts.find(a => String(a.id) === String(attemptIdFromUrl)) || 
+                    attempts.find(a => String(a.id) === String(attemptIdFromUrl));
+      return found || null;
+    }
+    return myAttempts.length > 0 ? myAttempts[myAttempts.length - 1] : null;
+  }, [attempts, fetchedAttempts, attemptIdFromUrl, myAttempts]);
+
+  const latestAttempt = viewedAttempt;
   
   const answersCount = useMemo(() => {
     return Object.values(answers).filter(v => {
@@ -758,7 +806,20 @@ export const ExamTake: React.FC = () => {
   useEffect(() => {
     if (!exam) return;
 
-    if (latestAttempt) {
+    // Force Review Mode if:
+    // 1. Explicit attempt requested in URL
+    // 2. No explicit attempt, but student has exhausted their limits for this assignment
+    const maxAllowed = Number(assignmentSettings.maxAttempts || 0);
+    const attemptCount = myAttempts.length;
+    const isExhausted = !!assignment && maxAllowed > 0 && attemptCount >= maxAllowed;
+    
+    // Nếu có attemptIdFromUrl nhưng chưa tìm thấy viewedAttempt trong mảng (đang load), 
+    // ta vẫn nên giữ trạng thái chờ chứ không vội hiện màn hình bắt đầu.
+    const shouldShowResult = !!attemptIdFromUrl || (isExhausted && latestAttempt);
+
+    if (isAttemptsLoading && !!attemptIdFromUrl) return; // Wait for the specific attempt
+
+    if (shouldShowResult && latestAttempt) {
       // View existing attempt result
       setIsSubmitted(true);
       setScore(latestAttempt.score || 0);
@@ -821,7 +882,7 @@ export const ExamTake: React.FC = () => {
       setTimeLeft(initialSeconds);
       setExamStartTime(Date.now());
     }
-  }, [exam?.id, latestAttempt?.id, assignment?.id, generateShuffles]);
+  }, [exam?.id, latestAttempt?.id, assignment?.id, generateShuffles, attemptIdFromUrl, assignmentSettings.maxAttempts, myAttempts.length, assignment, isSubmitted, hasStarted, isAttemptsLoading]);
 
   useEffect(() => {
     if (!exam || isSubmitted || !hasStarted) {
@@ -842,7 +903,7 @@ export const ExamTake: React.FC = () => {
 
     const timer = setTimeout(() => setIsSaving(false), 800);
     return () => clearTimeout(timer);
-  }, [answers, timeLeft, shuffledOptionsMap, cheatWarnings, timeSpentPerQuestion, examStartTime, exam, isSubmitted, hasStarted]);
+  }, [answers, timeLeft, shuffledOptionsMap, cheatWarnings, timeSpentPerQuestion, examStartTime, exam, isSubmitted, hasStarted, assignmentId]);
 
   // --- TIME TRACKING HOOK ---
   useEffect(() => {
@@ -1188,7 +1249,7 @@ export const ExamTake: React.FC = () => {
     }
   }, [answers, liveSessionId, user, exam, isSubmitted, updateLiveParticipantProgress]);
 
-  if (isLoadingDirect) return (
+  if (isLoadingDirect || isAttemptsLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
         <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mx-auto mb-4" />
@@ -1932,7 +1993,6 @@ export const ExamTake: React.FC = () => {
       {/* Questions & Navigation Layout */}
       <div className="flex flex-col lg:flex-row gap-6">
 
-        {/* Navigation Sidebar (Desktop Left) */}
         {/* Navigation Sidebar (Desktop Left) */}
         {!isSubmitted && hasStarted && (
           <div className="hidden lg:block w-56 flex-shrink-0 relative">

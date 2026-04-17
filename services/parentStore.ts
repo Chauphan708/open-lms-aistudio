@@ -37,7 +37,10 @@ export const useParentStore = create<ParentState>((set, get) => ({
         return { success: false, message: 'Mật khẩu không chính xác.' };
       }
 
-      set({ currentParent: parentData as Parent });
+      // 3. Cập nhật thời gian đăng nhập cuối
+      await supabase.from('parents').update({ last_login_at: new Date().toISOString() }).eq('id', parentData.id);
+
+      set({ currentParent: { ...parentData, last_login_at: new Date().toISOString() } as Parent });
       
       // Sau khi đăng nhập, load danh sách con
       await get().fetchLinkedStudents();

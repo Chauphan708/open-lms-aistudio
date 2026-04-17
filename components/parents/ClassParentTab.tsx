@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { Loader2, Key, Printer, CheckCircle, Plus } from 'lucide-react';
+import { Loader2, Key, Printer, CheckCircle, Plus, Edit2 } from 'lucide-react';
 import { ParentLinkPrint } from './ParentLinkPrint';
 
 interface ParentLinkData {
@@ -10,7 +10,8 @@ interface ParentLinkData {
   name: string;
   phone?: string;
   link_code: string;
-  is_active: boolean; // Có mật khẩu/sdt -> đã đăng nhập
+  is_active: boolean; 
+  last_login_at?: string;
 }
 
 interface ClassParentTabProps {
@@ -23,7 +24,9 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
   const [links, setLinks] = useState<Record<string, ParentLinkData>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [printData, setPrintData] = useState<any>(null); // Dữ liệu để in
+  const [printData, setPrintData] = useState<any>(null); 
+  const [editingLink, setEditingLink] = useState<ParentLinkData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchLinks();
@@ -65,7 +68,8 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
               name: parent.name,
               phone: parent.phone,
               link_code: parent.link_code,
-              is_active: !!parent.password || !!parent.phone // Đã thiết lập thông tin
+              last_login_at: parent.last_login_at,
+              is_active: !!parent.last_login_at || !!parent.password || !!parent.phone
             };
           }
         });
@@ -133,9 +137,54 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
   const handlePrint = (student: User, linkData: ParentLinkData) => {
     setPrintData({
       studentName: student.name,
-      className: student.className || '...', // Có thể truyền thêm từ ClassManage
+      className: student.className || students[0]?.className || '...', 
       code: linkData.link_code
     });
+  };
+
+  const handleBulkPrint = () => {
+    const bulkData = students
+      .filter(s => !!links[s.id])
+      .map(s => ({
+        studentName: s.name,
+        className: s.className || students[0]?.className || '...',
+        code: links[s.id].link_code
+      }));
+    
+    if (bulkData.length === 0) {
+      alert('Không có mã liên kết nào để in.');
+      return;
+    }
+    setPrintData(bulkData);
+  };
+
+  const handleUpdateLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLink) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('parents')
+        .update({
+          name: editingLink.name,
+          link_code: editingLink.link_code
+        })
+        .eq('id', editingLink.parent_id);
+
+      if (error) throw error;
+
+      setLinks(prev => ({
+        ...prev,
+        [editingLink.student_id]: { ...editingLink }
+      }));
+      setEditingLink(null);
+    } catch (err) {
+      console.error('Lỗi khi cập nhật:', err);
+      alert('Không thể lưu thay đổi.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (printData) {
@@ -146,12 +195,20 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
     <div className="p-4 flex-1 min-h-0 flex flex-col bg-gray-50">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-bold text-gray-800">Quản lý Phụ Huynh Lớp</h3>
-        <button 
-          onClick={fetchLinks}
-          className="text-indigo-600 text-sm font-medium hover:underline"
-        >
-          Làm mới
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleBulkPrint}
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold text-sm transition"
+          >
+            <Printer className="w-4 h-4" /> In phiếu hàng loạt
+          </button>
+          <button 
+            onClick={fetchLinks}
+            className="text-indigo-600 text-sm font-medium hover:underline"
+          >
+            Làm mới
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -166,6 +223,7 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
                 <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Học sinh</th>
                 <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Trạng thái PH</th>
                 <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Mã liên kết</th>
+                <th className="p-3 text-sm font-bold text-gray-600 bg-gray-50">Lần cuối</th>
                 <th className="p-3 text-sm font-bold text-gray-600 text-right bg-gray-50">Thao tác</th>
               </tr>
             </thead>
@@ -201,23 +259,43 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
                          <span className="text-gray-300">-</span>
                       )}
                     </td>
-                    <td className="p-3 text-right">
-                      {link ? (
-                        <button 
-                          onClick={() => handlePrint(student, link)}
-                          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 font-bold text-sm rounded-lg hover:bg-indigo-100 flex items-center justify-end gap-2 ml-auto"
-                        >
-                          <Printer className="w-4 h-4" /> In phiếu
-                        </button>
+                    <td className="p-3">
+                      {link?.last_login_at ? (
+                        <span className="text-xs text-gray-500">
+                          {new Date(link.last_login_at).toLocaleString('vi-VN')}
+                        </span>
                       ) : (
-                        <button 
-                          disabled={isGenerating}
-                          onClick={() => generateLinkCode(student)}
-                          className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-sm rounded-lg hover:bg-emerald-700 flex items-center justify-end gap-2 ml-auto disabled:opacity-50"
-                        >
-                          <Plus className="w-4 h-4" /> Tạo mã
-                        </button>
+                        <span className="text-xs text-gray-300">Chưa ĐN</span>
                       )}
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {link && (
+                          <button 
+                            onClick={() => setEditingLink(link)}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Sửa thông tin"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {link ? (
+                          <button 
+                            onClick={() => handlePrint(student, link)}
+                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 font-bold text-sm rounded-lg hover:bg-indigo-100 flex items-center justify-end gap-2"
+                          >
+                            <Printer className="w-4 h-4" /> In phiếu
+                          </button>
+                        ) : (
+                          <button 
+                            disabled={isGenerating}
+                            onClick={() => generateLinkCode(student)}
+                            className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-sm rounded-lg hover:bg-emerald-700 flex items-center justify-end gap-2 disabled:opacity-50"
+                          >
+                            <Plus className="w-4 h-4" /> Tạo mã
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -232,6 +310,57 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal Chỉnh sửa */}
+      {editingLink && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
+              <h3 className="font-bold text-gray-800">Sửa thông tin liên kết</h3>
+              <button onClick={() => setEditingLink(null)} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <form onSubmit={handleUpdateLink} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên hiển thị Phụ huynh</label>
+                <input 
+                  type="text" 
+                  value={editingLink.name}
+                  onChange={e => setEditingLink({...editingLink, name: e.target.value})}
+                  className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mã liên kết (6 ký tự)</label>
+                <input 
+                  type="text" 
+                  value={editingLink.link_code}
+                  onChange={e => setEditingLink({...editingLink, link_code: e.target.value.toUpperCase()})}
+                  className="w-full px-4 py-2 border rounded-xl font-mono uppercase tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none"
+                  maxLength={6}
+                  required
+                />
+              </div>
+              <div className="pt-4 flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setEditingLink(null)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

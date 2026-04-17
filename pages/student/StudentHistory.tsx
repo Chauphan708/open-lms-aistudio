@@ -96,7 +96,7 @@ export const StudentHistory: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                        <Link
-                                          to={`/exam/${att.examId}/take`}
+                                          to={`/exam/${att.examId}/take?assign=${att.assignmentId || ''}&attempt=${att.id}`}
                                           className="text-indigo-600 hover:text-indigo-800 font-medium text-xs flex items-center justify-center gap-1 group"
                                        >
                                           Xem chi tiết <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
