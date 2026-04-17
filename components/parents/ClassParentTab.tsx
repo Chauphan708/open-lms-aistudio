@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { Loader2, Key, Printer, CheckCircle, Plus, Edit2 } from 'lucide-react';
+import { Loader2, Key, FileDown, CheckCircle, Plus, Edit2 } from 'lucide-react';
 import { ParentLinkPrint } from './ParentLinkPrint';
 
 interface ParentLinkData {
@@ -200,7 +200,7 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
             onClick={handleBulkPrint}
             className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold text-sm transition"
           >
-            <Printer className="w-4 h-4" /> In phiếu hàng loạt
+            <FileDown className="w-4 h-4" /> Xuất PDF hàng loạt
           </button>
           <button 
             onClick={fetchLinks}
@@ -284,7 +284,7 @@ export const ClassParentTab: React.FC<ClassParentTabProps> = ({ classId, student
                             onClick={() => handlePrint(student, link)}
                             className="px-3 py-1.5 bg-indigo-50 text-indigo-600 font-bold text-sm rounded-lg hover:bg-indigo-100 flex items-center justify-end gap-2"
                           >
-                            <Printer className="w-4 h-4" /> In phiếu
+                            <FileDown className="w-4 h-4" /> Xuất PDF
                           </button>
                         ) : (
                           <button 
