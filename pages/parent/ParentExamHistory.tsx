@@ -115,7 +115,7 @@ export const ParentExamHistory = () => {
                       </h3>
                       <div className="mt-3 flex flex-wrap gap-4">
                         <div className="flex items-center gap-1 text-sm text-gray-500">
-                           <span className="font-bold text-gray-700">Thời gian:</span> {Math.floor(att.totalTimeSpentSec / 60)} phút
+                           <span className="font-bold text-gray-700">Thời gian:</span> {Math.floor((att.totalTimeSpentSec || 0) / 60)} phút
                         </div>
                         {att.teacherFeedback && (
                           <div className="flex items-center gap-1 text-sm text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
