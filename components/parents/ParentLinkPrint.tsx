@@ -22,7 +22,8 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center bg-gray-50 overflow-y-auto w-full h-full p-4 md:p-8 relative print:p-0 print:bg-white print:overflow-visible">
+  return (
+    <div id="parent-print-container" className="flex-1 flex flex-col items-center bg-gray-50 overflow-y-auto w-full h-full p-4 md:p-8 relative print:p-0 print:bg-white print:overflow-visible print:block print:static">
       
       {/* Nút điều khiển không hiển thị khi in */}
       <div className="fixed top-4 left-4 right-4 flex justify-between items-center z-[100] print:hidden hide-on-print w-[calc(100%-2rem)] max-w-2xl mx-auto">
@@ -40,9 +41,9 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
         </button>
       </div>
 
-      <div className="w-full max-w-2xl print:max-w-none print:w-full space-y-8 mt-16 print:mt-0">
+      <div id="printable-tickets" className="w-full max-w-2xl print:max-w-none print:w-full space-y-8 mt-16 print:mt-0 print:space-y-0">
         {items.map((item, index) => (
-          <div key={index} className="bg-white border border-gray-300 shadow-lg print:shadow-none print:border-none p-8 md:p-12 font-sans relative print:p-8 print:m-0 break-after-page page-break-after-always">
+          <div key={index} className="bg-white border border-gray-300 shadow-lg print:shadow-none print:border-none p-8 md:p-12 font-sans relative print:p-10 print:m-0 break-after-page page-break-after-always print:min-h-screen print:flex print:flex-col print:justify-center">
             
             <div className="text-center mb-8 border-b-2 border-gray-800 pb-6">
               <h1 className="text-2xl md:text-3xl font-black uppercase text-gray-900 tracking-wide">
@@ -51,7 +52,7 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
               <p className="text-gray-600 mt-2 font-medium">Hệ thống Quản lý Học tập & Liên lạc OpenLMS</p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 flex-1">
               <div className="bg-gray-50 border border-gray-200 p-6 rounded-xl flex flex-col md:flex-row justify-between items-center print:bg-gray-50 print:border-gray-200">
                 <div className="mb-4 md:mb-0">
                    <p className="text-gray-500 font-bold text-sm mb-1 uppercase tracking-wider">Học sinh</p>
@@ -109,25 +110,44 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
       </div>
 
       <style>{`
+        @page {
+          margin: 0;
+          size: auto;
+        }
         @media print {
-          .hide-on-print, nav, aside, header, .sidebar, .navbar {
-            display: none !important;
+          /* Ẩn tất cả mọi thứ trong body */
+          body * {
+            visibility: hidden;
+            background: none !important;
           }
-          body {
-            background-color: white !important;
+          /* Chỉ hiện phần cần in và các con của nó */
+          #printable-tickets, #printable-tickets * {
+            visibility: visible;
+          }
+          /* Đưa phần in lên vị trí tuyệt đối ở đầu trang */
+          #printable-tickets {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
             margin: 0 !important;
             padding: 0 !important;
           }
           .break-after-page {
             page-break-after: always !important;
             break-after: page !important;
+            display: block !important;
+            width: 100% !important;
+            height: 100vh !important;
           }
-          /* Ensure no top margin for printed items */
-          div {
-             margin-top: 0 !important;
+          /* Reset các thuộc tính ảnh hưởng đến layout in */
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
           }
         }
       `}</style>
+    </div>
     </div>
   );
 };
