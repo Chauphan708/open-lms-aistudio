@@ -89,6 +89,16 @@ export interface Exam {
   questions: Question[];
   category: 'EXAM' | 'TASK';
   deletedAt?: string; // Soft delete timestamp (thùng rác)
+  
+  // Sharing Features
+  isPublic?: boolean;
+  shareCode?: string;
+  isCodeRequired?: boolean;
+  originalAuthorId?: string;
+  originalAuthorName?: string;
+  contributors?: string[];
+  parentExamId?: string;
+  downloads?: number;
 }
 
 export interface AssignmentSettings {
@@ -142,6 +152,7 @@ export interface Notification {
   isRead: boolean;
   createdAt: string;
   link?: string;
+  payload?: any; // To store exam_id or other interaction data
 }
 
 export type WebResourceType = 'LINK' | 'EMBED';
@@ -408,6 +419,11 @@ export interface AppState {
   restoreExam: (id: string) => void;
   bulkUpdateTopic: (oldName: string, newName: string) => Promise<boolean>;
   bulkDeleteTopic: (topicName: string) => Promise<boolean>;
+  toggleExamShare: (id: string, isPublic: boolean, isCodeRequired: boolean) => Promise<boolean>;
+  importExamByCode: (code: string, customMetadata?: { title?: string, subject?: string, grade?: string, topic?: string }) => Promise<string | null>;
+  fetchPublicExams: () => Promise<Exam[]>;
+  sendDirectShare: (examId: string, targetTeacherIds: string[]) => Promise<boolean>;
+  respondToShare: (notificationId: string, examId: string, accept: boolean, customMetadata?: { title?: string, subject?: string, grade?: string, topic?: string }) => Promise<boolean>;
 
   questionBank: QuestionBankItem[];
   fetchQuestionBank: () => Promise<void>;

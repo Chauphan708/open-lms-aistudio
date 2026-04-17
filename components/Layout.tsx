@@ -40,6 +40,7 @@ import {
 import { useStore } from '../store';
 import { UserRole, CustomToolMenu } from '../types';
 import UserGuideModal from './UserGuideModal';
+import { AcceptShareModal } from './AcceptShareModal';
 import Footer from './Footer';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -50,6 +51,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [activeShare, setActiveShare] = useState<{ notifId: string, examId: string } | null>(null);
 
   // State to track expanded custom tools
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
@@ -87,6 +89,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const handleNotifClick = (notif: any) => {
     markNotificationRead(notif.id);
     setIsNotifOpen(false);
+    
+    // Intercept EXAM_SHARE notifications
+    if (notif.payload?.type === 'EXAM_SHARE' && notif.payload?.examId) {
+      setActiveShare({ notifId: notif.id, examId: notif.payload.examId });
+      return;
+    }
+
     if (notif.link) navigate(notif.link);
   };
 
@@ -125,6 +134,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
       items: [
         { label: 'Kho Đề KT & Nhiệm vụ', path: '/exams', icon: BookOpen, roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+        { label: 'Thư viện Cộng đồng', path: '/library', icon: Globe, roles: ['TEACHER', 'ADMIN'] },
         { label: 'Ngân hàng Câu hỏi', path: '/question-bank', icon: Database, roles: ['TEACHER', 'ADMIN'] },
         { label: 'Tạo Bài tập', path: '/create-exam', icon: FilePlus, roles: ['TEACHER'] },
         { label: 'Tạo Đề kiểm tra', path: '/exam-matrix', icon: BookOpen, roles: ['TEACHER'] },
@@ -610,6 +620,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <Footer isSidebarCollapsed={isSidebarCollapsed} />
         
         <UserGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+        {activeShare && (
+          <AcceptShareModal
+            notificationId={activeShare.notifId}
+            examId={activeShare.examId}
+            isOpen={!!activeShare}
+            onClose={() => setActiveShare(null)}
+          />
+        )}
       </main>
 
       {/* Mobile Overlay */}

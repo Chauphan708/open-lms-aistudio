@@ -231,7 +231,8 @@ export const useStore = create<AppState>((set, get, api) => ({
           message: n.message,
           isRead: !!n.is_read,
           createdAt: n.created_at,
-          link: n.link
+          link: n.link,
+          payload: n.payload
         })) });
       }
 
@@ -344,7 +345,8 @@ export const useStore = create<AppState>((set, get, api) => ({
                   message: n.message,
                   isRead: !!n.is_read,
                   createdAt: n.created_at,
-                  link: n.link
+                  link: n.link,
+                  payload: n.payload
                 };
                 set((state) => {
                   if (state.notifications.some(notif => notif.id === newNotif.id)) return state;

@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseClient';
 export type ExamSliceState = Pick<AppState,
   | 'exams' | 'addExam' | 'updateExam' | 'softDeleteExam' | 'restoreExam'
   | 'bulkUpdateTopic' | 'bulkDeleteTopic'
+  | 'toggleExamShare' | 'importExamByCode' | 'fetchPublicExams' | 'sendDirectShare' | 'respondToShare'
   | 'customTopics' | 'addCustomTopic' | 'fetchCustomTopics'
   | 'questionBank' | 'fetchQuestionBank' | 'syncQuestionsFromExams' 
   | 'addQuestionToBank' | 'updateQuestionInBank' | 'deleteQuestionFromBank'
@@ -40,7 +41,16 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
       description: (exam as any).description,
       questions: exam.questions,
       category: exam.category || 'EXAM',
-      deleted_at: exam.deletedAt
+      deleted_at: exam.deletedAt,
+      // Default sharing fields
+      is_public: exam.isPublic || false,
+      share_code: exam.shareCode || null,
+      is_code_required: exam.isCodeRequired || false,
+      original_author_id: user?.id || null,
+      original_author_name: user?.name || null,
+      contributors: [],
+      parent_exam_id: null,
+      downloads: 0
     };
 
     // Only add teacher_id if user exists (proactive ownership)
@@ -143,6 +153,199 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
       exams: state.exams.map(e => e.id === id ? { ...e, deletedAt: undefined } : e)
     }));
     await supabase.from('exams').update({ deleted_at: null }).eq('id', id);
+  },
+
+  toggleExamShare: async (id, isPublic, isCodeRequired) => {
+    const exam = get().exams.find(e => e.id === id);
+    if (!exam) return false;
+
+    // Generate code if turning on sharing and no code exists
+    let shareCode = exam.shareCode;
+    if ((isPublic || isCodeRequired) && !shareCode) {
+      shareCode = `AZ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    }
+
+    const { error } = await supabase.from('exams').update({
+      is_public: isPublic,
+      is_code_required: isCodeRequired,
+      share_code: shareCode
+    }).eq('id', id);
+
+    if (!error) {
+      set(state => ({
+        exams: state.exams.map(e => e.id === id ? { ...e, isPublic, isCodeRequired, shareCode } : e)
+      }));
+      return true;
+    }
+    return false;
+  },
+
+  importExamByCode: async (code, customMetadata) => {
+    const { user } = get();
+    if (!user) return null;
+
+    // 1. Fetch the exam by share code
+    const { data: sourceExam, error } = await supabase
+      .from('exams')
+      .select('*')
+      .eq('share_code', code)
+      .maybeSingle();
+
+    if (error || !sourceExam) {
+      console.error("Import failed: Code not found", error);
+      return null;
+    }
+
+    // 2. Prepare the clone
+    const newId = `clone_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const contributors = Array.isArray(sourceExam.contributors) ? [...sourceExam.contributors] : [];
+    
+    // Add current teacher to contributors if it's not the original author
+    if (sourceExam.teacher_id !== user.id) {
+        // Find teacher name if possible or use "Giáo viên mới"
+        contributors.push(user.name || 'Một giáo viên');
+    }
+
+    const payload: any = {
+      id: newId,
+      title: customMetadata?.title || sourceExam.title,
+      subject: customMetadata?.subject || sourceExam.subject,
+      topic: customMetadata?.topic || sourceExam.topic,
+      grade: customMetadata?.grade || sourceExam.grade,
+      difficulty: sourceExam.difficulty,
+      duration_minutes: sourceExam.duration_minutes,
+      question_count: sourceExam.question_count,
+      created_at: new Date().toISOString(),
+      status: 'PUBLISHED',
+      teacher_id: user.id,
+      description: sourceExam.description,
+      questions: sourceExam.questions,
+      category: sourceExam.category,
+      // Sharing heritage
+      original_author_id: sourceExam.original_author_id || sourceExam.teacher_id,
+      original_author_name: sourceExam.original_author_name || 'Tác giả gốc',
+      contributors: contributors,
+      parent_exam_id: sourceExam.id,
+      is_public: false, // Clone is private by default
+      share_code: null
+    };
+
+    const { error: insErr } = await supabase.from('exams').insert(payload);
+    if (insErr) {
+      console.error("Import failed: Database error", insErr);
+      return null;
+    }
+
+    // Increment download count on source
+    await supabase.rpc('increment_downloads', { exam_id: sourceExam.id });
+
+    const newExam: Exam = {
+      id: payload.id,
+      title: payload.title,
+      subject: payload.subject,
+      topic: payload.topic,
+      grade: payload.grade,
+      difficulty: payload.difficulty,
+      durationMinutes: payload.duration_minutes,
+      questionCount: payload.question_count,
+      createdAt: payload.created_at,
+      status: payload.status as any,
+      questions: payload.questions,
+      category: payload.category,
+      originalAuthorId: payload.original_author_id,
+      originalAuthorName: payload.original_author_name,
+      contributors: payload.contributors,
+      parentExamId: payload.parent_exam_id
+    };
+
+    set(state => ({ exams: [newExam, ...state.exams] }));
+    return newId;
+  },
+
+  fetchPublicExams: async () => {
+    const { data, error } = await supabase
+      .from('exams')
+      .select('*')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) return [];
+    
+    return (data || []).map((e: any) => ({
+      id: e.id,
+      title: e.title,
+      subject: e.subject,
+      topic: e.topic,
+      grade: e.grade,
+      difficulty: e.difficulty,
+      durationMinutes: e.duration_minutes,
+      questionCount: e.question_count,
+      createdAt: e.created_at,
+      status: e.status,
+      questions: e.questions,
+      category: e.category,
+      isPublic: e.is_public,
+      shareCode: e.share_code,
+      originalAuthorName: e.original_author_name,
+      contributors: e.contributors,
+      downloads: e.downloads
+    } as Exam));
+  },
+
+  sendDirectShare: async (examId, targetTeacherIds) => {
+    const { user, exams } = get();
+    if (!user) return false;
+    const exam = exams.find(e => e.id === examId);
+    if (!exam) return false;
+
+    const notifs = targetTeacherIds.map(tid => ({
+      id: `share_${Date.now()}_${tid}`,
+      user_id: tid,
+      type: 'INFO',
+      title: 'Đề thi được chia sẻ',
+      message: `Giáo viên ${user.name} đã chia sẻ trực tiếp đề thi: ${exam.title}`,
+      is_read: false,
+      created_at: new Date().toISOString(),
+      payload: { examId, type: 'EXAM_SHARE' }
+    }));
+
+    const { error } = await supabase.from('notifications').insert(notifs);
+    return !error;
+  },
+
+  respondToShare: async (notificationId, examId, accept, customMetadata) => {
+    const { user, markNotificationRead } = get();
+    if (!user) return false;
+
+    // 1. Get sender info from notification/exam if needed (or assume from notification message)
+    if (accept) {
+      // Import the exam
+      const { data: sourceExam } = await supabase.from('exams').select('share_code').eq('id', examId).single();
+      if (sourceExam?.share_code) {
+        await get().importExamByCode(sourceExam.share_code, customMetadata);
+      } else {
+        // If no share code, we might need a direct ID import logic (similar to importExamByCode but by ID)
+        // For simplicity, let's assume we can generate a temporary code or use a common clone logic
+      }
+    } else {
+      // Notify sender that it was declined
+      const { data: sourceExam } = await supabase.from('exams').select('teacher_id, title').eq('id', examId).single();
+      if (sourceExam) {
+        await supabase.from('notifications').insert({
+          id: `refuse_${Date.now()}`,
+          user_id: sourceExam.teacher_id,
+          type: 'WARNING',
+          title: 'Đề thi bị từ chối',
+          message: `Giáo viên ${user.name} đã từ chối nhận đề thi: ${sourceExam.title}`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
+    // Mark current notification as read
+    await markNotificationRead(notificationId);
+    return true;
   },
 
   addCustomTopic: async (topic) => {

@@ -7,6 +7,7 @@ import { ExamMatrix } from './pages/ExamMatrix';
 import QuestionBank from './pages/QuestionBank';
 import { AIStats } from './pages/AIStats';
 import { ExamList } from './pages/ExamList';
+import { PublicLibrary } from './pages/PublicLibrary';
 import { ExamTake } from './pages/ExamTake';
 import { AcademicYearManage } from './pages/admin/AcademicYearManage';
 import { UserManage } from './pages/manage/UserManage';
@@ -423,6 +424,12 @@ function App() {
         <Route path="/exams" element={
           <ProtectedRoute>
             <ExamList />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/library" element={
+          <ProtectedRoute roles={['TEACHER', 'ADMIN']}>
+            <PublicLibrary />
           </ProtectedRoute>
         } />
 

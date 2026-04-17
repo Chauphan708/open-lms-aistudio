@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../store';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, FileText, ChevronRight, Send, Radio, Search, Filter, Calendar, BookOpen, GraduationCap, X, Layers, BarChart3, HelpCircle, LineChart, Edit2, Trash2, RotateCcw, Save, Plus, AlertCircle, BrainCircuit, Lightbulb, Bookmark } from 'lucide-react';
+import { Clock, FileText, ChevronRight, Send, Radio, Search, Filter, Calendar, BookOpen, GraduationCap, X, Layers, BarChart3, HelpCircle, LineChart, Edit2, Trash2, RotateCcw, Save, Plus, AlertCircle, BrainCircuit, Lightbulb, Bookmark, Share2 } from 'lucide-react';
 import { AssignModal } from '../components/AssignModal';
+import { ShareExamModal } from '../components/ShareExamModal';
 import { Exam, LiveSession, QuestionType, ExamDifficulty, Question } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -13,10 +14,15 @@ import rehypeKatex from 'rehype-katex';
 export const ExamList: React.FC = () => {
   const { exams, assignments, user, classes, attempts, createLiveSession, updateExam, softDeleteExam, restoreExam, bulkUpdateTopic, bulkDeleteTopic, customTopics, addCustomTopic } = useStore();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<{ old: string, new: string } | null>(null);
   const [newTopicName, setNewTopicName] = useState('');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [importCode, setImportCode] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const { importExamByCode } = useStore();
   const navigate = useNavigate();
 
   // Filter States
@@ -63,6 +69,25 @@ export const ExamList: React.FC = () => {
     };
     createLiveSession(newSession);
     navigate(`/live/host/${pin}`);
+  };
+
+  const handleOpenShare = (exam: Exam) => {
+    setSelectedExam(exam);
+    setShareModalOpen(true);
+  };
+
+  const handleImport = async () => {
+    if (!importCode.trim()) return;
+    setIsImporting(true);
+    const newId = await importExamByCode(importCode.trim());
+    setIsImporting(false);
+    if (newId) {
+      setImportModalOpen(false);
+      setImportCode('');
+      // Show success or just let the list refresh
+    } else {
+      alert("Mã chia sẻ không hợp lệ hoặc đã hết hạn.");
+    }
   };
 
   const filteredExams = useMemo(() => {
@@ -254,6 +279,13 @@ export const ExamList: React.FC = () => {
             title="Quản lý chủ đề"
           >
             <Layers className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setImportModalOpen(true)}
+            className="p-2 rounded-lg border bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-1 text-sm font-bold"
+            title="Nhập đề từ mã chia sẻ"
+          >
+            <Plus className="h-4 w-4" /> Nhập đề
           </button>
         </div>
       </div>
@@ -524,6 +556,15 @@ export const ExamList: React.FC = () => {
                       >
                         <Send className="h-4 w-4" /> <span className="hidden sm:inline">Giao bài</span>
                       </button>
+                      
+                      {/* Sharing Button */}
+                      <button
+                        onClick={() => handleOpenShare(exam)}
+                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors border border-amber-100"
+                        title="Chia sẻ đề thi"
+                      >
+                        <Share2 className="h-4 w-4" /> <span className="hidden sm:inline text-xs font-bold uppercase">Chia sẻ</span>
+                      </button>
                     </>
                   )}
                   {/* Teachers/Admins can preview/try the exam */}
@@ -603,11 +644,52 @@ export const ExamList: React.FC = () => {
       )}
 
       {selectedExam && (
-        <AssignModal
+        <ShareExamModal
           exam={selectedExam}
-          isOpen={assignModalOpen}
-          onClose={() => setAssignModalOpen(false)}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
         />
+      )}
+
+      {/* Import Modal */}
+      {importModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in overflow-hidden">
+              <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-indigo-600" /> Nhập đề từ mã chia sẻ
+                 </h2>
+                 <button onClick={() => setImportModalOpen(false)} className="p-1 hover:bg-gray-200 rounded-lg">
+                    <X className="h-5 w-5" />
+                 </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-sm text-indigo-800 flex gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    <p>Nhập mã chia sẻ được đồng nghiệp cung cấp (Vd: AZ-123456) để tạo một bản sao đề thi vào tài khoản của bạn.</p>
+                 </div>
+                 
+                 <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Mã chia sẻ (Share Code)</label>
+                    <input 
+                      type="text"
+                      placeholder="AZ-XXXXXX"
+                      className="w-full px-4 py-3 border-2 rounded-xl text-center font-mono text-xl font-black text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
+                      value={importCode}
+                      onChange={(e) => setImportCode(e.target.value)}
+                    />
+                 </div>
+                 
+                 <button
+                   onClick={handleImport}
+                   disabled={isImporting || !importCode.trim()}
+                   className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg transition-all disabled:opacity-50"
+                 >
+                   {isImporting ? 'Đang nhập đề...' : 'Tiếp tục'}
+                 </button>
+              </div>
+           </div>
+        </div>
       )}
 
       {/* Topic Management Modal */}
