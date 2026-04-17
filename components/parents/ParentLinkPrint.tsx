@@ -26,39 +26,37 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
       const doc = new jsPDF('p', 'mm', 'a4');
       const tickets = document.querySelectorAll('.ticket-item');
       
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeightLimit = doc.internal.pageSize.getHeight();
+
       for (let i = 0; i < tickets.length; i++) {
         const ticket = tickets[i] as HTMLElement;
-        
-        // Chụp canvas với các tùy chọn đảm bảo không bị cắt
+        if (i > 0) doc.addPage();
+
         const canvas = await html2canvas(ticket, {
           scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
-          scrollY: -window.scrollY, // Quan trọng: Reset vị trí cuộn khi chụp
-          windowWidth: ticket.scrollWidth,
-          windowHeight: ticket.scrollHeight,
-          onclone: (clonedDoc) => {
-            // Đảm bảo phần tử trong bản sao hiển thị đầy đủ
-            const clonedTicket = clonedDoc.querySelectorAll('.ticket-item')[i] as HTMLElement;
-            clonedTicket.style.height = 'auto';
-            clonedTicket.style.overflow = 'visible';
-          }
+          scrollY: -window.scrollY,
+          width: ticket.offsetWidth,
+          height: ticket.offsetHeight
         });
         
         const imgData = canvas.toDataURL('image/png');
         const imgProps = doc.getImageProperties(imgData);
-        const pdfWidth = doc.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         
-        if (i > 0) doc.addPage();
+        // Tính toán tỷ lệ để fit chiều ngang
+        const displayWidth = pdfWidth;
+        const displayHeight = (imgProps.height * displayWidth) / imgProps.width;
         
         // Căn giữa theo chiều dọc nếu phiếu ngắn hơn trang A4
-        const yPos = pdfHeight < doc.internal.pageSize.getHeight() 
-          ? (doc.internal.pageSize.getHeight() - pdfHeight) / 2 
-          : 0;
+        let yPos = 0;
+        if (displayHeight < pdfHeightLimit) {
+          yPos = (pdfHeightLimit - displayHeight) / 2;
+        }
           
-        doc.addImage(imgData, 'PNG', 0, yPos, pdfWidth, pdfHeight);
+        doc.addImage(imgData, 'PNG', 0, yPos, displayWidth, displayHeight);
       }
       
       const fileName = items.length === 1 
