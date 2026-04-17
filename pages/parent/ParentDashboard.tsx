@@ -11,9 +11,12 @@ export const ParentDashboard = () => {
     attemptsCount: 0,
     tt27Comment: '',
     behaviorPoints: 0,
+    weeklyBehaviorPoints: 0,
     arenaRank: '--',
     isLoading: false
   });
+  const [recentBehaviors, setRecentBehaviors] = useState<any[]>([]);
+  const [recentExams, setRecentExams] = useState<any[]>([]);
 
   useEffect(() => {
     if (linkedStudents.length > 0 && !selectedStudentId) {
@@ -44,17 +47,47 @@ export const ParentDashboard = () => {
         .order('evaluation_date', { ascending: false })
         .limit(1);
 
-      // 3. Điểm hành vi (giả định dùng behavior_log hoặc profile)
+      // 3. XP tích lũy từ profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('xp, level')
         .eq('id', studentId)
         .single();
 
+      // 4. Nhật ký hành vi gần đây
+      const { data: behaviorData } = await supabase
+        .from('behavior_logs')
+        .select('*, behaviors(description, type, points)')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // 5. Tính điểm hành vi tuần này (7 ngày gần nhất)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data: weeklyBehavior } = await supabase
+        .from('behavior_logs')
+        .select('points')
+        .eq('student_id', studentId)
+        .gte('created_at', sevenDaysAgo.toISOString());
+      
+      const weeklyPoints = (weeklyBehavior || []).reduce((sum, log) => sum + (log.points || 0), 0);
+
+      // 6. Bài làm gần đây
+      const { data: recentAttempts } = await supabase
+        .from('attempts')
+        .select('*, exams(title, subject)')
+        .eq('student_id', studentId)
+        .order('submitted_at', { ascending: false })
+        .limit(3);
+
+      setRecentBehaviors(behaviorData || []);
+      setRecentExams(recentAttempts || []);
       setStats({
         attemptsCount: attemptsCount || 0,
         tt27Comment: evalData?.[0]?.general_comment || 'Chưa có nhận xét gần đây',
         behaviorPoints: profile?.xp || 0,
+        weeklyBehaviorPoints: weeklyPoints,
         arenaRank: profile?.level ? `Cấp ${profile.level}` : '--',
         isLoading: false
       });
@@ -167,24 +200,84 @@ export const ParentDashboard = () => {
 
             {/* Content Placeholders */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 min-h-[300px]">
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
-                   <Activity className="text-emerald-500 w-5 h-5" /> Điểm hành vi tuần này
+                   <Activity className="text-emerald-500 w-5 h-5" /> Nhật ký hành vi mới nhất
                  </h3>
-                 <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                   <Layers className="w-12 h-12 mb-3 opacity-20" />
-                   <p>Tính năng đang được cập nhật</p>
+                 <div className="flex-1 space-y-3">
+                   {stats.isLoading ? (
+                     <div className="animate-pulse space-y-2">
+                       {[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl" />)}
+                     </div>
+                   ) : recentBehaviors.length > 0 ? (
+                     recentBehaviors.map((log) => (
+                       <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                         <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                              log.points >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {log.points >= 0 ? `+${log.points}` : log.points}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-800">{log.reason || log.behaviors?.description || 'Ghi nhận hành vi'}</p>
+                              <p className="text-[10px] text-gray-400">{new Date(log.created_at).toLocaleDateString('vi-VN')}</p>
+                            </div>
+                         </div>
+                       </div>
+                     ))
+                   ) : (
+                     <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                       <Layers className="w-12 h-12 mb-3 opacity-20" />
+                       <p className="text-sm">Chưa có nhật ký hành vi</p>
+                     </div>
+                   )}
                  </div>
+                 {recentBehaviors.length > 0 && (
+                   <button 
+                    onClick={() => window.location.href = '/parent/behavior'}
+                    className="mt-4 text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors py-2 border-t border-gray-100 w-full"
+                   >
+                     Xem tất cả nhật ký
+                   </button>
+                 )}
                </div>
 
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 min-h-[300px]">
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
-                   <FileText className="text-blue-500 w-5 h-5" /> Bài tập gần nhất
+                   <FileText className="text-blue-500 w-5 h-5" /> Bài làm gần đây
                  </h3>
-                 <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                   <Layers className="w-12 h-12 mb-3 opacity-20" />
-                   <p>Tính năng đang được cập nhật</p>
+                 <div className="flex-1 space-y-3">
+                   {stats.isLoading ? (
+                     <div className="animate-pulse space-y-2">
+                       {[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl" />)}
+                     </div>
+                   ) : recentExams.length > 0 ? (
+                     recentExams.map((attempt) => (
+                       <div key={attempt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                         <div className="min-w-0 mr-2">
+                            <p className="text-sm font-bold text-gray-800 truncate">{attempt.exams?.title}</p>
+                            <p className="text-[10px] text-gray-400">{attempt.exams?.subject} • {new Date(attempt.submitted_at).toLocaleDateString('vi-VN')}</p>
+                         </div>
+                         <div className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-bold shadow-sm">
+                           {attempt.score !== null ? attempt.score : '--'}đ
+                         </div>
+                       </div>
+                     ))
+                   ) : (
+                     <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                       <Layers className="w-12 h-12 mb-3 opacity-20" />
+                       <p className="text-sm">Chưa có bài làm nào</p>
+                     </div>
+                   )}
                  </div>
+                 {recentExams.length > 0 && (
+                   <button 
+                    onClick={() => window.location.href = '/parent/exams'}
+                    className="mt-4 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors py-2 border-t border-gray-100 w-full"
+                   >
+                     Xem lịch sử học tập
+                   </button>
+                 )}
                </div>
             </div>
           </>

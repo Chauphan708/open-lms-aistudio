@@ -150,18 +150,20 @@ export const useEvaluationStore = create<EvaluationState>((set, get) => ({
   saveEvaluation: async (evaluation) => {
     try {
       const now = new Date().toISOString();
-      const payload = {
-        ...evaluation,
-        updated_at: now,
-      };
-
+      
+      // Chèn/Cập nhật dữ liệu
       const { data, error } = await supabase
         .from('daily_evaluations')
-        .upsert(payload, { onConflict: 'student_id,teacher_id,evaluation_date' })
+        .upsert(evaluation, { onConflict: 'student_id,teacher_id,evaluation_date' })
         .select();
 
-      if (error || !data || data.length === 0) {
-        console.error('Error saving evaluation:', error);
+      if (error) {
+        console.error('Lỗi chi tiết từ Supabase (DailyEval):', error.message, error.details, error.hint);
+        return false;
+      }
+      
+      if (!data || data.length === 0) {
+        console.error('Không có dữ liệu trả về sau khi lưu đánh giá.');
         return false;
       }
 
@@ -185,7 +187,7 @@ export const useEvaluationStore = create<EvaluationState>((set, get) => ({
 
       return true;
     } catch (e) {
-      console.error('Error saving evaluation:', e);
+      console.error('Lỗi hệ thống khi lưu đánh giá:', e);
       return false;
     }
   },
@@ -211,10 +213,12 @@ export const useEvaluationStore = create<EvaluationState>((set, get) => ({
         .upsert(payloads, { onConflict: 'student_id,teacher_id,evaluation_date' })
         .select();
 
-      if (error || !savedData) {
-        console.error('Error batch saving evaluations:', error);
+      if (error) {
+        console.error('Lỗi chi tiết từ Supabase (BatchEval):', error.message, error.details, error.hint);
         return false;
       }
+      
+      if (!savedData) return false;
 
       const savedEvals = savedData as DailyEvaluation[];
 

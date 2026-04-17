@@ -22,7 +22,6 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
   };
 
   return (
-  return (
     <div id="parent-print-container" className="flex-1 flex flex-col items-center bg-gray-50 overflow-y-auto w-full h-full p-4 md:p-8 relative print:p-0 print:bg-white print:overflow-visible print:block print:static">
       
       {/* Nút điều khiển không hiển thị khi in */}
@@ -147,7 +146,6 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
           }
         }
       `}</style>
-    </div>
     </div>
   );
 };
