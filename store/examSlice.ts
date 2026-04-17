@@ -175,7 +175,7 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
       set(state => ({
         exams: state.exams.map(e => e.id === id ? { ...e, isPublic, isCodeRequired, shareCode } : e)
       }));
-      return true;
+      return shareCode || true;
     }
     return false;
   },
@@ -310,7 +310,11 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
     }));
 
     const { error } = await supabase.from('notifications').insert(notifs);
-    return !error;
+    if (error) {
+        console.error("Direct share failed:", error);
+        return false;
+    }
+    return true;
   },
 
   respondToShare: async (notificationId, examId, accept, customMetadata) => {

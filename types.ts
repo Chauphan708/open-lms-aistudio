@@ -419,7 +419,7 @@ export interface AppState {
   restoreExam: (id: string) => void;
   bulkUpdateTopic: (oldName: string, newName: string) => Promise<boolean>;
   bulkDeleteTopic: (topicName: string) => Promise<boolean>;
-  toggleExamShare: (id: string, isPublic: boolean, isCodeRequired: boolean) => Promise<boolean>;
+  toggleExamShare: (id: string, isPublic: boolean, isCodeRequired: boolean) => Promise<boolean | string>;
   importExamByCode: (code: string, customMetadata?: { title?: string, subject?: string, grade?: string, topic?: string }) => Promise<string | null>;
   fetchPublicExams: () => Promise<Exam[]>;
   sendDirectShare: (examId: string, targetTeacherIds: string[]) => Promise<boolean>;

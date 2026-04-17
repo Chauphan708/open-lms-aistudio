@@ -51,12 +51,14 @@ export const ShareExamModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
 
   const handleSavePublic = async () => {
     setIsSaving(true);
-    const success = await toggleExamShare(exam.id, isPublic, isCodeRequired);
-    if (success) {
-      // Find the updated exam to get the new share code
-      // Note: toggleExamShare updates the store, but we might need the code immediately
-      // For now, assume store update is fast enough and we can get it from there or it's generated in the slice
+    const result = await toggleExamShare(exam.id, isPublic, isCodeRequired);
+    if (result) {
+      if (typeof result === 'string') {
+        setShareCode(result);
+      }
       setShowSuccess(true);
+    } else {
+      alert("Đã có lỗi xảy ra khi lưu trạng thái chia sẻ. Vui lòng thử lại.");
     }
     setIsSaving(false);
   };
@@ -70,6 +72,8 @@ export const ShareExamModal: React.FC<Props> = ({ exam, isOpen, onClose }) => {
     const success = await sendDirectShare(exam.id, selectedTeacherIds);
     if (success) {
       setShowSuccess(true);
+    } else {
+      alert("Gửi đề thi thất bại. Có thể do lỗi cơ sở dữ liệu (vui lòng chạy script cập nhật cột payload).");
     }
     setIsSaving(false);
   };

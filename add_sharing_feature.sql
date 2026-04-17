@@ -27,7 +27,5 @@ USING (
 );
 
 -- 4. Update Notifications support
--- Ensure notifications can handle exam sharing types
--- (Assuming notifications table already exists with type and payload)
--- If not, you might need:
--- ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS payload JSONB DEFAULT '{}'::jsonb;
+-- Đảm bảo có cột payload để lưu trữ thông tin đề thi khi chia sẻ trực tiếp
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS payload JSONB DEFAULT '{}'::jsonb;
