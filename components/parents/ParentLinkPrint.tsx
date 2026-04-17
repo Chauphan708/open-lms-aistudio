@@ -28,11 +28,22 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
       
       for (let i = 0; i < tickets.length; i++) {
         const ticket = tickets[i] as HTMLElement;
+        
+        // Chụp canvas với các tùy chọn đảm bảo không bị cắt
         const canvas = await html2canvas(ticket, {
-          scale: 2, // Tăng chất lượng ảnh
+          scale: 2,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          scrollY: -window.scrollY, // Quan trọng: Reset vị trí cuộn khi chụp
+          windowWidth: ticket.scrollWidth,
+          windowHeight: ticket.scrollHeight,
+          onclone: (clonedDoc) => {
+            // Đảm bảo phần tử trong bản sao hiển thị đầy đủ
+            const clonedTicket = clonedDoc.querySelectorAll('.ticket-item')[i] as HTMLElement;
+            clonedTicket.style.height = 'auto';
+            clonedTicket.style.overflow = 'visible';
+          }
         });
         
         const imgData = canvas.toDataURL('image/png');
@@ -93,7 +104,7 @@ export const ParentLinkPrint: React.FC<ParentLinkPrintProps> = ({ data, onBack }
 
       <div id="printable-tickets" className="w-full max-w-2xl space-y-8 mt-16 pb-16">
         {items.map((item, index) => (
-          <div key={index} className="ticket-item bg-white border border-gray-300 shadow-lg p-8 md:p-12 font-sans relative overflow-hidden">
+          <div key={index} className="ticket-item bg-white border border-gray-300 shadow-lg p-8 md:p-12 font-sans relative">
             
             <div className="text-center mb-8 border-b-2 border-gray-800 pb-6">
               <h1 className="text-2xl md:text-3xl font-black uppercase text-gray-900 tracking-wide">
