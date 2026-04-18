@@ -739,23 +739,27 @@ export const ExamList: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {topics.length === 0 ? (
+                {allTopics.length === 0 ? (
                   <p className="text-center py-8 text-gray-400">Chưa có chủ đề nào.</p>
                 ) : (
-                  topics.map(topic => (
+                  allTopics.map((topic: string) => (
                     <div key={topic} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 group">
                       {editingTopic?.old === topic ? (
                         <div className="flex-1 flex gap-2">
                           <input
                             type="text"
-                            value={editingTopic.new}
-                            onChange={e => setEditingTopic({ ...editingTopic, new: e.target.value })}
+                            value={editingTopic?.new || ''}
+                            onChange={e => {
+                                if (editingTopic) {
+                                    setEditingTopic({ ...editingTopic, new: e.target.value });
+                                }
+                            }}
                             className="flex-1 px-3 py-1 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                             autoFocus
                           />
                           <button
                             onClick={async () => {
-                              if (editingTopic.new.trim() && editingTopic.new !== topic) {
+                              if (editingTopic && editingTopic.new.trim() && editingTopic.new !== topic) {
                                 await bulkUpdateTopic(topic, editingTopic.new.trim());
                               }
                               setEditingTopic(null);

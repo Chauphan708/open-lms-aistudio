@@ -37,7 +37,6 @@ export const AssignmentManage: React.FC = () => {
     // Assign modal for re-assigning
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [selectedExamForAssign, setSelectedExamForAssign] = useState<any | null>(null);
-    const navigate = useNavigate();
 
     const teacherClasses = useMemo(() =>
         classes.filter(c => c.teacherId === user?.id),
