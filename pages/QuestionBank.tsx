@@ -47,10 +47,16 @@ const QuestionBank: React.FC = () => {
   const subjects = React.useMemo(() => Array.from(new Set(questionBank.map(q => q.subject))).filter(Boolean).sort(), [questionBank]);
   const grades = React.useMemo(() => Array.from(new Set(questionBank.map(q => q.grade))).filter(Boolean).sort(), [questionBank]);
   const allTopics = React.useMemo(() => {
-    const qBankTopics = questionBank.map(q => q.topic).filter(Boolean);
-    const examTopics = (exams || []).filter(e => !e.deletedAt).map(e => e.topic).filter(Boolean);
+    const qBankTopics = questionBank
+      .filter(q => filterSubject === 'all' || q.subject === filterSubject)
+      .map(q => q.topic)
+      .filter(Boolean);
+    const examTopics = (exams || [])
+      .filter(e => !e.deletedAt && (filterSubject === 'all' || e.subject === filterSubject))
+      .map(e => e.topic)
+      .filter(Boolean);
     return Array.from(new Set([...qBankTopics, ...examTopics, ...(customTopics || [])])).sort() as string[];
-  }, [questionBank, exams, customTopics]);
+  }, [questionBank, exams, customTopics, filterSubject]);
 
   const filteredQuestions = questionBank.filter(q => {
     const matchesSearch = q.content.toLowerCase().includes(searchTerm.toLowerCase());

@@ -46,10 +46,13 @@ export const ExamList: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const subjects = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.subject).filter(Boolean))), [exams]);
-  const topics = useMemo(() => {
-    const examTopics = exams.filter(e => !e.deletedAt).map(e => e.topic).filter(Boolean);
+  const allTopics = useMemo(() => {
+    const examTopics = exams
+      .filter(e => !e.deletedAt && (filterSubject ? e.subject === filterSubject : true))
+      .map(e => e.topic)
+      .filter(Boolean);
     return Array.from(new Set([...examTopics, ...customTopics])) as string[];
-  }, [exams, customTopics]);
+  }, [exams, customTopics, filterSubject]);
   const grades = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.grade).filter(Boolean))).sort((a, b) => Number(a) - Number(b)), [exams]);
 
   const handleOpenAssign = (exam: Exam) => {
@@ -347,7 +350,7 @@ export const ExamList: React.FC = () => {
                   className="w-full pl-8 pr-2 py-2 border rounded-lg text-xs bg-white text-gray-900 outline-none focus:border-indigo-500 appearance-none"
                 >
                   <option value="">Tất cả</option>
-                  {topics.map(t => <option key={t} value={t}>{t}</option>)}
+                  {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>

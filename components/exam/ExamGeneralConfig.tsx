@@ -29,12 +29,12 @@ export const ExamGeneralConfig: React.FC<ExamGeneralConfigProps> = ({
   const availableTopics = useMemo(() => {
     const topics = new Set<string>();
     exams.forEach(exam => {
-      if (!exam.deletedAt && exam.topic && exam.topic.trim() !== '') {
+      if (!exam.deletedAt && exam.subject === subject && exam.topic && exam.topic.trim() !== '') {
         topics.add(exam.topic.trim());
       }
     });
     return Array.from(topics).sort((a, b) => a.localeCompare(b, 'vi'));
-  }, [exams]);
+  }, [exams, subject]);
 
   const filteredTopics = useMemo(() => {
     if (!topic) return availableTopics;
