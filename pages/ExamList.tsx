@@ -808,6 +808,14 @@ export const ExamList: React.FC = () => {
       )}
 
 
+
+      {selectedExam && (
+        <AssignModal
+          exam={selectedExam}
+          isOpen={assignModalOpen}
+          onClose={() => setAssignModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store';
 import { Assignment } from '../../types';
 import { Trash2, Edit2, X, Clock, Calendar, Search, Filter, CheckCircle, AlertTriangle, Send, Users, FileText, Save } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { AssignModal } from '../../components/AssignModal';
 
 export const AssignmentManage: React.FC = () => {
     const { assignments, exams, classes, user, deleteAssignment, updateAssignment, updateExam, attempts } = useStore();
@@ -21,6 +22,11 @@ export const AssignmentManage: React.FC = () => {
 
     // Delete confirm
     const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    // Assign modal for re-assigning
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedExamForAssign, setSelectedExamForAssign] = useState<any | null>(null);
+    const navigate = useNavigate();
 
     const teacherClasses = useMemo(() =>
         classes.filter(c => c.teacherId === user?.id),
@@ -142,9 +148,17 @@ export const AssignmentManage: React.FC = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Quản lý bài tập đã giao</h1>
                     <p className="text-sm text-gray-500 mt-1">Xem, chỉnh sửa thời hạn và xoá các bài tập đã giao cho học sinh.</p>
                 </div>
-                <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2">
-                    <Send className="h-4 w-4 text-indigo-600" />
-                    <span className="text-sm font-bold text-indigo-700">{myAssignments.length} bài đã giao</span>
+                <div className="flex items-center gap-3">
+                    <button 
+                        onClick={() => navigate('/exams')}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 shadow-md transition-all text-sm"
+                    >
+                        <Send className="h-4 w-4" /> Giao bài mới
+                    </button>
+                    <div className="flex items-center gap-2 bg-white border border-indigo-100 rounded-lg px-4 py-2 shadow-sm">
+                        <Send className="h-4 w-4 text-indigo-600" />
+                        <span className="text-sm font-bold text-indigo-700">{myAssignments.length} bài đã giao</span>
+                    </div>
                 </div>
             </div>
 
@@ -251,6 +265,16 @@ export const AssignmentManage: React.FC = () => {
                                         >
                                             Kết quả
                                         </Link>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedExamForAssign(exam);
+                                                setAssignModalOpen(true);
+                                            }}
+                                            className="px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-100"
+                                            title="Giao bài này cho lớp khác"
+                                        >
+                                            Giao bài
+                                        </button>
                                         <button
                                             onClick={() => openEdit(a)}
                                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
@@ -378,6 +402,14 @@ export const AssignmentManage: React.FC = () => {
                     </div>
                 );
             })()}
+
+            {selectedExamForAssign && (
+                <AssignModal
+                    exam={selectedExamForAssign}
+                    isOpen={assignModalOpen}
+                    onClose={() => setAssignModalOpen(false)}
+                />
+            )}
         </div>
     );
 };
