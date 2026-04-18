@@ -355,7 +355,7 @@ const QuestionBank: React.FC = () => {
           onChange={(e) => setFilterGrade(e.target.value)}
           className="bg-gray-50 border-0 rounded-xl text-sm px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
         >
-          <option value="all">Tất cả Lớp</option>
+          <option value="all">Tất cả</option>
           {grades.map(g => <option key={g} value={g}>Lớp {g}</option>)}
         </select>
 

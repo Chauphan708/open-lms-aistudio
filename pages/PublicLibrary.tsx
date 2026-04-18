@@ -115,7 +115,7 @@ export const PublicLibrary: React.FC = () => {
               value={selectedGrade}
               onChange={e => setSelectedGrade(e.target.value)}
             >
-               <option value="">Khối lớp</option>
+               <option value="">Tất cả</option>
                {grades.map(g => <option key={g} value={g}>Lớp {g}</option>)}
             </select>
          </div>
