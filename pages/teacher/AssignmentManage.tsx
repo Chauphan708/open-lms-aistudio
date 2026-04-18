@@ -1,12 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store';
 import { Assignment } from '../../types';
-import { Trash2, Edit2, X, Clock, Calendar, Search, Filter, CheckCircle, AlertTriangle, Send, Users, FileText, Save } from 'lucide-react';
+import { Trash2, Edit2, X, Clock, Calendar, Search, Filter, CheckCircle, AlertTriangle, Send, Users, FileText, Save, Link2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AssignModal } from '../../components/AssignModal';
 
 export const AssignmentManage: React.FC = () => {
     const { assignments, exams, classes, user, deleteAssignment, updateAssignment, updateExam, attempts } = useStore();
+    const navigate = useNavigate();
+
+    const handleCopyLink = (examId: string, assignmentId: string) => {
+        const link = `${window.location.origin}/exam/${examId}/take?assign=${assignmentId}`;
+        navigator.clipboard.writeText(link).then(() => {
+            alert("Đã sao chép đường dẫn làm bài vào bộ nhớ tạm!");
+        }).catch(err => {
+            console.error("Copy failed:", err);
+            alert("Không thể sao chép đường dẫn. Bạn hãy copy thủ công từ trình duyệt.");
+        });
+    };
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -265,6 +276,13 @@ export const AssignmentManage: React.FC = () => {
                                         >
                                             Kết quả
                                         </Link>
+                                        <button
+                                            onClick={() => handleCopyLink(exam.id, a.id)}
+                                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
+                                            title="Sao chép link làm bài"
+                                        >
+                                            <Link2 className="h-4 w-4" />
+                                        </button>
                                         <button
                                             onClick={() => {
                                                 setSelectedExamForAssign(exam);

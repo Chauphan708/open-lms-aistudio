@@ -531,7 +531,7 @@ export const ExamList: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 self-end md:self-auto">
-                  {user?.role === 'TEACHER' && (
+                  {(user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
                     <>
                       {/* New Results Button */}
                       <Link
@@ -560,7 +560,7 @@ export const ExamList: React.FC = () => {
                       {/* Sharing Button */}
                       <button
                         onClick={() => handleOpenShare(exam)}
-                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors border border-amber-100"
+                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors border border-amber-100 shrink-0"
                         title="Chia sẻ đề thi"
                       >
                         <Share2 className="h-4 w-4" /> <span className="hidden sm:inline text-xs font-bold uppercase">Chia sẻ</span>
@@ -574,7 +574,7 @@ export const ExamList: React.FC = () => {
                   >
                     Xem thử
                   </Link>
-                  {user?.role === 'TEACHER' && (
+                  {(user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
                     <>
                       <button
                         onClick={() => handleStartEdit(exam)}
@@ -610,7 +610,7 @@ export const ExamList: React.FC = () => {
       </div>
 
       {/* Trash Section */}
-      {user?.role === 'TEACHER' && (
+      {(user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
         <div className="mt-6">
           <button
             onClick={() => setShowTrash(!showTrash)}
