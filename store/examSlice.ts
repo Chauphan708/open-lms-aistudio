@@ -165,15 +165,25 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
       shareCode = `AZ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     }
 
+    const { user } = get();
     const { error } = await supabase.from('exams').update({
       is_public: isPublic,
       is_code_required: isCodeRequired,
-      share_code: shareCode
+      share_code: shareCode,
+      original_author_id: exam.originalAuthorId || user?.id,
+      original_author_name: exam.originalAuthorName || user?.name || 'Giáo viên'
     }).eq('id', id);
 
     if (!error) {
       set(state => ({
-        exams: state.exams.map(e => e.id === id ? { ...e, isPublic, isCodeRequired, shareCode } : e)
+        exams: state.exams.map(e => e.id === id ? { 
+          ...e, 
+          isPublic, 
+          isCodeRequired, 
+          shareCode, 
+          originalAuthorId: exam.originalAuthorId || user?.id,
+          originalAuthorName: exam.originalAuthorName || user?.name || 'Giáo viên'
+        } : e)
       }));
       return shareCode || true;
     }
@@ -265,7 +275,7 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
   fetchPublicExams: async () => {
     const { data, error } = await supabase
       .from('exams')
-      .select('*')
+      .select('*, profiles(name)')
       .eq('is_public', true)
       .order('created_at', { ascending: false });
 
@@ -286,7 +296,7 @@ export const createExamSlice: StateCreator<AppState, [], [], ExamSliceState> = (
       category: e.category,
       isPublic: e.is_public,
       shareCode: e.share_code,
-      originalAuthorName: e.original_author_name,
+      originalAuthorName: e.original_author_name || e.profiles?.name || 'Giáo viên ẩn danh',
       contributors: e.contributors,
       downloads: e.downloads
     } as Exam));
