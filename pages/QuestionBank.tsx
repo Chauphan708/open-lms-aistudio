@@ -44,8 +44,8 @@ const QuestionBank: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<QuestionBankItem>>({});
 
-  const subjects = React.useMemo(() => Array.from(new Set(questionBank.map(q => q.subject))).filter(Boolean).sort(), [questionBank]);
-  const grades = React.useMemo(() => Array.from(new Set(questionBank.map(q => q.grade))).filter(Boolean).sort(), [questionBank]);
+  const subjects = ['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'];
+  const grades = ['1', '2', '3', '4', '5'];
   const allTopics = React.useMemo(() => {
     const qBankTopics = questionBank
       .filter(q => filterSubject === 'all' || q.subject === filterSubject)

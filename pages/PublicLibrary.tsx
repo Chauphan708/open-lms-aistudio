@@ -40,8 +40,8 @@ export const PublicLibrary: React.FC = () => {
     });
   }, [publicExams, searchTerm, selectedSubject, selectedGrade]);
 
-  const subjects = useMemo(() => Array.from(new Set(publicExams.map(e => e.subject).filter(Boolean))), [publicExams]);
-  const grades = useMemo(() => Array.from(new Set(publicExams.map(e => e.grade).filter(Boolean))).sort((a,b) => Number(a)-Number(b)), [publicExams]);
+  const subjects = ['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'];
+  const grades = ['1', '2', '3', '4', '5'];
 
   const handleImport = async (exam: Exam) => {
     if (!exam.shareCode) return;

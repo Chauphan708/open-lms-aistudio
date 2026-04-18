@@ -45,7 +45,8 @@ export const ExamList: React.FC = () => {
   // Delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const subjects = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.subject).filter(Boolean))), [exams]);
+  const subjects = ['Toán', 'Tiếng Việt', 'Khoa học', 'Lịch sử và Địa lí', 'Công nghệ', 'Tiếng Anh', 'Tin học'];
+  const grades = ['1', '2', '3', '4', '5'];
   const allTopics = useMemo(() => {
     const examTopics = exams
       .filter(e => !e.deletedAt && (filterSubject ? e.subject === filterSubject : true))
@@ -53,7 +54,6 @@ export const ExamList: React.FC = () => {
       .filter(Boolean);
     return Array.from(new Set([...examTopics, ...customTopics])) as string[];
   }, [exams, customTopics, filterSubject]);
-  const grades = useMemo(() => Array.from(new Set(exams.filter(e => !e.deletedAt).map(e => e.grade).filter(Boolean))).sort((a, b) => Number(a) - Number(b)), [exams]);
 
   const handleOpenAssign = (exam: Exam) => {
     setSelectedExam(exam);
