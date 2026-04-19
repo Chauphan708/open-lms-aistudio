@@ -2154,6 +2154,18 @@ export const ExamTake: React.FC = () => {
                     />
                   )}
 
+                  {q.type === 'MCQ_MULTIPLE' && (
+                    <MCQMultipleQuestion
+                      question={q}
+                      answer={answers[q.id]}
+                      onSetAnswer={(val: any) => handleSetAnswer(q.id, val)}
+                      isSubmitted={isSubmitted}
+                      viewPassFail={viewPassFail}
+                      canViewSolution={canViewSolution}
+                      shuffledIndices={shuffledIndices}
+                    />
+                  )}
+
                   {q.type === 'SHORT_ANSWER' && (
                     <ShortAnswerQuestion
                       question={q}
