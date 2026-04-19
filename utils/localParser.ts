@@ -138,10 +138,15 @@ function parseOneBlock(block: string, index: number): Question | null {
             
             if (lettersOnlyMatch) {
                 const letters = ansRaw.match(/([A-Da-d])/gi);
-                if (letters && letters.length > 1) {
-                    correctOptionIndices = Array.from(new Set(letters.map(l => l.toUpperCase().charCodeAt(0) - 65)));
-                } else if (letters && letters.length === 1) {
-                    correctOptionIndex = letters[0].toUpperCase().charCodeAt(0) - 65;
+                if (letters) {
+                    const uniqueIndices = Array.from(new Set(letters.map(l => l.toUpperCase().charCodeAt(0) - 65)))
+                        .filter(idx => idx >= 0 && idx < options.length);
+                    
+                    if (uniqueIndices.length > 1) {
+                        correctOptionIndices = uniqueIndices;
+                    } else if (uniqueIndices.length === 1) {
+                        correctOptionIndex = uniqueIndices[0];
+                    }
                 }
             } else {
                 const letterMatch = ansRaw.match(/^([A-Da-d])(?:[.):]|\s|$)/i);
@@ -239,7 +244,10 @@ function parseOneBlock(block: string, index: number): Question | null {
 
     // Determine question type
     let type: QuestionType = options.length >= 2 ? 'MCQ' : 'SHORT_ANSWER';
-    if (correctOptionIndices !== undefined && correctOptionIndices.length > 1) {
+    
+    const isMultipleChoiceKeywords = /chọn nhiều|nhiều đáp án|multiple choice|với các đáp án/i.test(content);
+    
+    if ((correctOptionIndices !== undefined && correctOptionIndices.length > 1) || (isMultipleChoiceKeywords && options.length >= 2)) {
         type = 'MCQ_MULTIPLE';
     }
 
