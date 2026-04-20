@@ -147,16 +147,27 @@ export const exportToDocx = async ({ questions, title, subject, grade, duration,
     }));
 
     questions.forEach((q, idx) => {
+        // Nhãn loại câu hỏi hiển thị phụ chú
+        const typeLabel: Record<string, string> = {
+            MCQ: '',
+            MCQ_MULTIPLE: ' (Chọn nhiều đáp án đúng)',
+            SHORT_ANSWER: ' (Tự luận ngắn)',
+            ORDERING: ' (Sắp xếp theo thứ tự đúng)',
+            MATCHING: ' (Nối cột)',
+            DRAG_DROP: ' (Điền khuyết)',
+        };
+
         sections.push(new Paragraph({
             children: [
                 new TextRun({ text: `Câu ${idx + 1}: `, bold: true }),
-                ...parseContentWithMath(q.content)
+                ...parseContentWithMath(q.content),
+                ...(typeLabel[q.type] ? [new TextRun({ text: typeLabel[q.type], italics: true, color: '555555' })] : []),
             ],
             spacing: { before: 200 }
         }));
 
-        if (q.type === 'MCQ' && q.options) {
-            // Hiển thị các lựa chọn A, B, C, D
+        // --- MCQ: Trắc nghiệm 1 đáp án ---
+        if (q.type === 'MCQ' && q.options?.length) {
             q.options.forEach((opt, oIdx) => {
                 sections.push(new Paragraph({
                     children: [
@@ -166,6 +177,105 @@ export const exportToDocx = async ({ questions, title, subject, grade, duration,
                     indent: { left: 720 }
                 }));
             });
+        }
+
+        // --- MCQ_MULTIPLE: Trắc nghiệm nhiều đáp án ---
+        if (q.type === 'MCQ_MULTIPLE' && q.options?.length) {
+            q.options.forEach((opt, oIdx) => {
+                sections.push(new Paragraph({
+                    children: [
+                        new TextRun({ text: `   ${String.fromCharCode(65 + oIdx)}. `, bold: true }),
+                        ...parseContentWithMath(opt)
+                    ],
+                    indent: { left: 720 }
+                }));
+            });
+        }
+
+        // --- ORDERING: Sắp xếp thứ tự ---
+        if (q.type === 'ORDERING' && q.options?.length) {
+            // Xáo trộn thứ tự để in ra (không xáo random để đề in nhất quán, chỉ đánh số)
+            q.options.forEach((opt, oIdx) => {
+                sections.push(new Paragraph({
+                    children: [
+                        new TextRun({ text: `   (${oIdx + 1}) `, bold: true }),
+                        ...parseContentWithMath(opt)
+                    ],
+                    indent: { left: 720 }
+                }));
+            });
+            // Dòng trả lời
+            sections.push(new Paragraph({
+                children: [
+                    new TextRun({ text: `   Thứ tự đúng: `, italics: true }),
+                    new TextRun({ text: `_____ ` .repeat(q.options.length) })
+                ],
+                indent: { left: 720 },
+                spacing: { before: 80 }
+            }));
+        }
+
+        // --- MATCHING: Nối cột ---
+        if (q.type === 'MATCHING' && q.options?.length) {
+            // options dạng "Left Item ||| Right Item"
+            const pairs = q.options.map(o => {
+                const parts = o.split('|||');
+                return { left: (parts[0] || '').trim(), right: (parts[1] || '').trim() };
+            });
+
+            // Tạo bảng 2 cột: Cột A (trái) | Nối | Cột B (phải, xáo thứ tự bằng chỉ mục dạng chữ cái)
+            const shuffledRightLabels = pairs.map((_, i) => String.fromCharCode(97 + i)); // a, b, c...
+
+            const matchingRows: TableRow[] = [
+                new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Cột A', bold: true })], alignment: AlignmentType.CENTER })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Nối', bold: true })], alignment: AlignmentType.CENTER })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Cột B', bold: true })], alignment: AlignmentType.CENTER })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+                    ]
+                })
+            ];
+
+            pairs.forEach((pair, i) => {
+                matchingRows.push(new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${i + 1}. `, bold: true }), ...parseContentWithMath(pair.left)] })] }),
+                        new TableCell({ children: [new Paragraph({ text: '', alignment: AlignmentType.CENTER })] }),
+                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${shuffledRightLabels[i]}. `, bold: true }), ...parseContentWithMath(pairs[(i + Math.ceil(pairs.length / 2)) % pairs.length].right)] })] }),
+                    ]
+                }));
+            });
+
+            sections.push(new Table({
+                rows: matchingRows,
+                width: { size: 90, type: WidthType.PERCENTAGE },
+                margins: { left: 720 }
+            }));
+        }
+
+        // --- DRAG_DROP: Điền khuyết ---
+        if (q.type === 'DRAG_DROP' && q.options?.length) {
+            // Hiển thị các từ/cụm từ để học sinh kéo điền
+            sections.push(new Paragraph({
+                children: [
+                    new TextRun({ text: '   Các từ cho sẵn: ', italics: true, bold: true }),
+                    ...q.options.flatMap((opt, i) => [
+                        new TextRun({ text: opt, bold: true }),
+                        ...(i < q.options.length - 1 ? [new TextRun({ text: '   /   ' })] : [])
+                    ])
+                ],
+                indent: { left: 720 },
+                spacing: { before: 80 }
+            }));
+        }
+
+        // --- SHORT_ANSWER: Tự luận ngắn ---
+        if (q.type === 'SHORT_ANSWER') {
+            sections.push(new Paragraph({
+                children: [new TextRun({ text: '   Trả lời: ................................................................' })],
+                indent: { left: 720 },
+                spacing: { before: 80 }
+            }));
         }
     });
 
@@ -178,16 +288,34 @@ export const exportToDocx = async ({ questions, title, subject, grade, duration,
         }));
         
         questions.forEach((q, idx) => {
-            if (q.solution || (q.type === 'MCQ' && q.correctOptionIndex !== undefined)) {
-                sections.push(new Paragraph({
-                    children: [
-                        new TextRun({ text: `Câu ${idx + 1}: `, bold: true }),
-                        ...(q.type === 'MCQ' && q.correctOptionIndex !== undefined 
-                            ? [new TextRun({ text: String.fromCharCode(65 + q.correctOptionIndex), color: "FF0000", bold: true })] 
-                            : []),
-                        ...(q.solution ? [new TextRun({ text: q.type === 'MCQ' ? " - " : "" }), ...parseContentWithMath(q.solution)] : [])
-                    ]
-                }));
+            const answerParts: any[] = [new TextRun({ text: `Câu ${idx + 1}: `, bold: true })];
+
+            if (q.type === 'MCQ' && q.correctOptionIndex !== undefined) {
+                answerParts.push(new TextRun({ text: String.fromCharCode(65 + q.correctOptionIndex), color: "FF0000", bold: true }));
+            } else if (q.type === 'MCQ_MULTIPLE' && q.correctOptionIndices?.length) {
+                const letters = q.correctOptionIndices.map(i => String.fromCharCode(65 + i)).join(', ');
+                answerParts.push(new TextRun({ text: letters, color: "FF0000", bold: true }));
+            } else if (q.type === 'ORDERING') {
+                answerParts.push(new TextRun({ text: q.options?.map((_, i) => i + 1).join(' → ') || '', color: "FF0000", bold: true }));
+            } else if (q.type === 'MATCHING') {
+                const pairs = q.options?.map((o, i) => {
+                    const parts = o.split('|||');
+                    return `${i + 1} – ${String.fromCharCode(97 + i)}`;
+                }).join(';  ') || '';
+                answerParts.push(new TextRun({ text: pairs, color: "FF0000", bold: true }));
+            } else if (q.type === 'SHORT_ANSWER') {
+                answerParts.push(...parseContentWithMath(q.options?.[0] || ''));
+            } else if (q.type === 'DRAG_DROP') {
+                answerParts.push(...parseContentWithMath(q.options?.join(', ') || ''));
+            }
+
+            if (q.solution) {
+                answerParts.push(new TextRun({ text: '  →  ' }));
+                answerParts.push(...parseContentWithMath(q.solution));
+            }
+
+            if (answerParts.length > 1) {
+                sections.push(new Paragraph({ children: answerParts, spacing: { before: 100 } }));
             }
         });
     }
