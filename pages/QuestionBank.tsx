@@ -425,15 +425,31 @@ const QuestionBank: React.FC = () => {
                               onChange={(e) => setEditValues({ ...editValues, content: e.target.value })}
                               className="w-full border rounded-lg p-2 text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-emerald-500"
                             />
-                            {q.type === 'MCQ' && (
+                            {(q.type === 'MCQ' || q.type === 'MCQ_MULTIPLE') && (
                               <div className="grid grid-cols-2 gap-2">
                                 {editValues.options?.map((opt, i) => (
-                                  <div key={i} className={`flex items-center gap-2 border rounded-lg p-2 ${editValues.correctOptionIndex === i ? 'bg-emerald-50 border-emerald-200' : ''}`}>
-                                    <input 
-                                      type="radio" 
-                                      checked={editValues.correctOptionIndex === i}
-                                      onChange={() => setEditValues({ ...editValues, correctOptionIndex: i })}
-                                    />
+                                  <div key={i} className={`flex items-center gap-2 border rounded-lg p-2 ${
+                                    q.type === 'MCQ_MULTIPLE'
+                                      ? (editValues.correctOptionIndices?.includes(i) ? 'bg-emerald-50 border-emerald-200' : '')
+                                      : (editValues.correctOptionIndex === i ? 'bg-emerald-50 border-emerald-200' : '')
+                                  }`}>
+                                    {q.type === 'MCQ_MULTIPLE' ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={editValues.correctOptionIndices?.includes(i) ?? false}
+                                        onChange={() => {
+                                          const cur = editValues.correctOptionIndices || [];
+                                          const next = cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort();
+                                          setEditValues({ ...editValues, correctOptionIndices: next });
+                                        }}
+                                      />
+                                    ) : (
+                                      <input
+                                        type="radio"
+                                        checked={editValues.correctOptionIndex === i}
+                                        onChange={() => setEditValues({ ...editValues, correctOptionIndex: i })}
+                                      />
+                                    )}
                                     <input
                                       value={opt}
                                       onChange={(e) => {
@@ -474,18 +490,26 @@ const QuestionBank: React.FC = () => {
                                       {q.content}
                                   </ReactMarkdown>
                               </div>
-                              {q.type === 'MCQ' && (
+                              {(q.type === 'MCQ' || q.type === 'MCQ_MULTIPLE') && (
                               <div className="grid grid-cols-2 gap-2 mt-2">
-                                {q.options?.map((opt, i) => (
-                                  <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${q.correctOptionIndex === i ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-gray-50 text-gray-600'}`}>
-                                    <span className="font-bold shrink-0">{String.fromCharCode(65 + i)}.</span>
+                                {q.options?.map((opt, i) => {
+                                  const isCorrectSingle = q.type === 'MCQ' && q.correctOptionIndex === i;
+                                  const isCorrectMulti = q.type === 'MCQ_MULTIPLE' && (q.correctOptionIndices?.includes(i) ?? false);
+                                  const isCorrect = isCorrectSingle || isCorrectMulti;
+                                  return (
+                                  <div key={i} className={`flex items-start gap-2 text-[11px] p-2 rounded-lg ${isCorrect ? 'bg-emerald-50 text-emerald-700 font-medium ring-1 ring-emerald-300' : 'bg-gray-50 text-gray-600'}`}>
+                                    <span className="font-bold shrink-0 flex items-center gap-0.5">
+                                      {String.fromCharCode(65 + i)}.
+                                      {isCorrect && <span className="text-emerald-500">✓</span>}
+                                    </span>
                                     <div className="prose prose-xs max-w-none">
                                         <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                                             {opt}
                                         </ReactMarkdown>
                                     </div>
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                             {q.type === 'MATCHING' && q.options && (
