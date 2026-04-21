@@ -1,5 +1,5 @@
-import React from 'react';
-import { Trash2, X, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Trash2, X, Image as ImageIcon, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Question, QuestionType, ExamDifficulty } from '../../types';
 
 export interface ExamQuestionEditModalProps {
@@ -8,9 +8,59 @@ export interface ExamQuestionEditModalProps {
   saveEditedQuestion: () => void;
 }
 
+/**
+ * Convert popular image hosting page URLs to direct image URLs.
+ * Many users paste the "share" link (webpage) instead of the direct image link.
+ */
+function convertToDirectImageUrl(url: string): string {
+  if (!url) return url;
+  const trimmed = url.trim();
+
+  // ibb.co: https://ibb.co/xxxxx -> https://i.ibb.co/xxxxx/image.png (not reliable)
+  // Best approach: try adding .png or use the i.ibb.co format
+  // ibb.co page links like https://ibb.co/ymQG7dq4 don't work as img src
+  // The direct link format is https://i.ibb.co/{id}/{filename}
+  // Since we can't know the filename, we try the /i.ibb.co redirect
+  const ibbMatch = trimmed.match(/^https?:\/\/ibb\.co\/([a-zA-Z0-9]+)\/?$/);
+  if (ibbMatch) {
+    return `https://i.ibb.co/${ibbMatch[1]}/image.png`;
+  }
+
+  // Imgur: https://imgur.com/xxxxx -> https://i.imgur.com/xxxxx.png
+  const imgurMatch = trimmed.match(/^https?:\/\/imgur\.com\/([a-zA-Z0-9]+)\/?$/);
+  if (imgurMatch) {
+    return `https://i.imgur.com/${imgurMatch[1]}.png`;
+  }
+
+  // Imgur album/gallery link: https://imgur.com/a/xxxxx (can't convert, keep as-is)
+
+  // Google Drive: https://drive.google.com/file/d/{id}/view -> direct download link
+  const driveMatch = trimmed.match(/^https?:\/\/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (driveMatch) {
+    return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+  }
+
+  // Dropbox: change dl=0 to dl=1
+  if (trimmed.includes('dropbox.com') && trimmed.includes('dl=0')) {
+    return trimmed.replace('dl=0', 'raw=1');
+  }
+
+  return trimmed;
+}
+
 export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
   editingQuestion, setEditingQuestion, saveEditedQuestion
 }) => {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  const handleImageUrlChange = useCallback((rawUrl: string) => {
+    setImageError(false);
+    setImageLoaded(false);
+    const directUrl = convertToDirectImageUrl(rawUrl);
+    setEditingQuestion({ ...editingQuestion, imageUrl: directUrl });
+  }, [editingQuestion, setEditingQuestion]);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -74,10 +124,13 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
               <input
                 type="text"
                 value={editingQuestion.imageUrl || ''}
-                onChange={e => setEditingQuestion({ ...editingQuestion, imageUrl: e.target.value })}
+                onChange={e => handleImageUrlChange(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg p-3 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                placeholder="https://example.com/image.png"
+                placeholder="https://i.ibb.co/xxxxx/image.png"
               />
+              <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                <ExternalLink className="h-3 w-3" /> Dùng link trực tiếp đến ảnh (đuôi .jpg, .png, .webp). Link ibb.co, imgur sẽ tự chuyển đổi.
+              </p>
             </div>
           </div>
 
@@ -114,7 +167,26 @@ export const ExamQuestionEditModal: React.FC<ExamQuestionEditModalProps> = ({
           {editingQuestion.imageUrl && (
             <div className="mt-2 p-2 border rounded-lg bg-gray-50">
               <p className="text-xs text-gray-500 mb-1">Xem trước:</p>
-              <img src={editingQuestion.imageUrl} alt="Preview" className="h-32 object-contain rounded border bg-white" />
+              {imageError ? (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-red-700">Không tải được ảnh!</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Hãy dùng link ảnh trực tiếp (đuôi .jpg, .png, .webp). 
+                      Nếu dùng ibb.co, hãy bấm vào ảnh rồi copy link ảnh (chuột phải → "Copy image address").
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <img 
+                  src={editingQuestion.imageUrl} 
+                  alt="Preview" 
+                  className={`h-32 object-contain rounded border bg-white transition-opacity ${imageLoaded ? 'opacity-100' : 'opacity-30'}`}
+                  onLoad={() => setImageLoaded(true)} 
+                  onError={() => setImageError(true)} 
+                />
+              )}
             </div>
           )}
 

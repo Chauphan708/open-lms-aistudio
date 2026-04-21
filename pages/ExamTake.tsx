@@ -2133,9 +2133,19 @@ export const ExamTake: React.FC = () => {
                       <div className="mt-3 md:mt-4 overflow-hidden rounded-lg border border-gray-100 shadow-sm bg-gray-50 flex justify-center">
                         <img
                           src={q.imageUrl}
-                          alt="Question Image"
+                          alt="Ảnh minh họa câu hỏi"
                           className="max-h-[40vh] md:max-h-80 object-contain w-auto max-w-full"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
                         />
+                        <div className="hidden items-center gap-2 p-4 text-gray-400 text-sm italic" style={{ display: 'none' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                          Không tải được ảnh minh họa
+                        </div>
                       </div>
                     )}
                   </div>

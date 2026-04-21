@@ -76,7 +76,15 @@ export const ExamQuestionPreview: React.FC<ExamQuestionPreviewProps> = ({
                         </ReactMarkdown>
                       </div>
                       {q.imageUrl && (
-                        <img src={q.imageUrl} alt="Question" className="mt-3 max-w-full h-auto rounded-lg border border-gray-200 max-h-64 object-contain" />
+                        <img 
+                          src={q.imageUrl} 
+                          alt="Question" 
+                          className="mt-3 max-w-full h-auto rounded-lg border border-gray-200 max-h-64 object-contain" 
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
