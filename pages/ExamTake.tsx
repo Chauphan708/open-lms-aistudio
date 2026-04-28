@@ -144,10 +144,10 @@ const MCQMultipleQuestion = React.memo(({ question, answer, isSubmitted, onSetAn
 });
 
 const ShortAnswerQuestion = React.memo(({ question, answer, isSubmitted, onSetAnswer, viewPassFail }: any) => {
-  const sAns = String(answer || '').trim().toLowerCase();
+  const sAns = String(answer || '').trim().toLowerCase().replace(/\s+/g, '');
   const isCorrect = question.options && question.options.length > 0
-    ? question.options.some((opt: any) => String(opt).trim().toLowerCase() === sAns)
-    : sAns === String(question.solution || '').trim().toLowerCase();
+    ? question.options.some((opt: any) => String(opt).trim().toLowerCase().replace(/\s+/g, '') === sAns)
+    : sAns === String(question.solution || '').trim().toLowerCase().replace(/\s+/g, '');
 
   return (
     <div className="max-w-2xl">
@@ -1456,7 +1456,7 @@ export const ExamTake: React.FC = () => {
            console.log(`DEBUG: Q${idx + 1} MCQ_MULTIPLE INCORRECT. User: ${userArray}, Expected: ${correctArray}`);
         }
       } else if (q.type === 'SHORT_ANSWER') {
-        const sAns = String(userAns || '').trim().toLowerCase();
+        const sAns = String(userAns || '').trim().toLowerCase().replace(/\s+/g, '');
         
         // CẢI TIẾN: Chỉ so khớp với solution nếu nó ngắn (thường là đáp án ngắn), 
         // nếu solution dài dằng dặc thì đó là lời giải chi tiết, không dùng để chấm điểm tự động.
@@ -1465,8 +1465,8 @@ export const ExamTake: React.FC = () => {
         
         // So khớp với danh sách options (đáp án chấp nhận được) HOẶC solution (nếu nó ngắn)
         isCorrect = (q.options && q.options.length > 0)
-          ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
-          : (isSolutionShort && sAns === solString.toLowerCase());
+          ? q.options.some(opt => String(opt).trim().toLowerCase().replace(/\s+/g, '') === sAns)
+          : (isSolutionShort && sAns === solString.toLowerCase().replace(/\s+/g, ''));
 
         if (isCorrect) {
            console.log(`DEBUG: Q${idx + 1} SHORT_ANSWER CORRECT. User: "${sAns}"`);

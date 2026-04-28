@@ -399,13 +399,13 @@ export const ExamResults: React.FC = () => {
                                  if (q.type === 'MCQ') {
                                     isCorrect = userAns === q.correctOptionIndex;
                                  } else if (q.type === 'SHORT_ANSWER') {
-                                    const sAns = String(userAns || '').trim().toLowerCase();
+                                    const sAns = String(userAns || '').trim().toLowerCase().replace(/\s+/g, '');
                                     const solString = String(q.solution || '').trim();
                                     const isSolutionShort = solString !== '' && solString.split(/\s+/).length < 10;
 
                                     isCorrect = (q.options && q.options.length > 0)
-                                       ? q.options.some(opt => String(opt).trim().toLowerCase() === sAns)
-                                       : (isSolutionShort && sAns === solString.toLowerCase());
+                                       ? q.options.some(opt => String(opt).trim().toLowerCase().replace(/\s+/g, '') === sAns)
+                                       : (isSolutionShort && sAns === solString.toLowerCase().replace(/\s+/g, ''));
                                  } else if (['MATCHING', 'ORDERING', 'DRAG_DROP'].includes(q.type)) {
                                     if (Array.isArray(userAns) && userAns.length === q.options.length) {
                                        let isAllCorrect = true;
